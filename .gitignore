@@ -361,3 +361,59 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+
+###########################################################
+# Athena AI Trading Platform
+###########################################################
+
+# Python
+*.py[cod]
+*.pyo
+*.pyd
+.python-version
+
+# Virtual Environment
+.venv/
+venv/
+env/
+ENV/
+
+# Django
+db.sqlite3
+media/
+staticfiles/
+static_root/
+
+# Environment Variables
+.env
+.env.*
+
+# Python Cache
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Coverage
+.coverage
+coverage.xml
+htmlcov/
+
+# Logs
+logs/
+*.log
+
+# IDE
+.vscode/
+
+# Docker
+postgres_data/
+redis_data/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+desktop.ini
