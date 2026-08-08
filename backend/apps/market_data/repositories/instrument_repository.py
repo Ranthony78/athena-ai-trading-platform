@@ -1,9 +1,7 @@
 from typing import Optional
-
+from django.db import models
 from django.db.models import QuerySet
-
 from shared.repositories import BaseRepository
-
 from ..models import Instrument
 
 
@@ -14,11 +12,37 @@ class InstrumentRepository(BaseRepository[Instrument]):
 
     model = Instrument
 
+    # Internal short codes used throughout this app vs. the real name
+    # Zerodha's own data uses for the underlying instrument's row.
+    # Confirmed by direct query: NIFTY 50's real row has
+    # symbol="NIFTY 50" / trading_symbol="NIFTY 50", not "NIFTY" — its
+    # own option contracts use the short form "NIFTY", which is a real
+    # inconsistency in Zerodha's data model, not something we invented.
+    INDEX_SYMBOL_ALIASES = {
+        "NIFTY": "NIFTY 50",
+        "BANKNIFTY": "NIFTY BANK",
+        "FINNIFTY": "NIFTY FIN SERVICE",
+        "MIDCPNIFTY": "NIFTY MID SELECT",
+        "SENSEX": "SENSEX",
+    }
+
     @classmethod
     def get_by_symbol(cls, symbol: str) -> Optional[Instrument]:
-        """Return instrument by symbol (case-insensitive)."""
+        """
+        Return the underlying instrument by symbol (case-insensitive).
+        Resolves known short index codes (NIFTY, BANKNIFTY, etc.) to
+        their real Zerodha names first, then matches against both
+        `symbol` and `trading_symbol`. Explicitly excludes option/
+        futures contracts — every option row also carries its
+        underlying's short symbol, so without this exclusion thousands
+        of derivative rows are ambiguous candidates for a plain match.
+        """
+        real_name = cls.INDEX_SYMBOL_ALIASES.get(symbol.upper(), symbol)
         return cls.model.objects.filter(
-            symbol__iexact=symbol,
+            models.Q(symbol__iexact=real_name) | models.Q(trading_symbol__iexact=real_name),
+            option_type="",
+        ).exclude(
+            instrument_type="FUT",
         ).first()
 
     @classmethod
@@ -56,16 +80,26 @@ class InstrumentRepository(BaseRepository[Instrument]):
         cls,
         symbol: str,
         option_type: Optional[str] = None,
+        expiry=None,
     ) -> QuerySet[Instrument]:
-        """Return options for a given underlying symbol."""
+        """
+        Return options for a given underlying symbol, ordered by
+        expiry then strike. Ordering matters here — callers that
+        slice this queryset (e.g. get_option_chain's [:N] cap) need
+        the nearest, most relevant contracts first, not an arbitrary
+        DB-order slice across every expiry NIFTY has.
+        """
         queryset = cls.model.objects.filter(
             symbol__iexact=symbol,
             exchange="NFO",
             is_active=True,
-        ).exclude(option_type="")
+        ).exclude(option_type="").order_by("expiry", "strike")
 
         if option_type:
             queryset = queryset.filter(option_type__iexact=option_type)
+
+        if expiry:
+            queryset = queryset.filter(expiry=expiry)
 
         return queryset
 

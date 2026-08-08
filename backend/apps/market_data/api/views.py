@@ -10,12 +10,16 @@ from ..services.candle_service import CandleService
 from ..services.instrument_service import InstrumentService
 from ..services.market_service import MarketService
 from ..services.quote_service import QuoteService
+from ..services.option_chain_service import OptionChainService
+from ..services.outcome_stats_service import OutcomeStatsService
+from ..services.analysis_report_service import AnalysisReportService
 from .serializers import (
     BulkQuoteRequestSerializer,
     CandleSerializer,
     ExpirySerializer,
     InstrumentSerializer,
     OptionChainSerializer,
+    OptionChainSummarySerializer,
     QuoteSerializer,
 )
 
@@ -121,7 +125,7 @@ class QuoteListAPIView(APIView):
 
     def get(self, request):
         try:
-            service = QuoteService()
+            service = QuoteService(user=request.user)
             quotes = service.get_quotes(list(INDICES))
             serializer = QuoteSerializer(quotes, many=True)
             return ApiResponse.success(serializer.data)
@@ -140,7 +144,7 @@ class QuoteDetailAPIView(APIView):
 
     def get(self, request, symbol: str):
         try:
-            service = QuoteService()
+            service = QuoteService(user=request.user)
             quote = service.get_quote(symbol.upper())
 
             if not quote:
@@ -177,7 +181,7 @@ class BulkQuoteAPIView(APIView):
 
         try:
             symbols = serializer.validated_data["symbols"]
-            service = QuoteService()
+            service = QuoteService(user=request.user)
             quotes = service.get_quotes([s.upper() for s in symbols])
             response_serializer = QuoteSerializer(quotes, many=True)
             return ApiResponse.success(response_serializer.data)
@@ -265,20 +269,44 @@ class ExpiryListAPIView(APIView):
 class OptionChainAPIView(APIView):
     """
     GET /api/market/option-chain/<symbol>/
-    Return option chain for a given underlying symbol.
+    GET /api/market/option-chain/<symbol>/?expiry=YYYY-MM-DD
+    Return the analyzed option chain (real Greeks + IV) for one
+    expiry — nearest available if not specified.
     """
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request, symbol: str):
         try:
-            service = MarketService()
-            chain = service.option_chain(symbol.upper())
+            service = OptionChainService(user=request.user)
+            expiry = request.query_params.get("expiry")
+            chain = service.get_chain(symbol.upper(), expiry=expiry)
             serializer = OptionChainSerializer(chain, many=True)
             return ApiResponse.success(serializer.data)
         except Exception as e:
             logger.error(f"OptionChainAPIView error: {e}")
             return ApiResponse.error(message="Failed to fetch option chain.")
+
+
+class OptionChainSummaryAPIView(APIView):
+    """
+    GET /api/market/option-chain/<symbol>/summary/
+    GET /api/market/option-chain/<symbol>/summary/?expiry=YYYY-MM-DD
+    Return chain-level analytics: PCR, max pain, ATM strike, spot price.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, symbol: str):
+        try:
+            service = OptionChainService(user=request.user)
+            expiry = request.query_params.get("expiry")
+            summary = service.get_chain_summary(symbol.upper(), expiry=expiry)
+            serializer = OptionChainSummarySerializer(summary)
+            return ApiResponse.success(serializer.data)
+        except Exception as e:
+            logger.error(f"OptionChainSummaryAPIView error: {e}")
+            return ApiResponse.error(message="Failed to fetch option chain summary.")
 
 
 # ----------------------------------------------------------------------
@@ -426,3 +454,80 @@ class IndicatorAPIView(APIView):
         except Exception as e:
             logger.error(f"IndicatorAPIView error: {e}")
             return ApiResponse.error(message="Failed to calculate indicators.")
+
+
+class AnalysisReportAPIView(APIView):
+    """
+    GET /api/market/report/<symbol>/
+    Return the full Analysis Report payload: real price history + EMA
+    overlay, stats, support/resistance, multi-timeframe trend, ATM
+    options, and the last AI Analysis run — the "fixed block" report
+    view, symbol-only, no timeframe picker.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, symbol: str):
+        try:
+            data = AnalysisReportService.get_report(symbol.upper(), user=request.user)
+            return ApiResponse.success(data=data)
+        except Exception as e:
+            logger.error(f"AnalysisReportAPIView error: {e}")
+            return ApiResponse.error(message="Failed to generate analysis report.")
+
+
+# ----------------------------------------------------------------------
+# Step 6 — Outcome Tracking Stats
+# ----------------------------------------------------------------------
+
+class OutcomeStatsSummaryAPIView(APIView):
+    """
+    GET /api/market/outcomes/summary/
+    Overall win-rate summary for AI and Strategy signals — open count,
+    resolved wins/losses/win_rate, breakdowns by outcome_status and
+    product (MIS/NRML). Scoped to the requesting user's own signals.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            data = OutcomeStatsService.get_summary(user=request.user)
+            return ApiResponse.success(data=data)
+        except Exception as e:
+            logger.error(f"OutcomeStatsSummaryAPIView error: {e}")
+            return ApiResponse.error(message="Failed to fetch outcome stats.")
+
+
+class OutcomeStatsByStrategyAPIView(APIView):
+    """
+    GET /api/market/outcomes/by-strategy/
+    Win rate per strategy (StrategySignal only).
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            data = OutcomeStatsService.get_by_strategy(user=request.user)
+            return ApiResponse.success(data=data)
+        except Exception as e:
+            logger.error(f"OutcomeStatsByStrategyAPIView error: {e}")
+            return ApiResponse.error(message="Failed to fetch strategy outcome stats.")
+
+
+class OutcomeStatsBySymbolAPIView(APIView):
+    """
+    GET /api/market/outcomes/by-symbol/
+    Win rate per underlying symbol, combining AI and Strategy signals.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            data = OutcomeStatsService.get_by_symbol(user=request.user)
+            return ApiResponse.success(data=data)
+        except Exception as e:
+            logger.error(f"OutcomeStatsBySymbolAPIView error: {e}")
+            return ApiResponse.error(message="Failed to fetch symbol outcome stats.")

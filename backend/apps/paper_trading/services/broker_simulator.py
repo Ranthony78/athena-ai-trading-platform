@@ -18,8 +18,8 @@ class BrokerSimulator:
     Uses live/mock quotes to determine execution price.
     """
 
-    def __init__(self) -> None:
-        self.provider = ProviderFactory.get_provider()
+    def __init__(self, user=None) -> None:
+        self.provider = ProviderFactory.get_provider(user=user)
 
     def get_execution_price(self, symbol: str, order_type: str) -> Decimal:
         """

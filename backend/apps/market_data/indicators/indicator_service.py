@@ -65,8 +65,9 @@ class IndicatorService:
                 "low",
                 "close",
                 "volume",
-            ).order_by("candle_time")
+            )
         )
+        candle_list.reverse()
 
         df = pd.DataFrame(candle_list)
         df["candle_time"] = pd.to_datetime(df["candle_time"])

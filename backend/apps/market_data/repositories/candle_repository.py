@@ -1,9 +1,6 @@
 from typing import Optional
-
 from django.db.models import QuerySet
-
 from shared.repositories import BaseRepository
-
 from ..models import Candle, Instrument
 
 
@@ -34,9 +31,27 @@ class CandleRepository(BaseRepository[Candle]):
         timeframe: str,
         limit: int = 100,
     ) -> QuerySet[Candle]:
-        """Return candles by symbol string + timeframe."""
+        """
+        Return candles by symbol string + timeframe.
+
+        Resolves through InstrumentRepository.get_by_symbol() rather
+        than matching instrument__symbol directly — a raw symbol match
+        is ambiguous (every option contract also carries its
+        underlying's short symbol, e.g. "NIFTY"), and for known index
+        aliases (NIFTY -> "NIFTY 50" etc.) a raw match against the
+        real underlying's own symbol field would silently miss it
+        entirely. This was the same class of bug already found and
+        fixed in get_by_symbol itself — this method just wasn't
+        routed through it.
+        """
+        from .instrument_repository import InstrumentRepository
+
+        instrument = InstrumentRepository.get_by_symbol(symbol)
+        if not instrument:
+            return cls.model.objects.none()
+
         return cls.model.objects.filter(
-            instrument__symbol__iexact=symbol,
+            instrument=instrument,
             timeframe=timeframe,
         ).select_related("instrument").order_by("-candle_time")[:limit]
 

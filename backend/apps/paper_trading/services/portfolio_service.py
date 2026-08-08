@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from ..repositories.paper_repository import (
     PaperAccountRepository,
+    PaperOrderRepository,
     PaperPositionRepository,
     PaperTradeRepository,
 )
@@ -39,6 +40,9 @@ class PortfolioService:
                 "today_pnl": float(account.today_pnl),
                 "total_return_pct": account.total_return_pct,
                 "win_rate": account.win_rate,
+                "total_trades": account.total_trades,
+                "winning_trades": account.winning_trades,
+                "losing_trades": account.losing_trades,
             },
             "positions": {
                 "open_count": positions.count(),
@@ -51,15 +55,15 @@ class PortfolioService:
     def reset_account(user) -> dict:
         """
         Reset paper trading account to initial state.
-        Closes all positions and resets balance.
+        Deletes all orders, positions, and trade history, and resets
+        the account's balance and stats back to their starting values.
         """
         account, _ = PaperAccountRepository.get_or_create_for_user(user)
 
-        # Close all open positions
-        PaperPositionRepository.filter(
-            account=account,
-            is_open=True,
-        ).update(is_open=False)
+        # Delete all orders, positions, and trades — not just close them.
+        PaperOrderRepository.delete_all_for_account(account)
+        PaperPositionRepository.delete_all_for_account(account)
+        PaperTradeRepository.delete_all_for_account(account)
 
         # Reset account
         account.balance = account.initial_balance

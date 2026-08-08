@@ -1,4 +1,5 @@
 import logging
+import math
 from datetime import datetime
 
 from django.utils import timezone
@@ -17,14 +18,35 @@ from .prompt_service import PromptService
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_for_json(value):
+    """
+    Recursively replace non-finite floats (NaN, Infinity, -Infinity)
+    with None. Python's json.dumps() happily serializes these as
+    literal tokens, but they aren't valid per the JSON spec — SQLite's
+    strict JSON_VALID() check correctly rejects them, which is what
+    was failing here. None is the honest choice: it means "this
+    specific value couldn't be computed," matching the project's
+    real-data-or-NA principle, rather than fabricating a placeholder
+    number.
+    """
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    if isinstance(value, dict):
+        return {k: _sanitize_for_json(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_sanitize_for_json(v) for v in value]
+    return value
+
+
 class AnalysisService:
     """
     Orchestrates the full AI analysis pipeline.
     Builds prompt → calls AI → parses response → persists session + signal.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, user=None) -> None:
         self.ai_service = AIService()
+        self.user = user
 
     # ------------------------------------------------------------------
     # Main entry point
@@ -66,6 +88,7 @@ class AnalysisService:
             user_prompt, market_context = PromptService.build_market_analysis_prompt(
                 symbol=symbol,
                 timeframe=timeframe,
+                user=self.user,
             )
 
             # Get system prompt
@@ -76,7 +99,7 @@ class AnalysisService:
                 else PromptService.DEFAULT_SYSTEM_PROMPT
             )
             model = template.model if template else "claude-sonnet-4-6"
-            max_tokens = template.max_tokens if template else 2000
+            max_tokens = template.max_tokens if template else 4000
 
             # Call AI
             result = self.ai_service.complete(
@@ -91,7 +114,7 @@ class AnalysisService:
             # Update session
             if persist and session:
                 session.status = "COMPLETE"
-                session.market_context = market_context
+                session.market_context = _sanitize_for_json(market_context)
                 session.prompt_used = user_prompt
                 session.ai_response = result["content"]
                 session.parsed_output = parsed
@@ -163,10 +186,30 @@ class AnalysisService:
         else:
             confidence_level = "LOW"
 
-        return AISignal.objects.create(
+        signal_type = parsed.get("signal", "NO_SETUP")
+
+        # Step 3: attach a real option contract for directional signals
+        # (BUY/SELL). Returns None for WATCH, or if the option chain
+        # isn't available (e.g. no user, or NFO data missing) — the
+        # signal is still saved either way, just without a contract.
+        option_data = None
+        try:
+            from apps.market_data.services.strike_selection_service import (
+                StrikeSelectionService,
+            )
+            option_data = StrikeSelectionService.select_for_signal(
+                symbol=instrument.symbol,
+                direction=signal_type,
+                user=self.user,
+            )
+        except Exception as e:
+            logger.error(f"AnalysisService strike selection error: {e}")
+
+        signal_kwargs = dict(
             session=session,
             instrument=instrument,
-            signal=parsed.get("signal", "NO_SETUP"),
+            user=self.user,
+            signal=signal_type,
             confidence=confidence_level,
             confidence_score=confidence_score,
             price_at_signal=parsed.get("price"),
@@ -177,6 +220,15 @@ class AnalysisService:
             risks=parsed.get("risks", []),
             signal_time=timezone.now(),
         )
+
+        if option_data:
+            from apps.market_data.models import Instrument
+            signal_kwargs["option_instrument"] = Instrument.objects.filter(
+                id=option_data["instrument_id"]
+            ).first()
+            signal_kwargs["entry_premium"] = option_data["entry_premium"]
+
+        return AISignal.objects.create(**signal_kwargs)
 
     # ------------------------------------------------------------------
     # History

@@ -59,10 +59,12 @@ class PositionService:
                 tag=tag,
             )
 
-            # Reserve margin
+            # Reserve margin. Note: balance is intentionally NOT reduced
+            # here — used_margin alone tracks what's locked, so that
+            # available_balance (= balance - used_margin) is correct
+            # rather than double-counting the same margin.
             margin = execution_price * quantity
             account.used_margin += margin
-            account.balance -= margin
             account.save()
 
             return position
@@ -119,10 +121,13 @@ class PositionService:
                 existing.realized_pnl = pnl
                 existing.save()
 
-                # Update account
+                # Update account. balance was never reduced by margin at
+                # open time (see the open-position branch above), so
+                # only the realized net P&L is added back here — adding
+                # margin too would double-count it in the other direction.
                 margin = existing.average_price * existing.quantity
                 account.used_margin -= margin
-                account.balance += margin + net_pnl
+                account.balance += net_pnl
                 account.total_pnl += net_pnl
                 account.today_pnl += net_pnl
                 account.total_trades += 1
@@ -171,7 +176,7 @@ class PositionService:
         """
         from apps.market_data.providers.provider_factory import ProviderFactory
 
-        provider = ProviderFactory.get_provider()
+        provider = ProviderFactory.get_provider(user=account.user)
         positions = PaperPositionRepository.get_open_positions(account)
 
         for position in positions:

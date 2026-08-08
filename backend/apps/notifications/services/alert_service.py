@@ -21,8 +21,8 @@ class AlertService:
     Checks alert conditions against live market data.
     """
 
-    def __init__(self) -> None:
-        self.provider = ProviderFactory.get_provider()
+    def __init__(self, user=None) -> None:
+        self.provider = ProviderFactory.get_provider(user=user)
 
     # ------------------------------------------------------------------
     # Alert CRUD

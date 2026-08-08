@@ -43,6 +43,7 @@ class StrategyEngine:
         strategy: Strategy,
         symbol: str,
         persist: bool = True,
+        user=None,
     ) -> SignalResult | None:
         """
         Evaluate a strategy against the latest candle data for a symbol.
@@ -51,6 +52,10 @@ class StrategyEngine:
             strategy: Strategy model instance
             symbol:   Instrument symbol
             persist:  If True, save signal to DB
+            user:     Required to attach a real option contract to a
+                persisted signal (Step 3). If omitted, the signal is
+                still saved, just without a contract — same graceful
+                degradation as everywhere else this pattern is used.
 
         Returns:
             SignalResult or None if evaluation failed
@@ -90,8 +95,9 @@ class StrategyEngine:
         candle_list = list(
             candles.values(
                 "candle_time", "open", "high", "low", "close", "volume"
-            ).order_by("candle_time")
+            )
         )
+        candle_list.reverse()
 
         df = pd.DataFrame(candle_list)
         df["candle_time"] = pd.to_datetime(df["candle_time"])
@@ -126,6 +132,7 @@ class StrategyEngine:
                 instrument=instrument,
                 result=result,
                 timeframe=strategy.timeframe,
+                user=user,
             )
 
         return result
@@ -139,6 +146,7 @@ class StrategyEngine:
         cls,
         symbols: list[str],
         persist: bool = True,
+        user=None,
     ) -> dict[str, list[dict]]:
         """
         Run all enabled strategies against a list of symbols.
@@ -157,6 +165,7 @@ class StrategyEngine:
                     strategy=strategy,
                     symbol=symbol,
                     persist=persist,
+                    user=user,
                 )
                 if result:
                     results[symbol].append({
@@ -185,11 +194,28 @@ class StrategyEngine:
         instrument,
         result: SignalResult,
         timeframe: str,
+        user=None,
     ) -> StrategySignal:
         """Save a SignalResult to the database."""
-        return StrategySignal.objects.create(
+
+        # Step 3: attach a real option contract for directional signals.
+        option_data = None
+        try:
+            from apps.market_data.services.strike_selection_service import (
+                StrikeSelectionService,
+            )
+            option_data = StrikeSelectionService.select_for_signal(
+                symbol=instrument.symbol,
+                direction=result.signal,
+                user=user,
+            )
+        except Exception as e:
+            logger.error(f"StrategyEngine strike selection error: {e}")
+
+        signal_kwargs = dict(
             strategy=strategy,
             instrument=instrument,
+            user=user,
             signal=result.signal,
             strength=result.strength,
             status="ACTIVE",
@@ -201,3 +227,12 @@ class StrategyEngine:
             context=result.context,
             notes=result.notes,
         )
+
+        if option_data:
+            from apps.market_data.models import Instrument
+            signal_kwargs["option_instrument"] = Instrument.objects.filter(
+                id=option_data["instrument_id"]
+            ).first()
+            signal_kwargs["entry_premium"] = option_data["entry_premium"]
+
+        return StrategySignal.objects.create(**signal_kwargs)

@@ -42,7 +42,7 @@ class AnalysisRunAPIView(APIView):
             )
 
         try:
-            service = AnalysisService()
+            service = AnalysisService(user=request.user)
             result = service.analyze(
                 symbol=serializer.validated_data["symbol"].upper(),
                 timeframe=serializer.validated_data["timeframe"],

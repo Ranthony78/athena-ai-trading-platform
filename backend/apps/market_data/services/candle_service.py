@@ -14,8 +14,8 @@ class CandleService:
     Coordinates between the provider and candle repository.
     """
 
-    def __init__(self) -> None:
-        self.provider = ProviderFactory.get_provider()
+    def __init__(self, user=None) -> None:
+        self.provider = ProviderFactory.get_provider(user=user)
 
     # ------------------------------------------------------------------
     # Fetch from Provider

@@ -60,6 +60,11 @@ class PaperOrderRepository(BaseRepository[PaperOrder]):
             order_time__date=today,
         ).select_related("instrument").order_by("-order_time")
 
+    @classmethod
+    def delete_all_for_account(cls, account) -> int:
+        """Delete all orders for an account. Used by account reset."""
+        deleted, _ = cls.model.objects.filter(account=account).delete()
+        return deleted
 
 class PaperPositionRepository(BaseRepository[PaperPosition]):
 
@@ -89,6 +94,11 @@ class PaperPositionRepository(BaseRepository[PaperPosition]):
             is_open=True,
         ).first()
 
+    @classmethod
+    def delete_all_for_account(cls, account) -> int:
+        """Delete all positions for an account. Used by account reset."""
+        deleted, _ = cls.model.objects.filter(account=account).delete()
+        return deleted
 
 class PaperTradeRepository(BaseRepository[PaperTrade]):
 
@@ -144,3 +154,9 @@ class PaperTradeRepository(BaseRepository[PaperTrade]):
             "total_pnl": float(total_pnl),
             "avg_pnl": round(float(total_pnl) / total, 2),
         }
+
+    @classmethod
+    def delete_all_for_account(cls, account) -> int:
+        """Delete all trade records for an account. Used by account reset."""
+        deleted, _ = cls.model.objects.filter(account=account).delete()
+        return deleted

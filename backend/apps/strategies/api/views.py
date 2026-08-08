@@ -106,6 +106,7 @@ class StrategyRunAPIView(APIView):
             result = StrategyService.run_strategy(
                 strategy_id=serializer.validated_data["strategy_id"],
                 symbol=serializer.validated_data["symbol"].upper(),
+                user=request.user,
             )
             if not result:
                 return ApiResponse.error(
@@ -139,7 +140,7 @@ class StrategyRunAllAPIView(APIView):
             )
         try:
             symbols = [s.upper() for s in serializer.validated_data["symbols"]]
-            results = StrategyService.run_all(symbols)
+            results = StrategyService.run_all(symbols, user=request.user)
             return ApiResponse.success(data=results)
         except Exception as e:
             logger.error(f"StrategyRunAllAPIView error: {e}")

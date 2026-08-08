@@ -2,29 +2,55 @@ from datetime import datetime
 
 from .base_provider import BaseMarketProvider
 
+# Approximate relative price levels per instrument, for realistic-looking
+# mock data. These are illustrative only — not live prices. Adjust as
+# needed; the point is that instruments no longer look identical.
+MOCK_BASE_PRICES = {
+    "NIFTY": 24500.00,
+    "NIFTY50": 24500.00,
+    "BANKNIFTY": 52000.00,
+    "FINNIFTY": 23500.00,
+    "MIDCPNIFTY": 13000.00,
+    "SENSEX": 80500.00,
+}
+
+DEFAULT_BASE_PRICE = 1000.00
+
 
 class MockMarketProvider(BaseMarketProvider):
     """
     Mock market data provider for development and testing.
-    Returns static dummy data — no real API calls.
+    Returns static, symbol-aware dummy data — no real API calls.
+
+    Prices are deterministic (not random) so tests relying on this
+    provider stay stable across runs. They are NOT live prices.
     """
 
     def get_quote(self, symbol: str) -> dict:
-        """Return a static mock quote for any symbol."""
+        """Return a static mock quote scaled to the given symbol."""
+        base = MOCK_BASE_PRICES.get(symbol.upper(), DEFAULT_BASE_PRICE)
+
+        open_price = round(base * 0.994, 2)
+        high_price = round(base * 1.004, 2)
+        low_price = round(base * 0.988, 2)
+        close_price = round(base * 0.996, 2)
+        change = round(base - close_price, 2)
+        change_percent = round((change / close_price) * 100, 2) if close_price else 0.0
+
         return {
             "symbol": symbol,
-            "ltp": 24500.00,
-            "open": 24350.00,
-            "high": 24600.00,
-            "low": 24300.00,
-            "close": 24400.00,
-            "change": 100.00,
-            "change_percent": 0.41,
+            "ltp": base,
+            "open": open_price,
+            "high": high_price,
+            "low": low_price,
+            "close": close_price,
+            "change": change,
+            "change_percent": change_percent,
             "volume": 1254870,
             "oi": 0,
-            "bid": 24499.00,
-            "ask": 24501.00,
-            "timestamp": datetime.now(),
+            "bid": round(base - 1, 2),
+            "ask": round(base + 1, 2),
+            "timestamp": datetime.now().isoformat(),
         }
 
     def get_quotes(self, symbols: list[str]) -> list[dict]:
@@ -41,6 +67,6 @@ class MockMarketProvider(BaseMarketProvider):
         """Return empty historical data in mock mode."""
         return []
 
-    def get_option_chain(self, symbol: str) -> list[dict]:
+    def get_option_chain(self, symbol: str, expiry=None) -> list[dict]:
         """Return empty option chain in mock mode."""
         return []
