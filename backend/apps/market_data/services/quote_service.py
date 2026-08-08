@@ -12,8 +12,8 @@ class QuoteService:
     Coordinates between the market data provider and the quote repository.
     """
 
-    def __init__(self) -> None:
-        self.provider = ProviderFactory.get_provider()
+    def __init__(self, user=None) -> None:
+        self.provider = ProviderFactory.get_provider(user=user)
 
     # ------------------------------------------------------------------
     # Live Quotes (from provider)

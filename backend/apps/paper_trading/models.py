@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django.db import models
 from django.contrib.auth import get_user_model
 
@@ -22,13 +23,13 @@ class PaperAccount(BaseModel):
     balance = models.DecimalField(
         max_digits=15,
         decimal_places=2,
-        default=1000000.00,
+        default=Decimal("1000000.00"),
         help_text="Available cash balance.",
     )
     initial_balance = models.DecimalField(
         max_digits=15,
         decimal_places=2,
-        default=1000000.00,
+        default=Decimal("1000000.00"),
     )
     used_margin = models.DecimalField(
         max_digits=15,

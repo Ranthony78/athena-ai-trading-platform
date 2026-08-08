@@ -10,6 +10,16 @@ from .base_ai_provider import BaseAIProvider
 logger = logging.getLogger(__name__)
 
 
+class ClaudeAPIError(Exception):
+    """Raised when the Claude API returns an error response.
+    Carries the actual message from Anthropic, not just the generic
+    HTTP status text, so callers (and end users) see what really went
+    wrong — e.g. 'Your credit balance is too low...' instead of a bare
+    '400 Bad Request'.
+    """
+    pass
+
+
 class ClaudeProvider(BaseAIProvider):
     """
     Anthropic Claude AI provider.
@@ -84,10 +94,29 @@ class ClaudeProvider(BaseAIProvider):
 
         except httpx.HTTPStatusError as e:
             logger.error(f"Claude API HTTP error: {e.response.status_code} — {e.response.text}")
-            raise
-        except httpx.TimeoutException:
+
+            # Extract Anthropic's actual error message from the response
+            # body so it can propagate to the caller (and eventually the
+            # UI) instead of the generic httpx status text.
+            message = f"Claude API request failed with status {e.response.status_code}."
+            try:
+                body = e.response.json()
+                api_message = body.get("error", {}).get("message")
+                if api_message:
+                    message = api_message
+            except Exception:
+                # Response wasn't JSON — fall back to raw text if present
+                if e.response.text:
+                    message = e.response.text
+
+            raise ClaudeAPIError(message) from e
+
+        except httpx.TimeoutException as e:
             logger.error("Claude API timeout.")
-            raise
+            raise ClaudeAPIError(
+                "The Claude API did not respond in time. Please try again."
+            ) from e
+
         except Exception as e:
             logger.error(f"Claude API error: {e}")
             raise

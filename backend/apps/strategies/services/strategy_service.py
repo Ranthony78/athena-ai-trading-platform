@@ -74,6 +74,7 @@ class StrategyService:
     def run_strategy(
         strategy_id: int,
         symbol: str,
+        user=None,
     ) -> Optional[dict]:
         """Run a single strategy against a symbol."""
         strategy = StrategyRepository.get_by_id(strategy_id)
@@ -84,6 +85,7 @@ class StrategyService:
             strategy=strategy,
             symbol=symbol,
             persist=True,
+            user=user,
         )
 
         if not result:
@@ -102,6 +104,6 @@ class StrategyService:
         }
 
     @staticmethod
-    def run_all(symbols: list[str]) -> dict:
+    def run_all(symbols: list[str], user=None) -> dict:
         """Run all enabled strategies against symbols."""
-        return StrategyEngine.run_all(symbols=symbols, persist=True)
+        return StrategyEngine.run_all(symbols=symbols, persist=True, user=user)

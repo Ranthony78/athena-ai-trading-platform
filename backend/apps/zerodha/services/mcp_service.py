@@ -11,12 +11,35 @@ logger = logging.getLogger(__name__)
 
 class ZerodhaKiteMCPService:
     """
-    Zerodha Kite MCP (Model Context Protocol) Service.
-    Integrates with the Zerodha MCP server at mcp.kite.trade.
+    Zerodha Kite integration service.
 
-    This is the primary integration point for live data in Sprint 20.
-    The MCP server exposes Zerodha Kite tools via the MCP protocol.
+    IMPORTANT: despite the class name (kept for naming-convention
+    continuity — see note below), this talks to Kite Connect's real
+    REST API (https://api.kite.trade), NOT the free hosted MCP server
+    at mcp.kite.trade. Those are two separate, incompatible systems:
+
+    - mcp.kite.trade: free, no API key needed, but uses its own
+      session mechanism that does NOT accept a standard Kite Connect
+      access token. Meant for direct AI-assistant use, not for
+      powering a separate application like this one.
+    - api.kite.trade: the traditional, paid Kite Connect Developer
+      API (api_key + api_secret from a Kite Connect app you create
+      and subscribe to). This is what this app's login flow
+      (auth_service.py) actually obtains a token for, so this is
+      the correct API to call with that token.
+
+    DATA methods below (quotes, funds, profile, historical data,
+    positions, holdings) call the real Kite Connect REST API.
+
+    ORDER methods (place_order, modify_order, cancel_order, get_orders,
+    get_order_history, GTT methods) are UNCHANGED from the original
+    MCP-based implementation and still point at self.mcp_url. They are
+    intentionally left as-is and not used by this application's data
+    features — order placement/execution is out of scope by design.
     """
+
+    KITE_API_URL = "https://api.kite.trade"
+    KITE_VERSION = "3"
 
     def __init__(self, user) -> None:
         self.user = user
@@ -29,8 +52,12 @@ class ZerodhaKiteMCPService:
         self.access_token = self.config.access_token
         self.api_key = self.config.api_key
 
+    # ------------------------------------------------------------------
+    # Legacy MCP call path — UNCHANGED, used only by order methods below
+    # ------------------------------------------------------------------
+
     def _headers(self) -> dict:
-        """Build MCP request headers."""
+        """Build MCP request headers (legacy — order methods only)."""
         return {
             "Content-Type": "application/json",
             "Authorization": f"token {self.api_key}:{self.access_token}",
@@ -42,14 +69,9 @@ class ZerodhaKiteMCPService:
         params: dict = None,
     ) -> dict:
         """
-        Call a Zerodha MCP tool.
-
-        Args:
-            tool:   MCP tool name e.g. 'get_quote', 'get_holdings'
-            params: Tool parameters
-
-        Returns:
-            Tool response dict
+        Call a Zerodha MCP tool. UNCHANGED — legacy path used only by
+        order-related methods below, which are not touched or used by
+        this application's data features.
         """
         if not self.config.is_token_valid:
             raise ValueError(
@@ -86,49 +108,124 @@ class ZerodhaKiteMCPService:
             raise
 
     # ------------------------------------------------------------------
-    # Profile & Funds
+    # Real Kite Connect REST client — used by data methods below
+    # ------------------------------------------------------------------
+
+    def _kite_headers(self) -> dict:
+        """Build real Kite Connect REST API headers."""
+        return {
+            "X-Kite-Version": self.KITE_VERSION,
+            "Authorization": f"token {self.api_key}:{self.access_token}",
+        }
+
+    def _kite_get(self, path: str, params: dict = None) -> dict:
+        """
+        Call a real Kite Connect REST GET endpoint.
+
+        Args:
+            path:   endpoint path, e.g. '/quote', '/user/margins'
+            params: query parameters (lists are sent as repeated keys,
+                    matching Kite's expected format for e.g. ?i=A&i=B)
+
+        Returns:
+            The 'data' payload from Kite's {"status": "success",
+            "data": {...}} response envelope.
+        """
+        if not self.config.is_token_valid:
+            raise ValueError(
+                "Zerodha access token is invalid or expired. "
+                "Please login again."
+            )
+
+        url = f"{self.KITE_API_URL}{path}"
+
+        try:
+            with httpx.Client(timeout=30.0) as client:
+                response = client.get(
+                    url,
+                    headers=self._kite_headers(),
+                    params=params or {},
+                )
+                response.raise_for_status()
+                body = response.json()
+
+            if body.get("status") != "success":
+                raise ValueError(
+                    f"Kite API error: {body.get('message', 'Unknown error')}"
+                )
+
+            return body.get("data", {})
+
+        except httpx.HTTPStatusError as e:
+            logger.error(
+                f"Kite Connect HTTP error [{path}]: "
+                f"{e.response.status_code} — {e.response.text}"
+            )
+            raise
+        except httpx.TimeoutException:
+            logger.error(f"Kite Connect timeout [{path}]")
+            raise
+        except Exception as e:
+            logger.error(f"Kite Connect error [{path}]: {e}")
+            raise
+
+    # ------------------------------------------------------------------
+    # Profile & Funds (real Kite Connect REST API)
     # ------------------------------------------------------------------
 
     def get_profile(self) -> dict:
         """Fetch Zerodha user profile."""
-        return self._call("get_profile")
+        return self._kite_get("/user/profile")
 
     def get_funds(self) -> dict:
-        """Fetch available funds and margins."""
-        return self._call("get_margins")
-
-    # ------------------------------------------------------------------
-    # Quotes
-    # ------------------------------------------------------------------
-
-    def get_quote(self, symbol: str) -> dict:
         """
-        Fetch live quote for a symbol.
-        Maps to Zerodha's get_ltp or get_quotes tool.
+        Fetch available funds and margins.
+        Returns {"equity": {"available": {...}, "utilised": {...},
+        "net": ...}, "commodity": {...}} — the real Kite Connect shape.
         """
-        return self._call(
-            "get_ltp",
-            {"instruments": [f"NSE:{symbol}"]},
-        )
-
-    def get_quotes(self, symbols: list[str]) -> list[dict]:
-        """Fetch live quotes for multiple symbols."""
-        instruments = [f"NSE:{s}" for s in symbols]
-        return self._call(
-            "get_quotes",
-            {"instruments": instruments},
-        )
-
-    def get_ohlc(self, symbols: list[str]) -> dict:
-        """Fetch OHLC data for symbols."""
-        instruments = [f"NSE:{s}" for s in symbols]
-        return self._call(
-            "get_ohlc",
-            {"instruments": instruments},
-        )
+        return self._kite_get("/user/margins")
 
     # ------------------------------------------------------------------
-    # Historical Data
+    # Quotes (real Kite Connect REST API)
+    # ------------------------------------------------------------------
+
+    def get_quote(self, exchange_symbol: str) -> dict:
+        """
+        Fetch a full live quote for one instrument.
+
+        Args:
+            exchange_symbol: full "EXCHANGE:TRADINGSYMBOL" string,
+                e.g. "NSE:NIFTY 50", "BSE:SENSEX". Callers are
+                responsible for resolving the correct real Kite
+                trading symbol before calling this (see
+                ZerodhaProvider, which does this resolution).
+
+        Returns:
+            The single instrument's quote dict (last_price, ohlc,
+            volume, oi, depth, etc.), or {} if not found.
+        """
+        data = self._kite_get("/quote", params={"i": [exchange_symbol]})
+        return data.get(exchange_symbol, {})
+
+    def get_quotes(self, exchange_symbols: list[str]) -> dict:
+        """
+        Fetch full live quotes for multiple instruments.
+
+        Args:
+            exchange_symbols: list of "EXCHANGE:TRADINGSYMBOL" strings.
+
+        Returns:
+            Dict keyed by exchange_symbol, matching Kite's response
+            shape directly.
+        """
+        return self._kite_get("/quote", params={"i": exchange_symbols})
+
+    def get_ohlc(self, exchange_symbols: list[str]) -> dict:
+        """Fetch OHLC + LTP snapshots for multiple instruments."""
+        return self._kite_get("/quote/ohlc", params={"i": exchange_symbols})
+
+    # ------------------------------------------------------------------
+    # Historical Data (real Kite Connect REST API)
     # ------------------------------------------------------------------
 
     def get_historical_data(
@@ -139,26 +236,68 @@ class ZerodhaKiteMCPService:
         to_date: str,
     ) -> list[dict]:
         """
-        Fetch historical OHLCV candles from Zerodha.
+        Fetch historical OHLCV candles from Kite Connect.
 
         Args:
             instrument_token: Zerodha instrument token
             interval:         '5minute', '15minute', 'day' etc.
             from_date:        'YYYY-MM-DD'
             to_date:          'YYYY-MM-DD'
+
+        Returns:
+            List of [timestamp, open, high, low, close, volume] rows,
+            matching Kite Connect's real response shape.
         """
-        return self._call(
-            "get_historical_data",
-            {
-                "instrument_token": instrument_token,
-                "interval": interval,
-                "from": from_date,
-                "to": to_date,
-            },
+        data = self._kite_get(
+            f"/instruments/historical/{instrument_token}/{interval}",
+            params={"from": from_date, "to": to_date},
         )
+        return data.get("candles", [])
 
     # ------------------------------------------------------------------
-    # Orders
+    # Positions & Holdings (real Kite Connect REST API)
+    # ------------------------------------------------------------------
+
+    def get_positions(self) -> dict:
+        """Fetch current positions (day + net)."""
+        return self._kite_get("/portfolio/positions")
+
+    def get_holdings(self) -> list[dict]:
+        """Fetch long-term holdings."""
+        return self._kite_get("/portfolio/holdings")
+
+    def get_instruments_csv(self, exchange: str = None) -> str:
+        """
+        Fetch the raw instruments dump CSV from Kite Connect.
+
+        Unlike every other endpoint here, this returns plain CSV text,
+        not the usual {"status": "success", "data": {...}} JSON
+        envelope — so it can't go through _kite_get().
+
+        Args:
+            exchange: optional, e.g. "NFO". If omitted, returns the
+                full dump across all exchanges (large — tens of MB).
+
+        Returns:
+            Raw CSV text, ready to write straight to a file.
+        """
+        if not self.config.is_token_valid:
+            raise ValueError(
+                "Zerodha access token is invalid or expired. "
+                "Please login again."
+            )
+
+        path = f"/instruments/{exchange}" if exchange else "/instruments"
+        url = f"{self.KITE_API_URL}{path}"
+
+        with httpx.Client(timeout=60.0) as client:
+            response = client.get(url, headers=self._kite_headers())
+            response.raise_for_status()
+            return response.text
+
+    # ------------------------------------------------------------------
+    # Orders — UNCHANGED, legacy MCP path, not used by this app's
+    # data features. Left exactly as originally written.
     # ------------------------------------------------------------------
 
     def get_orders(self) -> list[dict]:
@@ -238,19 +377,7 @@ class ZerodhaKiteMCPService:
         return self._call("modify_order", params)
 
     # ------------------------------------------------------------------
-    # Positions & Holdings
-    # ------------------------------------------------------------------
-
-    def get_positions(self) -> dict:
-        """Fetch current positions (day + net)."""
-        return self._call("get_positions")
-
-    def get_holdings(self) -> list[dict]:
-        """Fetch long-term holdings."""
-        return self._call("get_holdings")
-
-    # ------------------------------------------------------------------
-    # GTT Orders
+    # GTT Orders — UNCHANGED, legacy MCP path
     # ------------------------------------------------------------------
 
     def get_gtts(self) -> list[dict]:

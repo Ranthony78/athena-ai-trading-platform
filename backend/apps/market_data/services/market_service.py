@@ -9,8 +9,8 @@ class MarketService:
     New features should use InstrumentService, QuoteService, CandleService.
     """
 
-    def __init__(self) -> None:
-        self.provider = ProviderFactory.get_provider()
+    def __init__(self, user=None) -> None:
+        self.provider = ProviderFactory.get_provider(user=user)
 
     # ------------------------------------------------------------------
     # Instrument (delegates to InstrumentRepository)
@@ -57,6 +57,6 @@ class MarketService:
             to_date=to_date,
         )
 
-    def option_chain(self, symbol: str) -> list[dict]:
+    def option_chain(self, symbol: str, expiry=None) -> list[dict]:
         """Fetch option chain from provider."""
-        return self.provider.get_option_chain(symbol)
+        return self.provider.get_option_chain(symbol, expiry=expiry)

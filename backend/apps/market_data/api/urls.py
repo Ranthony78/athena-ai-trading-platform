@@ -10,6 +10,7 @@ from .views import (
     InstrumentListAPIView,
     InstrumentSearchAPIView,
     OptionChainAPIView,
+    OptionChainSummaryAPIView,
     QuoteDetailAPIView,
     QuoteListAPIView,
     # Sprint 11 — Market Engine
@@ -18,6 +19,12 @@ from .views import (
     # Sprint 12 — Indicators
     IndicatorAPIView,
     IndicatorListAPIView,
+    # Step 6 — Outcome Tracking Stats
+    OutcomeStatsSummaryAPIView,
+    OutcomeStatsByStrategyAPIView,
+    OutcomeStatsBySymbolAPIView,
+    # Step 8 — Analysis Report
+    AnalysisReportAPIView,
 )
 
 urlpatterns = [
@@ -96,6 +103,21 @@ urlpatterns = [
         name="option-chain",
     ),
 
+    path(
+        "option-chain/<str:symbol>/summary/",
+        OptionChainSummaryAPIView.as_view(),
+        name="option-chain-summary",
+    ),
+
+    # ------------------------------------------------------------------
+    # Analysis Report
+    # ------------------------------------------------------------------
+       
+    path(
+        "report/<str:symbol>/",
+        AnalysisReportAPIView.as_view(),
+        name="analysis-report",
+    ),
     # ------------------------------------------------------------------
     # Sprint 11 — Market Engine
     # ------------------------------------------------------------------
@@ -122,5 +144,24 @@ urlpatterns = [
         "indicators/calculate/",
         IndicatorAPIView.as_view(),
         name="indicator-calculate",
+    ),
+
+    # ------------------------------------------------------------------
+    # Step 6 — Outcome Tracking Stats
+    # ------------------------------------------------------------------
+    path(
+        "outcomes/summary/",
+        OutcomeStatsSummaryAPIView.as_view(),
+        name="outcome-stats-summary",
+    ),
+    path(
+        "outcomes/by-strategy/",
+        OutcomeStatsByStrategyAPIView.as_view(),
+        name="outcome-stats-by-strategy",
+    ),
+    path(
+        "outcomes/by-symbol/",
+        OutcomeStatsBySymbolAPIView.as_view(),
+        name="outcome-stats-by-symbol",
     ),
 ]

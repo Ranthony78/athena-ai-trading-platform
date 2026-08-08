@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 from apps.market_data.models import Instrument
@@ -166,6 +167,16 @@ class AISignal(BaseModel):
         related_name="ai_signals",
     )
 
+    # Owning user — needed for background outcome-tracking to know
+    # whose Zerodha credentials to use when fetching real premiums.
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ai_signals",
+    )
+
     signal = models.CharField(
         max_length=10,
         choices=SIGNAL_CHOICES,
@@ -198,6 +209,79 @@ class AISignal(BaseModel):
         decimal_places=2,
         null=True,
         blank=True,
+    )
+
+    # Real option contract attached to this signal.
+    PRODUCT_CHOICES = [
+        ("MIS", "Intraday"),
+        ("NRML", "Carry Forward"),
+    ]
+
+    option_instrument = models.ForeignKey(
+        Instrument,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ai_signals_as_option",
+        help_text="The specific option contract (CE/PE, strike, expiry) recommended for this signal.",
+    )
+    entry_premium = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Real option premium (LTP) when this contract was attached.",
+    )
+    product = models.CharField(
+        max_length=10,
+        choices=PRODUCT_CHOICES,
+        default="MIS",
+        help_text="MIS = intraday, auto square-off ~15:15-15:20 IST. NRML = carry forward until target/stop or contract expiry.",
+    )
+
+    # Outcome tracking (Step 5) — filled in by the background task,
+    # never fabricated. OPEN until real price data resolves it one way
+    # or another.
+    OUTCOME_CHOICES = [
+        ("OPEN", "Open"),
+        ("TARGET_HIT", "Target Hit"),
+        ("STOP_HIT", "Stop Hit"),
+        ("SQUARED_OFF", "Squared Off (MIS EOD)"),
+        ("EXPIRED", "Expired (NRML)"),
+    ]
+
+    outcome_status = models.CharField(
+        max_length=15,
+        choices=OUTCOME_CHOICES,
+        default="OPEN",
+        db_index=True,
+        help_text="Result of automated outcome tracking against the real option premium.",
+    )
+    outcome_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Real premium at which tracking concluded.",
+    )
+    outcome_time = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When tracking concluded.",
+    )
+    points_captured = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="outcome_price - entry_premium, in real option points.",
+    )
+    points_captured_pct = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="points_captured as a percentage of entry_premium.",
     )
 
     reasoning = models.TextField(

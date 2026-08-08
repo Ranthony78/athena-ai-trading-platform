@@ -264,7 +264,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Market Provider
 # -----------------------------------------------------
 
-MARKET_PROVIDER = "mock"
+MARKET_PROVIDER = "zerodha" # mock
 
 # -----------------------------------------------------
 # Django Channels
@@ -286,10 +286,36 @@ CHANNEL_LAYERS = {
 # AI Engine
 # -----------------------------------------------------
 
-AI_PROVIDER = "mock"  # mock | claude
+AI_PROVIDER = "kimi"  # mock | claude | groq | kimi
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+
+KIMI_API_KEY = os.getenv("MOONSHOT_API_KEY", "")
+
+# -----------------------------------------------------
+# Celery — using filesystem broker for now (no Redis/Docker
+# installed yet). Swap CELERY_BROKER_URL to redis://localhost:6379/0
+# once Docker is set up — everything else here stays the same.
+# -----------------------------------------------------
+CELERY_BROKER_URL = "filesystem://"
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    "data_folder_in": str(BASE_DIR / "broker" / "queue"),
+    "data_folder_out": str(BASE_DIR / "broker" / "queue"),
+    "data_folder_processed": str(BASE_DIR / "broker" / "processed"),
+}
+CELERY_TASK_IGNORE_RESULT = True
+CELERY_TIMEZONE = "Asia/Kolkata"
+CELERY_ENABLE_UTC = True
+
+
+CELERY_BEAT_SCHEDULE = {
+    "track-signal-outcomes": {
+        "task": "apps.market_data.tasks.track_signal_outcomes",
+        "schedule": 300.0,  # every 5 minutes
+    },
+}
 
 # -----------------------------------------------------
 # Notifications

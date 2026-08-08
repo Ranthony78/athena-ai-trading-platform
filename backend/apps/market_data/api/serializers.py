@@ -96,3 +96,15 @@ class BulkQuoteRequestSerializer(serializers.Serializer):
         min_length=1,
         max_length=50,
     )
+
+class OptionChainSummarySerializer(serializers.Serializer):
+    """Serializer for chain-level analytics (PCR, max pain, ATM)."""
+
+    symbol = serializers.CharField()
+    spot_price = serializers.FloatField(allow_null=True)
+    expiry = serializers.CharField(allow_null=True)
+    available_expiries = serializers.ListField(child=serializers.CharField())
+    atm_strike = serializers.FloatField(allow_null=True)
+    pcr_oi = serializers.FloatField(allow_null=True)
+    pcr_volume = serializers.FloatField(allow_null=True)
+    max_pain = serializers.FloatField(allow_null=True)
