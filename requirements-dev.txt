@@ -1,0 +1,7 @@
+-r requirements.txt
+
+ipython
+django-debug-toolbar
+factory-boy
+faker
+pre-commit
