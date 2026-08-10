@@ -1,16 +1,21 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { Link2, LogOut, ExternalLink } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { LogOut, ExternalLink } from "lucide-react";
 import { PageWrapper } from "../../components/layout";
-import { Card, Button, Input, Spinner, Alert, Badge } from "../../components/common";
+import { Card, Button, Input, Spinner, Alert } from "../../components/common";
 import ConnectionStatus from "./components/ConnectionStatus";
 import FundsCard from "./components/FundsCard";
 import { zerodhaAPI } from "../../api/zerodha";
 
 export default function ZerodhaConnect() {
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const [config, setConfig] = useState({ api_key: "", api_secret: "" });
     const [requestToken, setRequestToken] = useState("");
+    const [showManualEntry, setShowManualEntry] = useState(false);
+    const autoExchangeAttempted = useRef(false);
 
     const { data: status, isLoading } = useQuery({
         queryKey: ["zerodha-status"],
@@ -18,18 +23,20 @@ export default function ZerodhaConnect() {
         select: (res) => res.data.data,
     });
 
+    const isActive = Boolean(status?.is_connected && status?.is_token_valid);
+
     const { data: loginUrl } = useQuery({
         queryKey: ["zerodha-login-url"],
         queryFn: () => zerodhaAPI.getLoginUrl(),
         select: (res) => res.data.data?.login_url,
-        enabled: !status?.is_connected,
+        enabled: !isActive,
     });
 
     const { data: funds } = useQuery({
         queryKey: ["zerodha-funds"],
         queryFn: () => zerodhaAPI.getFunds(),
         select: (res) => res.data.data,
-        enabled: status?.is_connected,
+        enabled: isActive,
     });
 
     const { mutate: saveConfig, isPending: saving } = useMutation({
@@ -38,11 +45,17 @@ export default function ZerodhaConnect() {
             queryClient.invalidateQueries({ queryKey: ["zerodha-status"] }),
     });
 
-    const { mutate: exchangeToken, isPending: exchanging } = useMutation({
+    const {
+        mutate: exchangeToken,
+        isPending: exchanging,
+        isError: exchangeFailed,
+        error: exchangeError,
+    } = useMutation({
         mutationFn: (token) => zerodhaAPI.exchangeToken(token),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["zerodha-status"] });
             setRequestToken("");
+            navigate("/zerodha", { replace: true });
         },
     });
 
@@ -52,7 +65,26 @@ export default function ZerodhaConnect() {
             queryClient.invalidateQueries({ queryKey: ["zerodha-status"] }),
     });
 
+    useEffect(() => {
+        const requestTokenParam = searchParams.get("request_token");
+        const statusParam = searchParams.get("status");
+
+        if (autoExchangeAttempted.current) return;
+
+        if (statusParam === "success" && requestTokenParam) {
+            autoExchangeAttempted.current = true;
+            exchangeToken(requestTokenParam);
+        } else if (statusParam && statusParam !== "success") {
+            autoExchangeAttempted.current = true;
+            navigate("/zerodha", { replace: true });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams]);
+
     if (isLoading) return <Spinner />;
+
+    const autoExchangeInFlight =
+        exchanging && Boolean(searchParams.get("request_token"));
 
     return (
         <PageWrapper
@@ -67,17 +99,27 @@ export default function ZerodhaConnect() {
                 )
             }
         >
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Status */}
-                <ConnectionStatus status={status} />
+            {autoExchangeInFlight && (
+                <Alert type="info" message="Completing Zerodha login..." />
+            )}
 
-                {/* Funds */}
-                {status?.is_connected && <FundsCard funds={funds} />}
+            {exchangeFailed && !autoExchangeInFlight && (
+                <Alert type="error"
+                    message={`Automatic login failed: ${exchangeError?.message || "please try reconnecting"}.`} />
+            )}
+
+            {!isActive && status?.is_connected && !autoExchangeInFlight && (
+                <Alert type="warning"
+                    message="Your Zerodha session has expired for today — reconnect below to continue." />
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <ConnectionStatus status={status} />
+                {isActive && <FundsCard funds={funds} />}
             </div>
 
-            {!status?.is_connected && (
+            {!isActive && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Step 1 */}
                     <Card title="Step 1 — Save API Credentials">
                         <div className="space-y-4">
                             <Input label="API Key" value={config.api_key}
@@ -93,27 +135,40 @@ export default function ZerodhaConnect() {
                         </div>
                     </Card>
 
-                    {/* Step 2 */}
-                    <Card title="Step 2 — Login to Zerodha">
+                    <Card title={status?.is_connected ? "Step 2 — Reconnect to Zerodha" : "Step 2 — Login to Zerodha"}>
                         <div className="space-y-4">
                             {loginUrl ? (
                                 <>
-                                    <a href={loginUrl} target="_blank" rel="noreferrer">
-                                        <Button variant="primary" icon={ExternalLink} className="w-full">
-                                            Login to Zerodha
+                                    <a href={loginUrl}>
+                                        <Button variant="primary" icon={ExternalLink}
+                                            loading={autoExchangeInFlight} className="w-full">
+                                            {status?.is_connected ? "Reconnect to Zerodha" : "Login to Zerodha"}
                                         </Button>
                                     </a>
                                     <Alert type="info"
-                                        message="After login, copy the request_token from the redirect URL" />
-                                    <Input label="Request Token"
-                                        value={requestToken}
-                                        onChange={(e) => setRequestToken(e.target.value)}
-                                        placeholder="Paste request_token here" />
-                                    <Button variant="success" loading={exchanging}
-                                        onClick={() => exchangeToken(requestToken)}
-                                        className="w-full" disabled={!requestToken}>
-                                        Exchange Token
-                                    </Button>
+                                        message="You'll be redirected to Kite, then brought straight back here — no copying required." />
+
+                                    {!showManualEntry ? (
+                                        <button
+                                            type="button"
+                                            className="text-xs text-dark-500 hover:text-dark-300 underline"
+                                            onClick={() => setShowManualEntry(true)}
+                                        >
+                                            Redirect didn't work? Enter request_token manually
+                                        </button>
+                                    ) : (
+                                        <>
+                                            <Input label="Request Token"
+                                                value={requestToken}
+                                                onChange={(e) => setRequestToken(e.target.value)}
+                                                placeholder="Paste request_token here" />
+                                            <Button variant="success" loading={exchanging}
+                                                onClick={() => exchangeToken(requestToken)}
+                                                className="w-full" disabled={!requestToken}>
+                                                Exchange Token
+                                            </Button>
+                                        </>
+                                    )}
                                 </>
                             ) : (
                                 <Alert type="warning" message="Save API credentials first" />
@@ -123,8 +178,7 @@ export default function ZerodhaConnect() {
                 </div>
             )}
 
-            {/* Quick Links */}
-            {status?.is_connected && (
+            {isActive && (
                 <div className="grid grid-cols-2 gap-4">
                     {[
                         { href: "/zerodha/orders", label: "Live Orders" },

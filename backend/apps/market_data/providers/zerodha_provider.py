@@ -171,21 +171,32 @@ class ZerodhaProvider(BaseMarketProvider):
     # ------------------------------------------------------------------
 
     @staticmethod
+    @staticmethod
     def _normalize_quote(symbol: str, raw: dict) -> dict:
-        """Normalize Zerodha quote to standard format."""
+        """Normalize Zerodha quote to standard format.
+
+        change/change_percent are computed directly from ltp vs. the
+        previous close (ohlc.close), not from Kite's own `net_change`
+        field. Diagnostic evidence showed net_change coming back 0 for
+        bulk equity quotes even when ltp clearly differed from close
+        (e.g. RELIANCE ltp=1334.8 vs close=1325, a real +0.74% move,
+        reported as net_change=0) — net_change isn't reliable here, so
+        this derives the real number instead of trusting it.
+        """
+        ltp = raw.get("last_price", 0)
+        prev_close = raw.get("ohlc", {}).get("close", 0)
+        change = round(ltp - prev_close, 2) if prev_close else 0
+        change_percent = round(change / prev_close * 100, 2) if prev_close else 0
+
         return {
             "symbol": symbol,
-            "ltp": raw.get("last_price", 0),
+            "ltp": ltp,
             "open": raw.get("ohlc", {}).get("open", 0),
             "high": raw.get("ohlc", {}).get("high", 0),
             "low": raw.get("ohlc", {}).get("low", 0),
-            "close": raw.get("ohlc", {}).get("close", 0),
-            "change": raw.get("net_change", 0),
-            "change_percent": (
-                round((raw.get("net_change", 0) / raw["ohlc"]["close"]) * 100, 2)
-                if raw.get("ohlc", {}).get("close")
-                else 0
-            ),
+            "close": prev_close,
+            "change": change,
+            "change_percent": change_percent,
             "volume": raw.get("volume", 0),
             "oi": raw.get("oi", 0),
             "bid": raw.get("depth", {}).get("buy", [{}])[0].get("price", 0),

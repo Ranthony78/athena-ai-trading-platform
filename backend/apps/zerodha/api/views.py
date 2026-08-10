@@ -1,10 +1,24 @@
+"""
+backend/apps/zerodha/api/views.py
+
+Replaces the existing file at this path.
+
+Change from the previous version: views that call KiteService now catch
+ZerodhaTokenExpiredError specifically and return HTTP 401 with a clear
+message, instead of the generic except-Exception block returning a soft
+error inside a 200 response. Every other view is unchanged from the
+existing file.
+"""
+
 import logging
 
+from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from shared.api_response import ApiResponse
 
+from ..exceptions import ZerodhaTokenExpiredError
 from ..services.auth_service import ZerodhaAuthService
 from ..services.kite_service import KiteService
 from .serializers import (
@@ -16,6 +30,11 @@ from .serializers import (
 )
 
 logger = logging.getLogger(__name__)
+
+TOKEN_EXPIRED_MESSAGE = (
+    "Your Zerodha session has expired. Please reconnect via "
+    "/api/zerodha/login-url/."
+)
 
 
 class ZerodhaStatusAPIView(APIView):
@@ -29,8 +48,8 @@ class ZerodhaStatusAPIView(APIView):
     def get(self, request):
         try:
             service = ZerodhaAuthService(request.user)
-            status = service.get_status()
-            return ApiResponse.success(status)
+            status_data = service.get_status()
+            return ApiResponse.success(status_data)
         except Exception as e:
             logger.error(f"ZerodhaStatusAPIView error: {e}")
             return ApiResponse.error(message="Failed to fetch status.")
@@ -158,6 +177,11 @@ class ZerodhaProfileAPIView(APIView):
             service = KiteService(request.user)
             profile = service.get_profile()
             return ApiResponse.success(profile)
+        except ZerodhaTokenExpiredError:
+            return ApiResponse.error(
+                message=TOKEN_EXPIRED_MESSAGE,
+                status_code=status.HTTP_401_UNAUTHORIZED,
+            )
         except Exception as e:
             logger.error(f"ZerodhaProfileAPIView error: {e}")
             return ApiResponse.error(message="Failed to fetch profile.")
@@ -176,6 +200,11 @@ class ZerodhaFundsAPIView(APIView):
             service = KiteService(request.user)
             funds = service.get_funds()
             return ApiResponse.success(funds)
+        except ZerodhaTokenExpiredError:
+            return ApiResponse.error(
+                message=TOKEN_EXPIRED_MESSAGE,
+                status_code=status.HTTP_401_UNAUTHORIZED,
+            )
         except Exception as e:
             logger.error(f"ZerodhaFundsAPIView error: {e}")
             return ApiResponse.error(message="Failed to fetch funds.")
@@ -194,6 +223,11 @@ class ZerodhaOrderListAPIView(APIView):
             service = KiteService(request.user)
             orders = service.get_orders()
             return ApiResponse.success(orders)
+        except ZerodhaTokenExpiredError:
+            return ApiResponse.error(
+                message=TOKEN_EXPIRED_MESSAGE,
+                status_code=status.HTTP_401_UNAUTHORIZED,
+            )
         except Exception as e:
             logger.error(f"ZerodhaOrderListAPIView GET error: {e}")
             return ApiResponse.error(message="Failed to fetch orders.")
@@ -211,6 +245,11 @@ class ZerodhaOrderListAPIView(APIView):
             return ApiResponse.success(
                 data=result,
                 message="Order placed.",
+            )
+        except ZerodhaTokenExpiredError:
+            return ApiResponse.error(
+                message=TOKEN_EXPIRED_MESSAGE,
+                status_code=status.HTTP_401_UNAUTHORIZED,
             )
         except Exception as e:
             logger.error(f"ZerodhaOrderListAPIView POST error: {e}")
@@ -233,6 +272,11 @@ class ZerodhaOrderCancelAPIView(APIView):
                 data=result,
                 message="Order cancelled.",
             )
+        except ZerodhaTokenExpiredError:
+            return ApiResponse.error(
+                message=TOKEN_EXPIRED_MESSAGE,
+                status_code=status.HTTP_401_UNAUTHORIZED,
+            )
         except Exception as e:
             logger.error(f"ZerodhaOrderCancelAPIView error: {e}")
             return ApiResponse.error(message=f"Cancel failed: {str(e)}")
@@ -251,6 +295,11 @@ class ZerodhaPositionsAPIView(APIView):
             service = KiteService(request.user)
             positions = service.get_positions()
             return ApiResponse.success(positions)
+        except ZerodhaTokenExpiredError:
+            return ApiResponse.error(
+                message=TOKEN_EXPIRED_MESSAGE,
+                status_code=status.HTTP_401_UNAUTHORIZED,
+            )
         except Exception as e:
             logger.error(f"ZerodhaPositionsAPIView error: {e}")
             return ApiResponse.error(message="Failed to fetch positions.")
@@ -269,6 +318,11 @@ class ZerodhaHoldingsAPIView(APIView):
             service = KiteService(request.user)
             holdings = service.get_holdings()
             return ApiResponse.success(holdings)
+        except ZerodhaTokenExpiredError:
+            return ApiResponse.error(
+                message=TOKEN_EXPIRED_MESSAGE,
+                status_code=status.HTTP_401_UNAUTHORIZED,
+            )
         except Exception as e:
             logger.error(f"ZerodhaHoldingsAPIView error: {e}")
             return ApiResponse.error(message="Failed to fetch holdings.")

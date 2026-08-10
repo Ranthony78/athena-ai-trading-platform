@@ -13,6 +13,7 @@ from ..repositories.ai_repository import (
     PromptTemplateRepository,
 )
 from .ai_service import AIService
+from .output_validator import OutputValidator
 from .prompt_service import PromptService
 
 logger = logging.getLogger(__name__)
@@ -111,6 +112,35 @@ class AnalysisService:
 
             parsed = result.get("parsed", {})
 
+            validation = OutputValidator.validate(
+                parsed=parsed,
+                market_context=market_context,
+                raw_content=result.get("content", ""),
+            )
+            parsed = validation["parsed"]
+            for warning in validation["warnings"]:
+                logger.warning(f"AnalysisService validation [{symbol}]: {warning}")
+
+            signal_type = parsed.get("signal", "NO_SETUP")
+
+            # Select a real tradable contract for directional signals,
+            # regardless of whether this session gets persisted — the
+            # frontend needs "what to buy" even for a quick, unsaved
+            # analysis. Never fabricates a contract; None if unavailable.
+            suggested_contract = None
+            if signal_type in ("BUY", "SELL") and instrument:
+                try:
+                    from apps.market_data.services.strike_selection_service import (
+                        StrikeSelectionService,
+                    )
+                    suggested_contract = StrikeSelectionService.select_for_signal(
+                        symbol=instrument.symbol,
+                        direction=signal_type,
+                        user=self.user,
+                    )
+                except Exception as e:
+                    logger.error(f"AnalysisService strike selection error [{symbol}]: {e}")
+
             # Update session
             if persist and session:
                 session.status = "COMPLETE"
@@ -124,12 +154,12 @@ class AnalysisService:
                 session.save()
 
                 # Create AI signal if not neutral
-                signal_type = parsed.get("signal", "NO_SETUP")
                 if signal_type not in ("NEUTRAL", "NO_SETUP") and instrument:
                     self._create_signal(
                         session=session,
                         instrument=instrument,
                         parsed=parsed,
+                        suggested_contract=suggested_contract,
                     )
 
             return {
@@ -143,6 +173,13 @@ class AnalysisService:
                 "stop_loss": parsed.get("stop_loss"),
                 "key_levels": parsed.get("key_levels", {}),
                 "risks": parsed.get("risks", []),
+                "probability": parsed.get("probability"),
+                "sentiment": parsed.get("sentiment"),
+                "option_comparison": parsed.get("option_comparison"),
+                "price_expectation": parsed.get("price_expectation"),
+                "session_structure": market_context.get("session_structure"),
+                "validation_warnings": validation["warnings"],
+                "suggested_contract": suggested_contract,
                 "reasoning": result["content"],
                 "tokens_used": result["tokens_used"],
                 "duration_ms": result["duration_ms"],
@@ -173,6 +210,7 @@ class AnalysisService:
         session: AnalysisSession,
         instrument,
         parsed: dict,
+        suggested_contract: dict = None,
     ) -> AISignal:
         """Create and persist an AI signal from parsed output."""
 
@@ -187,23 +225,6 @@ class AnalysisService:
             confidence_level = "LOW"
 
         signal_type = parsed.get("signal", "NO_SETUP")
-
-        # Step 3: attach a real option contract for directional signals
-        # (BUY/SELL). Returns None for WATCH, or if the option chain
-        # isn't available (e.g. no user, or NFO data missing) — the
-        # signal is still saved either way, just without a contract.
-        option_data = None
-        try:
-            from apps.market_data.services.strike_selection_service import (
-                StrikeSelectionService,
-            )
-            option_data = StrikeSelectionService.select_for_signal(
-                symbol=instrument.symbol,
-                direction=signal_type,
-                user=self.user,
-            )
-        except Exception as e:
-            logger.error(f"AnalysisService strike selection error: {e}")
 
         signal_kwargs = dict(
             session=session,
@@ -221,12 +242,12 @@ class AnalysisService:
             signal_time=timezone.now(),
         )
 
-        if option_data:
+        if suggested_contract:
             from apps.market_data.models import Instrument
             signal_kwargs["option_instrument"] = Instrument.objects.filter(
-                id=option_data["instrument_id"]
+                id=suggested_contract["instrument_id"]
             ).first()
-            signal_kwargs["entry_premium"] = option_data["entry_premium"]
+            signal_kwargs["entry_premium"] = suggested_contract["entry_premium"]
 
         return AISignal.objects.create(**signal_kwargs)
 

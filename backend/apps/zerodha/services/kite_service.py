@@ -1,5 +1,23 @@
+"""
+backend/apps/zerodha/services/kite_service.py
+
+Replaces the existing file at this path.
+
+Change from the previous version: every method used to catch ALL exceptions
+and swallow them into a {"error": str(e)} dict (or an empty list), which the
+view layer then wrapped in a 200 OK response. That's why the dashboard showed
+"Connected" with blank Funds & Margins instead of a clear reconnect prompt.
+
+Now: a token-expiry error is detected and re-raised as ZerodhaTokenExpiredError
+so the view layer can return 401 with a clear message. Other errors still
+return a soft {"error": ...} shape for now, matching existing behavior,
+until each call site is reviewed and tightened — that's a separate, larger
+change and out of scope here.
+"""
+
 import logging
 
+from ..exceptions import ZerodhaTokenExpiredError, is_token_expiry_message
 from ..repositories.zerodha_repository import ZerodhaConfigRepository
 from .mcp_service import ZerodhaKiteMCPService
 
@@ -21,6 +39,16 @@ class KiteService:
         """Return MCP service instance."""
         return ZerodhaKiteMCPService(self.user)
 
+    def _raise_if_token_expired(self, error: Exception) -> None:
+        """
+        Call this first in every except block. Re-raises as
+        ZerodhaTokenExpiredError if the underlying message indicates an
+        expired/invalid token; otherwise does nothing and lets the caller's
+        existing fallback handling proceed.
+        """
+        if is_token_expiry_message(str(error)):
+            raise ZerodhaTokenExpiredError(str(error)) from error
+
     # ------------------------------------------------------------------
     # Profile & Funds
     # ------------------------------------------------------------------
@@ -29,16 +57,22 @@ class KiteService:
         """Fetch user profile from Zerodha."""
         try:
             return self._mcp().get_profile()
+        except ZerodhaTokenExpiredError:
+            raise
         except Exception as e:
             logger.error(f"KiteService get_profile error: {e}")
+            self._raise_if_token_expired(e)
             return {"error": str(e)}
 
     def get_funds(self) -> dict:
         """Fetch available funds."""
         try:
             return self._mcp().get_funds()
+        except ZerodhaTokenExpiredError:
+            raise
         except Exception as e:
             logger.error(f"KiteService get_funds error: {e}")
+            self._raise_if_token_expired(e)
             return {"error": str(e)}
 
     # ------------------------------------------------------------------
@@ -49,16 +83,22 @@ class KiteService:
         """Fetch live quote."""
         try:
             return self._mcp().get_quote(symbol)
+        except ZerodhaTokenExpiredError:
+            raise
         except Exception as e:
             logger.error(f"KiteService get_quote error [{symbol}]: {e}")
+            self._raise_if_token_expired(e)
             return {"error": str(e)}
 
     def get_quotes(self, symbols: list[str]) -> list[dict]:
         """Fetch multiple live quotes."""
         try:
             return self._mcp().get_quotes(symbols)
+        except ZerodhaTokenExpiredError:
+            raise
         except Exception as e:
             logger.error(f"KiteService get_quotes error: {e}")
+            self._raise_if_token_expired(e)
             return []
 
     def get_historical(
@@ -76,8 +116,11 @@ class KiteService:
                 from_date=from_date,
                 to_date=to_date,
             )
+        except ZerodhaTokenExpiredError:
+            raise
         except Exception as e:
             logger.error(f"KiteService get_historical error: {e}")
+            self._raise_if_token_expired(e)
             return []
 
     # ------------------------------------------------------------------
@@ -88,24 +131,33 @@ class KiteService:
         """Fetch today's orders."""
         try:
             return self._mcp().get_orders()
+        except ZerodhaTokenExpiredError:
+            raise
         except Exception as e:
             logger.error(f"KiteService get_orders error: {e}")
+            self._raise_if_token_expired(e)
             return []
 
     def place_order(self, params: dict) -> dict:
         """Place a live order via Zerodha."""
         try:
             return self._mcp().place_order(**params)
+        except ZerodhaTokenExpiredError:
+            raise
         except Exception as e:
             logger.error(f"KiteService place_order error: {e}")
+            self._raise_if_token_expired(e)
             return {"success": False, "error": str(e)}
 
     def cancel_order(self, order_id: str) -> dict:
         """Cancel an order."""
         try:
             return self._mcp().cancel_order(order_id)
+        except ZerodhaTokenExpiredError:
+            raise
         except Exception as e:
             logger.error(f"KiteService cancel_order error: {e}")
+            self._raise_if_token_expired(e)
             return {"success": False, "error": str(e)}
 
     # ------------------------------------------------------------------
@@ -116,14 +168,20 @@ class KiteService:
         """Fetch current positions."""
         try:
             return self._mcp().get_positions()
+        except ZerodhaTokenExpiredError:
+            raise
         except Exception as e:
             logger.error(f"KiteService get_positions error: {e}")
+            self._raise_if_token_expired(e)
             return {"error": str(e)}
 
     def get_holdings(self) -> list[dict]:
         """Fetch holdings."""
         try:
             return self._mcp().get_holdings()
+        except ZerodhaTokenExpiredError:
+            raise
         except Exception as e:
             logger.error(f"KiteService get_holdings error: {e}")
+            self._raise_if_token_expired(e)
             return []

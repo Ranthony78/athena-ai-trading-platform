@@ -1,12 +1,39 @@
-import { Brain, Clock } from "lucide-react";
-import { Card, Badge, EmptyState } from "../../../components/common";
+import { Brain, Clock, ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Card, Badge, EmptyState, Button } from "../../../components/common";
 import { formatRelativeTime } from "../../../utils/formatters";
 
 export default function AISignalCard({ signals = [] }) {
+    const navigate = useNavigate();
+
     return (
-        <Card title="AI Signals" subtitle="Today's AI-generated trading signals" actions={<a href="/analysis" className="text-xs text-primary-400 hover:text-primary-300">Run Analysis</a>}>
+        <Card
+            title="AI Signals"
+            subtitle="Today's AI-generated trading signals"
+            actions={
+                signals.length > 0 && (
+                    <a href="/analysis" className="text-xs text-primary-400 hover:text-primary-300">
+                        Run Analysis
+                    </a>
+                )
+            }
+        >
             {signals.length === 0 ? (
-                <EmptyState icon={Brain} title="No signals today" description="Run an AI analysis to generate signals" />
+                <EmptyState
+                    icon={Brain}
+                    title="No signals today"
+                    description="Run an AI analysis on Nifty 50 or Bank Nifty to generate today's first signal."
+                    action={
+                        <Button
+                            variant="primary"
+                            size="sm"
+                            icon={ArrowRight}
+                            onClick={() => navigate("/analysis")}
+                        >
+                            Run Analysis
+                        </Button>
+                    }
+                />
             ) : (
                 <div className="space-y-3">
                     {signals.slice(0, 5).map((signal) => (

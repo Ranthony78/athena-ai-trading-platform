@@ -13,9 +13,8 @@ import OptionChain from "../pages/market/OptionChain";
 import Historical from "../pages/market/Historical";
 
 // Analysis
-import Analysis from "../pages/analysis/Analysis";
-import SessionHistory from "../pages/analysis/SessionHistory";
 import AnalysisReport from "../pages/analysis/AnalysisReport";
+import SessionHistory from "../pages/analysis/SessionHistory";
 
 // Strategies
 import Strategies from "../pages/strategies/Strategies";
@@ -73,8 +72,8 @@ export default function AppRouter() {
                 <Route path="/market/historical" element={<Historical />} />
 
                 {/* Analysis */}
-                <Route path="/analysis" element={<Analysis />} />
-                <Route path="/analysis/report" element={<AnalysisReport />} />
+                <Route path="/analysis" element={<AnalysisReport />} />
+                <Route path="/analysis/report" element={<Navigate to="/analysis" replace />} />
                 <Route path="/analysis/history" element={<SessionHistory />} />
 
                 {/* Strategies */}

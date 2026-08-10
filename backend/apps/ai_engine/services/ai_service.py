@@ -21,7 +21,7 @@ class AIService:
         system_prompt: str,
         user_prompt: str,
         model: str = "claude-sonnet-4-6",
-        max_tokens: int = 2000,
+        max_tokens: int = 4000,
         temperature: float = 0.3,
     ) -> dict:
         """

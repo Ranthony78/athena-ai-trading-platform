@@ -162,7 +162,7 @@ REST_FRAMEWORK = {
 # -----------------------------------------------------
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=300),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
@@ -286,12 +286,12 @@ CHANNEL_LAYERS = {
 # AI Engine
 # -----------------------------------------------------
 
-AI_PROVIDER = "groq"  # mock | claude | groq
+AI_PROVIDER = "groq"  # mock | claude | groq | kimi
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-
+KIMI_API_KEY = os.getenv("MOONSHOT_API_KEY", "")
+MARKETAUX_API_KEY = os.getenv("MARKETAUX_API_KEY", "")
 
 # -----------------------------------------------------
 # Celery — using filesystem broker for now (no Redis/Docker
@@ -313,6 +313,10 @@ CELERY_BEAT_SCHEDULE = {
     "track-signal-outcomes": {
         "task": "apps.market_data.tasks.track_signal_outcomes",
         "schedule": 300.0,  # every 5 minutes
+    },
+    "sync-intraday-candles": {
+        "task": "apps.market_data.tasks.sync_intraday_candles",
+        "schedule": 300.0,  # every 5 minutes — matches outcome tracking cadence
     },
 }
 

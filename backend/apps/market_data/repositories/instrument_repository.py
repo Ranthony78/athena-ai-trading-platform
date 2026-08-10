@@ -24,6 +24,7 @@ class InstrumentRepository(BaseRepository[Instrument]):
         "FINNIFTY": "NIFTY FIN SERVICE",
         "MIDCPNIFTY": "NIFTY MID SELECT",
         "SENSEX": "SENSEX",
+        "VIX": "INDIA VIX",
     }
 
     @classmethod

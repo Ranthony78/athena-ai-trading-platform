@@ -5,18 +5,25 @@ import { formatDateTime } from "../../../utils/formatters";
 export default function ConnectionStatus({ status }) {
     if (!status) return null;
 
+    const isActive = status.is_connected && status.is_token_valid;
+    const label = !status.is_connected
+        ? "Not Connected"
+        : status.is_token_valid
+            ? "Connected"
+            : "Reconnect Required";
+
     return (
         <Card title="Connection Status">
             <div className="flex items-center gap-3 mb-4">
-                {status.is_connected ? (
+                {isActive ? (
                     <CheckCircle className="w-8 h-8 text-green-400" />
                 ) : (
                     <XCircle className="w-8 h-8 text-red-400" />
                 )}
                 <div>
                     <p className={`text-lg font-bold
-            ${status.is_connected ? "text-green-400" : "text-red-400"}`}>
-                        {status.is_connected ? "Connected" : "Not Connected"}
+            ${isActive ? "text-green-400" : "text-red-400"}`}>
+                        {label}
                     </p>
                     {status.zerodha_username && (
                         <p className="text-sm text-dark-400">
