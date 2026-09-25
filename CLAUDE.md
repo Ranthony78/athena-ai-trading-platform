@@ -34,14 +34,16 @@
 ## 1. Folder Structure
 ```
 ./
-  .env.example
-  .gitattributes
+  .env
   .gitignore
   .pre-commit-config.yaml
-  CHANGELOG.md
+  00-QUICK_RECAP.md
+  01-ATHENA_APPLICATION_CONTEXT.md
+  02-CURRENT_IMPLEMENTATION.md
+  03-AI_LEARNING_FEEDBACK_SYSTEM.md
   CLAUDE.md
   LICENSE
-  README.md
+  PROJECT_INSTRUCTIONS.md
   command-usages.txt
   docker-compose.yml
   generate_claude_md.py
@@ -49,9 +51,13 @@
   requirements.txt
   .github/
   backend/
+    celerybeat-schedule
     db.sqlite3
     manage.py
+    nfo_instruments.csv
+    nse_instruments.csv
     apps/
+      __init__.py
       accounts/
         __init__.py
         admin.py
@@ -76,14 +82,23 @@
           serializers.py
           urls.py
           views.py
+        management/
+          __init__.py
+          commands/
+            __init__.py
+            calibration_report.py
+            diagnose_prompt_data.py
         migrations/
           0001_initial.py
+          0002_aisignal_entry_premium_aisignal_option_instrument_and_more.py
+          0003_aisignal_outcome_price_aisignal_outcome_status_and_more.py
           __init__.py
         providers/
           __init__.py
           ai_provider_factory.py
           base_ai_provider.py
           claude_provider.py
+          groq_provider.py
           mock_ai_provider.py
         repositories/
           __init__.py
@@ -92,6 +107,10 @@
           __init__.py
           ai_service.py
           analysis_service.py
+          confidence_calibration_service.py
+          market_breadth_service.py
+          news_sentiment_service.py
+          output_validator.py
           prompt_service.py
       backtesting/
         __init__.py
@@ -175,6 +194,7 @@
         apps.py
         constants.py
         models.py
+        tasks.py
         tests.py
         utils.py
         api/
@@ -182,6 +202,9 @@
           serializers.py
           urls.py
           views.py
+        engine/
+          __init__.py
+          market_state.py
         indicators/
           __init__.py
           base_indicator.py
@@ -195,7 +218,9 @@
           __init__.py
           commands/
             __init__.py
+            backfill_candles.py
             import_instruments.py
+            seed_test_data.py
         migrations/
           0001_initial.py
           0002_instrument_exchange_token_and_more.py
@@ -215,11 +240,20 @@
           quote_repository.py
         services/
           __init__.py
+          analysis_report_service.py
           candle_service.py
+          historical_distribution_service.py
           instrument_service.py
+          iv_realized_vol_service.py
+          market_breadth_service.py
           market_service.py
+          news_sentiment_service.py
           option_chain_service.py
+          outcome_stats_service.py
+          outcome_tracking_service.py
           quote_service.py
+          session_structure_service.py
+          strike_selection_service.py
           zerodha_service.py
       notifications/
         __init__.py
@@ -280,6 +314,8 @@
           views.py
         migrations/
           0001_initial.py
+          0002_strategysignal_entry_premium_and_more.py
+          0003_strategysignal_outcome_price_and_more.py
           __init__.py
         repositories/
           __init__.py
@@ -300,7 +336,9 @@
         __init__.py
         admin.py
         apps.py
+        exceptions.py
         models.py
+        tests.py
         api/
           __init__.py
           serializers.py
@@ -317,9 +355,13 @@
           auth_service.py
           kite_service.py
           mcp_service.py
+    broker/
+      processed/
+      queue/
     config/
       __init__.py
       asgi.py
+      celery.py
       urls.py
       wsgi.py
       settings/
@@ -327,6 +369,9 @@
         base.py
         development.py
         production.py
+    control/
+      celery.exchange
+      celery.pidbox.exchange
     core/
       __init__.py
       authentication/
@@ -383,7 +428,6 @@
       vendor/
     templates/
       base.html
-  docker/
   docs/
     adr/
     ai/
@@ -395,6 +439,7 @@
   frontend/
     index.css
     index.html
+    package-lock.json
     package.json
     postcss.config.js
     tailwind.config.js
@@ -451,8 +496,10 @@
       pages/
         analysis/
           Analysis.jsx
+          AnalysisReport.jsx
           SessionHistory.jsx
           components/
+            AIInsightsPanel.jsx
             AIResponseView.jsx
             AnalysisForm.jsx
             SignalCard.jsx
@@ -545,135 +592,1078 @@
         constants.js
         formatters.js
         helpers.js
-  scripts/
-  tests/
 ```
 
 ## 2. Database Structure (Live MySQL — inspectdb)
 ```python
-# No output from inspectdb
-# stderr: C:\Users\RAnthony\source\repos\PythonProject\.venv\Scripts\python.exe: can't open file 'C:\\Users\\RAnthony\\source\\repos\\PythonProject\\athena-ai-trading-platform\\manage.py': [Errno 2] No such file or directory
+# This is an auto-generated Django model module.
+# You'll have to do the following manually to clean this up:
+#   * Rearrange models' order
+#   * Make sure each model has one field with primary_key=True
+#   * Make sure each ForeignKey and OneToOneField has `on_delete` set to the desired behavior
+#   * Remove `managed = False` lines if you wish to allow Django to create, modify, and delete the table
+# Feel free to rename the models, but don't rename db_table values or field names.
+from django.db import models
+
+
+class AiAnalysisSessions(models.Model):
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    is_active = models.BooleanField()
+    session_type = models.CharField(max_length=20)
+    status = models.CharField(max_length=10)
+    timeframe = models.CharField(max_length=10)
+    market_context = models.JSONField()
+    prompt_used = models.TextField()
+    ai_response = models.TextField()
+    parsed_output = models.JSONField()
+    model_used = models.CharField(max_length=50)
+    tokens_used = models.IntegerField()
+    duration_ms = models.IntegerField()
+    error_message = models.TextField()
+    session_time = models.DateTimeField()
+    instrument = models.ForeignKey('MarketInstruments', models.DO_NOTHING, blank=True, null=True)
+    template = models.ForeignKey('AiPromptTemplates', models.DO_NOTHING, blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'ai_analysis_sessions'
+
+
+class AiPromptTemplates(models.Model):
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    is_active = models.BooleanField()
+    name = models.CharField(unique=True, max_length=100)
+    template_type = models.CharField(max_length=20)
+    system_prompt = models.TextField()
+    user_prompt_template = models.TextField()
+    model = models.CharField(max_length=50)
+    max_tokens = models.IntegerField()
+    temperature = models.FloatField()
+    version = models.CharField(max_length=20)
+    is_default = models.BooleanField()
+
+    class Meta:
+        managed = False
+        db_table = 'ai_prompt_templates'
+
+
+class AiSignals(models.Model):
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    is_active = models.BooleanField()
+    signal = models.CharField(max_length=10)
+    confidence = models.CharField(max_length=10)
+    confidence_score = models.IntegerField()
+    price_at_signal = models.DecimalField(max_digits=10, decimal_places=5, blank=True, null=True)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    target_price = models.DecimalField(max_digits=10, decimal_places=5, blank=True, null=True)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    stop_loss = models.DecimalField(max_digits=10, decimal_places=5, blank=True, null=True)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    reasoning = models.TextField()
+    key_levels = models.JSONField()
+    risks = models.JSONField()
+    signal_time = models.DateTimeField()
+    instrument = models.ForeignKey('MarketInstruments', models.DO_NOTHING)
+    session = models.OneToOneField(AiAnalysisSessions, models.DO_NOTHING)
+    entry_premium = models.DecimalField(max_digits=10, decimal_places=5, blank=True, null=True)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    option_instrument = models.ForeignKey('MarketInstruments', models.DO_NOTHING, related_name='aisignals_option_instrument_set', blank=True, null=True)
+    product = models.CharField(max_length=10)
+    outcome_price = models.DecimalField(max_digits=10, decimal_places=5, blank=True, null=True)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    outcome_status = models.CharField(max_length=15)
+    outcome_time = models.DateTimeField(blank=True, null=True)
+    points_captured = models.DecimalField(max_digits=10, decimal_places=5, blank=True, null=True)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    points_captured_pct = models.DecimalField(max_digits=10, decimal_places=5, blank=True, null=True)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    user = models.ForeignKey('Users', models.DO_NOTHING, blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'ai_signals'
+
+
+class Alerts(models.Model):
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    is_active = models.BooleanField()
+    symbol = models.CharField(max_length=50)
+    alert_type = models.CharField(max_length=15)
+    status = models.CharField(max_length=10)
+    target_value = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    current_value = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    message = models.CharField(max_length=300)
+    notify_email = models.BooleanField()
+    notify_telegram = models.BooleanField()
+    triggered_at = models.DateTimeField(blank=True, null=True)
+    triggered_value = models.DecimalField(max_digits=10, decimal_places=5, blank=True, null=True)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    repeat = models.BooleanField()
+    expires_at = models.DateTimeField(blank=True, null=True)
+    user = models.ForeignKey('Users', models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'alerts'
+
+
+class AuthGroup(models.Model):
+    name = models.CharField(unique=True, max_length=150)
+
+    class Meta:
+        managed = False
+        db_table = 'auth_group'
+
+
+class AuthGroupPermissions(models.Model):
+    group = models.ForeignKey(AuthGroup, models.DO_NOTHING)
+    permission = models.ForeignKey('AuthPermission', models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'auth_group_permissions'
+        unique_together = (('group', 'permission'),)
+
+
+class AuthPermission(models.Model):
+    content_type = models.ForeignKey('DjangoContentType', models.DO_NOTHING)
+    codename = models.CharField(max_length=100)
+    name = models.CharField(max_length=255)
+
+    class Meta:
+        managed = False
+        db_table = 'auth_permission'
+        unique_together = (('content_type', 'codename'),)
+
+
+class BacktestResults(models.Model):
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    is_active = models.BooleanField()
+    total_trades = models.IntegerField()
+    winning_trades = models.IntegerField()
+    losing_trades = models.IntegerField()
+    win_rate = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    total_pnl = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    total_net_pnl = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    avg_pnl_per_trade = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    avg_win = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    avg_loss = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    largest_win = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    largest_loss = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    profit_factor = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    initial_capital = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    final_capital = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    total_return_pct = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    max_drawdown = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    max_drawdown_pct = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    sharpe_ratio = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    expectancy = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    risk_reward_ratio = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    consecutive_wins = models.IntegerField()
+    consecutive_losses = models.IntegerField()
+    equity_curve = models.JSONField()
+    run = models.OneToOneField('BacktestRuns', models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'backtest_results'
+
+
+class BacktestRuns(models.Model):
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    is_active = models.BooleanField()
+    timeframe = models.CharField(max_length=10)
+    from_date = models.DateField()
+    to_date = models.DateField()
+    initial_capital = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    position_size_pct = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    brokerage_per_trade = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    status = models.CharField(max_length=10)
+    started_at = models.DateTimeField(blank=True, null=True)
+    completed_at = models.DateTimeField(blank=True, null=True)
+    duration_seconds = models.FloatField()
+    error_message = models.TextField()
+    candles_processed = models.IntegerField()
+    instrument = models.ForeignKey('MarketInstruments', models.DO_NOTHING)
+    strategy = models.ForeignKey('Strategies', models.DO_NOTHING)
+    user = models.ForeignKey('Users', models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'backtest_runs'
+
+
+class BacktestTrades(models.Model):
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    is_active = models.BooleanField()
+    direction = models.CharField(max_length=5)
+    quantity = models.IntegerField()
+    entry_price = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    exit_price = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    entry_time = models.DateTimeField()
+    exit_time = models.DateTimeField()
+    pnl = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    pnl_pct = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    brokerage = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    net_pnl = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    signal = models.CharField(max_length=10)
+    signal_strength = models.CharField(max_length=10)
+    signal_notes = models.TextField()
+    signal_context = models.JSONField()
+    exit_reason = models.CharField(max_length=20)
+    capital_after = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    run = models.ForeignKey(BacktestRuns, models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'backtest_trades'
+
+
+class DjangoAdminLog(models.Model):
+    object_id = models.TextField(blank=True, null=True)
+    object_repr = models.CharField(max_length=200)
+    action_flag = models.PositiveSmallIntegerField()
+    change_message = models.TextField()
+    content_type = models.ForeignKey('DjangoContentType', models.DO_NOTHING, blank=True, null=True)
+    user = models.ForeignKey('Users', models.DO_NOTHING)
+    action_time = models.DateTimeField()
+
+    class Meta:
+        managed = False
+        db_table = 'django_admin_log'
+
+
+class DjangoContentType(models.Model):
+    app_label = models.CharField(max_length=100)
+    model = models.CharField(max_length=100)
+
+    class Meta:
+        managed = False
+        db_table = 'django_content_type'
+        unique_together = (('app_label', 'model'),)
+
+
+class DjangoMigrations(models.Model):
+    app = models.CharField(max_length=255)
+    name = models.CharField(max_length=255)
+    applied = models.DateTimeField()
+
+    class Meta:
+        managed = False
+        db_table = 'django_migrations'
+
+
+class DjangoSession(models.Model):
+    session_key = models.CharField(primary_key=True, max_length=40)
+    session_data = models.TextField()
+    expire_date = models.DateTimeField()
+
+    class Meta:
+        managed = False
+        db_table = 'django_session'
+
+
+class JournalEntries(models.Model):
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    is_active = models.BooleanField()
+    date = models.DateField()
+    session = models.CharField(max_length=15)
+    title = models.CharField(max_length=200)
+    market_bias = models.CharField(max_length=10)
+    market_notes = models.TextField()
+    trades_taken = models.IntegerField()
+    winners = models.IntegerField()
+    losers = models.IntegerField()
+    total_pnl = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    mood = models.CharField(max_length=15)
+    emotion_notes = models.TextField()
+    what_worked = models.TextField()
+    what_didnt_work = models.TextField()
+    lessons_learned = models.TextField()
+    tomorrow_plan = models.TextField()
+    ai_review = models.TextField()
+    ai_reviewed_at = models.DateTimeField(blank=True, null=True)
+    rating = models.IntegerField()
+    user = models.ForeignKey('Users', models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'journal_entries'
+        unique_together = (('user', 'date', 'session'),)
+
+
+class JournalLessons(models.Model):
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    is_active = models.BooleanField()
+    title = models.CharField(max_length=200)
+    content = models.TextField()
+    category = models.CharField(max_length=15)
+    times_reinforced = models.IntegerField()
+    is_rule = models.BooleanField()
+    journal_entry = models.ForeignKey(JournalEntries, models.DO_NOTHING, blank=True, null=True)
+    user = models.ForeignKey('Users', models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'journal_lessons'
+
+
+class JournalTradeNotes(models.Model):
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    is_active = models.BooleanField()
+    setup_description = models.TextField()
+    entry_reason = models.TextField()
+    exit_reason = models.TextField()
+    outcome = models.CharField(max_length=10)
+    pnl = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    followed_plan = models.BooleanField()
+    mistake_type = models.CharField(max_length=20)
+    mistake_notes = models.TextField()
+    improvement = models.TextField()
+    screenshot_url = models.CharField(max_length=200)
+    instrument = models.ForeignKey('MarketInstruments', models.DO_NOTHING, blank=True, null=True)
+    journal_entry = models.ForeignKey(JournalEntries, models.DO_NOTHING)
+    trade = models.OneToOneField('PaperTrades', models.DO_NOTHING, blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'journal_trade_notes'
+
+
+class KnowledgeArticles(models.Model):
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    is_active = models.BooleanField()
+    title = models.CharField(max_length=300)
+    slug = models.CharField(unique=True, max_length=300)
+    category = models.CharField(max_length=15)
+    source = models.CharField(max_length=15)
+    source_url = models.CharField(max_length=200)
+    content = models.TextField()
+    summary = models.TextField()
+    key_points = models.JSONField()
+    ai_summary = models.TextField()
+    ai_summarized_at = models.DateTimeField(blank=True, null=True)
+    view_count = models.IntegerField()
+    is_featured = models.BooleanField()
+    user = models.ForeignKey('Users', models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'knowledge_articles'
+
+
+class KnowledgeArticlesTags(models.Model):
+    article = models.ForeignKey(KnowledgeArticles, models.DO_NOTHING)
+    tag = models.ForeignKey('KnowledgeTags', models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'knowledge_articles_tags'
+        unique_together = (('article', 'tag'),)
+
+
+class KnowledgeBookNotes(models.Model):
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    is_active = models.BooleanField()
+    title = models.CharField(max_length=200)
+    author = models.CharField(max_length=200)
+    isbn = models.CharField(max_length=20)
+    summary = models.TextField()
+    key_lessons = models.JSONField()
+    rating = models.IntegerField()
+    started_at = models.DateField(blank=True, null=True)
+    finished_at = models.DateField(blank=True, null=True)
+    user = models.ForeignKey('Users', models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'knowledge_book_notes'
+
+
+class KnowledgeBookNotesArticles(models.Model):
+    booknote = models.ForeignKey(KnowledgeBookNotes, models.DO_NOTHING)
+    article = models.ForeignKey(KnowledgeArticles, models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'knowledge_book_notes_articles'
+        unique_together = (('booknote', 'article'),)
+
+
+class KnowledgePrompts(models.Model):
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    is_active = models.BooleanField()
+    title = models.CharField(max_length=200)
+    prompt_type = models.CharField(max_length=15)
+    content = models.TextField()
+    description = models.TextField()
+    use_count = models.IntegerField()
+    is_public = models.BooleanField()
+    user = models.ForeignKey('Users', models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'knowledge_prompts'
+
+
+class KnowledgePromptsTags(models.Model):
+    prompt = models.ForeignKey(KnowledgePrompts, models.DO_NOTHING)
+    tag = models.ForeignKey('KnowledgeTags', models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'knowledge_prompts_tags'
+        unique_together = (('prompt', 'tag'),)
+
+
+class KnowledgeTags(models.Model):
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    is_active = models.BooleanField()
+    name = models.CharField(unique=True, max_length=50)
+    slug = models.CharField(unique=True, max_length=50)
+    color = models.CharField(max_length=7)
+
+    class Meta:
+        managed = False
+        db_table = 'knowledge_tags'
+
+
+class KnowledgeTradingRules(models.Model):
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    is_active = models.BooleanField()
+    rule_number = models.IntegerField()
+    title = models.CharField(max_length=200)
+    description = models.TextField()
+    rule_type = models.CharField(max_length=15)
+    priority = models.CharField(max_length=10)
+    times_broken = models.IntegerField()
+    last_broken_at = models.DateTimeField(blank=True, null=True)
+    source_article = models.ForeignKey(KnowledgeArticles, models.DO_NOTHING, blank=True, null=True)
+    user = models.ForeignKey('Users', models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'knowledge_trading_rules'
+        unique_together = (('user', 'rule_number'),)
+
+
+class MarketCandles(models.Model):
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    is_active = models.BooleanField()
+    candle_time = models.DateTimeField()
+    open = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    high = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    low = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    close = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    volume = models.BigIntegerField()
+    instrument = models.ForeignKey('MarketInstruments', models.DO_NOTHING)
+    timeframe = models.CharField(max_length=10)
+
+    class Meta:
+        managed = False
+        db_table = 'market_candles'
+        unique_together = (('instrument', 'timeframe', 'candle_time'),)
+
+
+class MarketInstruments(models.Model):
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    is_active = models.BooleanField()
+    exchange = models.CharField(max_length=10)
+    symbol = models.CharField(max_length=50)
+    instrument_token = models.BigIntegerField(unique=True)
+    tick_size = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    lot_size = models.IntegerField()
+    expiry = models.DateField(blank=True, null=True)
+    strike = models.DecimalField(max_digits=10, decimal_places=5, blank=True, null=True)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    option_type = models.CharField(max_length=2)
+    exchange_token = models.BigIntegerField()
+    instrument_type = models.CharField(max_length=10)
+    trading_symbol = models.CharField(max_length=100)
+
+    class Meta:
+        managed = False
+        db_table = 'market_instruments'
+        unique_together = (('exchange', 'trading_symbol'),)
+
+
+class MarketQuotes(models.Model):
+    created_at = models.DateTimeField()
+    is_active = models.BooleanField()
+    last_price = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    open_price = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    high_price = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    low_price = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    close_price = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    volume = models.BigIntegerField()
+    oi = models.BigIntegerField()
+    bid = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    ask = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    updated_at = models.DateTimeField()
+    instrument = models.OneToOneField(MarketInstruments, models.DO_NOTHING)
+    ask_qty = models.BigIntegerField()
+    bid_qty = models.BigIntegerField()
+    change = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    change_percent = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+
+    class Meta:
+        managed = False
+        db_table = 'market_quotes'
+
+
+class NotificationPreferences(models.Model):
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    is_active = models.BooleanField()
+    email_enabled = models.BooleanField()
+    telegram_enabled = models.BooleanField()
+    push_enabled = models.BooleanField()
+    telegram_chat_id = models.CharField(max_length=50)
+    telegram_username = models.CharField(max_length=100)
+    email_address = models.CharField(max_length=254)
+    notify_ai_signals = models.BooleanField()
+    notify_strategy_signals = models.BooleanField()
+    notify_price_alerts = models.BooleanField()
+    notify_trade_execution = models.BooleanField()
+    notify_market_open = models.BooleanField()
+    notify_market_close = models.BooleanField()
+    notify_daily_summary = models.BooleanField()
+    quiet_hours_enabled = models.BooleanField()
+    quiet_from = models.TimeField()
+    quiet_until = models.TimeField()
+    user = models.OneToOneField('Users', models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'notification_preferences'
+
+
+class Notifications(models.Model):
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    is_active = models.BooleanField()
+    notification_type = models.CharField(max_length=20)
+    channel = models.CharField(max_length=10)
+    status = models.CharField(max_length=10)
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    data = models.JSONField()
+    read_at = models.DateTimeField(blank=True, null=True)
+    sent_at = models.DateTimeField(blank=True, null=True)
+    failed_reason = models.TextField()
+    user = models.ForeignKey('Users', models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'notifications'
+
+
+class PaperAccounts(models.Model):
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    is_active = models.BooleanField()
+    balance = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    initial_balance = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    used_margin = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    total_pnl = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    today_pnl = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    total_trades = models.IntegerField()
+    winning_trades = models.IntegerField()
+    losing_trades = models.IntegerField()
+    user = models.OneToOneField('Users', models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'paper_accounts'
+
+
+class PaperOrders(models.Model):
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    is_active = models.BooleanField()
+    order_type = models.CharField(max_length=10)
+    transaction_type = models.CharField(max_length=5)
+    product = models.CharField(max_length=5)
+    status = models.CharField(max_length=10)
+    quantity = models.IntegerField()
+    price = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    trigger_price = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    average_price = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    filled_quantity = models.IntegerField()
+    pending_quantity = models.IntegerField()
+    order_time = models.DateTimeField()
+    execution_time = models.DateTimeField(blank=True, null=True)
+    tag = models.CharField(max_length=50)
+    notes = models.TextField()
+    reject_reason = models.TextField()
+    account = models.ForeignKey(PaperAccounts, models.DO_NOTHING)
+    instrument = models.ForeignKey(MarketInstruments, models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'paper_orders'
+
+
+class PaperPositions(models.Model):
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    is_active = models.BooleanField()
+    direction = models.CharField(max_length=5)
+    quantity = models.IntegerField()
+    average_price = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    last_price = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    unrealized_pnl = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    realized_pnl = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    open_time = models.DateTimeField()
+    close_time = models.DateTimeField(blank=True, null=True)
+    is_open = models.BooleanField()
+    product = models.CharField(max_length=5)
+    tag = models.CharField(max_length=50)
+    account = models.ForeignKey(PaperAccounts, models.DO_NOTHING)
+    instrument = models.ForeignKey(MarketInstruments, models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'paper_positions'
+
+
+class PaperTrades(models.Model):
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    is_active = models.BooleanField()
+    direction = models.CharField(max_length=5)
+    quantity = models.IntegerField()
+    entry_price = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    exit_price = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    entry_time = models.DateTimeField()
+    exit_time = models.DateTimeField()
+    pnl = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    pnl_pct = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    brokerage = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    net_pnl = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    product = models.CharField(max_length=5)
+    tag = models.CharField(max_length=50)
+    notes = models.TextField()
+    strategy_signal = models.CharField(max_length=50)
+    ai_signal = models.CharField(max_length=50)
+    account = models.ForeignKey(PaperAccounts, models.DO_NOTHING)
+    instrument = models.ForeignKey(MarketInstruments, models.DO_NOTHING)
+    position = models.OneToOneField(PaperPositions, models.DO_NOTHING, blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'paper_trades'
+
+
+class Strategies(models.Model):
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    is_active = models.BooleanField()
+    name = models.CharField(max_length=100)
+    description = models.TextField()
+    strategy_type = models.CharField(max_length=20)
+    timeframe = models.CharField(max_length=10)
+    parameters = models.JSONField()
+    is_enabled = models.BooleanField()
+
+    class Meta:
+        managed = False
+        db_table = 'strategies'
+
+
+class StrategySignals(models.Model):
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    is_active = models.BooleanField()
+    signal = models.CharField(max_length=10)
+    strength = models.CharField(max_length=10)
+    status = models.CharField(max_length=10)
+    price_at_signal = models.DecimalField(max_digits=10, decimal_places=5)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    target_price = models.DecimalField(max_digits=10, decimal_places=5, blank=True, null=True)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    stop_loss = models.DecimalField(max_digits=10, decimal_places=5, blank=True, null=True)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    timeframe = models.CharField(max_length=10)
+    signal_time = models.DateTimeField()
+    context = models.JSONField()
+    notes = models.TextField()
+    instrument = models.ForeignKey(MarketInstruments, models.DO_NOTHING)
+    strategy = models.ForeignKey(Strategies, models.DO_NOTHING)
+    entry_premium = models.DecimalField(max_digits=10, decimal_places=5, blank=True, null=True)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    option_instrument = models.ForeignKey(MarketInstruments, models.DO_NOTHING, related_name='strategysignals_option_instrument_set', blank=True, null=True)
+    product = models.CharField(max_length=10)
+    outcome_price = models.DecimalField(max_digits=10, decimal_places=5, blank=True, null=True)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    outcome_status = models.CharField(max_length=15)
+    outcome_time = models.DateTimeField(blank=True, null=True)
+    points_captured = models.DecimalField(max_digits=10, decimal_places=5, blank=True, null=True)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    points_captured_pct = models.DecimalField(max_digits=10, decimal_places=5, blank=True, null=True)  # max_digits and decimal_places have been guessed, as this database handles decimal fields as float
+    user = models.ForeignKey('Users', models.DO_NOTHING, blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'strategy_signals'
+
+
+class TokenBlacklistBlacklistedtoken(models.Model):
+    blacklisted_at = models.DateTimeField()
+    token = models.OneToOneField('TokenBlacklistOutstandingtoken', models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'token_blacklist_blacklistedtoken'
+
+
+class TokenBlacklistOutstandingtoken(models.Model):
+    token = models.TextField()
+    created_at = models.DateTimeField(blank=True, null=True)
+    expires_at = models.DateTimeField()
+    user = models.ForeignKey('Users', models.DO_NOTHING, blank=True, null=True)
+    jti = models.CharField(unique=True, max_length=255)
+
+    class Meta:
+        managed = False
+        db_table = 'token_blacklist_outstandingtoken'
+
+
+class Users(models.Model):
+    password = models.CharField(max_length=128)
+    last_login = models.DateTimeField(blank=True, null=True)
+    is_superuser = models.BooleanField()
+    username = models.CharField(unique=True, max_length=150)
+    first_name = models.CharField(max_length=150)
+    last_name = models.CharField(max_length=150)
+    is_staff = models.BooleanField()
+    is_active = models.BooleanField()
+    date_joined = models.DateTimeField()
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    email = models.CharField(unique=True, max_length=254)
+    is_email_verified = models.BooleanField()
+    phone = models.CharField(max_length=20)
+    timezone = models.CharField(max_length=100)
+
+    class Meta:
+        managed = False
+        db_table = 'users'
+
+
+class UsersGroups(models.Model):
+    user = models.ForeignKey(Users, models.DO_NOTHING)
+    group = models.ForeignKey(AuthGroup, models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'users_groups'
+        unique_together = (('user', 'group'),)
+
+
+class UsersUserPermissions(models.Model):
+    user = models.ForeignKey(Users, models.DO_NOTHING)
+    permission = models.ForeignKey(AuthPermission, models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'users_user_permissions'
+        unique_together = (('user', 'permission'),)
+
+
+class ZerodhaConfigs(models.Model):
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    is_active = models.BooleanField()
+    api_key = models.CharField(max_length=100)
+    api_secret = models.CharField(max_length=100)
+    access_token = models.CharField(max_length=500)
+    request_token = models.CharField(max_length=500)
+    is_connected = models.BooleanField()
+    connected_at = models.DateTimeField(blank=True, null=True)
+    token_expires_at = models.DateTimeField(blank=True, null=True)
+    mcp_url = models.CharField(max_length=200)
+    user = models.OneToOneField(Users, models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'zerodha_configs'
+
+
+class ZerodhaSessions(models.Model):
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    is_active = models.BooleanField()
+    access_token = models.CharField(max_length=500)
+    status = models.CharField(max_length=10)
+    login_at = models.DateTimeField()
+    expires_at = models.DateTimeField(blank=True, null=True)
+    revoked_at = models.DateTimeField(blank=True, null=True)
+    zerodha_user_id = models.CharField(max_length=20)
+    zerodha_username = models.CharField(max_length=100)
+    broker = models.CharField(max_length=50)
+    email = models.CharField(max_length=254)
+    user_type = models.CharField(max_length=20)
+    config = models.ForeignKey(ZerodhaConfigs, models.DO_NOTHING)
+    user = models.ForeignKey(Users, models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'zerodha_sessions'
 
 ```
 
 ## 3. Migration History
 ```
-# No migrations found
+accounts
+ [X] 0001_initial
+ [X] 0002_rename_phone_number_user_phone_alter_user_timezone
+admin
+ [X] 0001_initial
+ [X] 0002_logentry_remove_auto_add
+ [X] 0003_logentry_add_action_flag_choices
+ai_engine
+ [X] 0001_initial
+ [X] 0002_aisignal_entry_premium_aisignal_option_instrument_and_more
+ [X] 0003_aisignal_outcome_price_aisignal_outcome_status_and_more
+auth
+ [X] 0001_initial
+ [X] 0002_alter_permission_name_max_length
+ [X] 0003_alter_user_email_max_length
+ [X] 0004_alter_user_username_opts
+ [X] 0005_alter_user_last_login_null
+ [X] 0006_require_contenttypes_0002
+ [X] 0007_alter_validators_add_error_messages
+ [X] 0008_alter_user_username_max_length
+ [X] 0009_alter_user_last_name_max_length
+ [X] 0010_alter_group_name_max_length
+ [X] 0011_update_proxy_permissions
+ [X] 0012_alter_user_first_name_max_length
+backtesting
+ [X] 0001_initial
+contenttypes
+ [X] 0001_initial
+ [X] 0002_remove_content_type_name
+dashboard
+ (no migrations)
+journal
+ [X] 0001_initial
+knowledge
+ [X] 0001_initial
+market_data
+ [X] 0001_initial
+ [X] 0002_instrument_exchange_token_and_more
+ [X] 0003_alter_instrument_options_instrument_instrument_type_and_more
+notifications
+ [X] 0001_initial
+paper_trading
+ [X] 0001_initial
+sessions
+ [X] 0001_initial
+strategies
+ [X] 0001_initial
+ [X] 0002_strategysignal_entry_premium_and_more
+ [X] 0003_strategysignal_outcome_price_and_more
+token_blacklist
+ [X] 0001_initial
+ [X] 0002_outstandingtoken_jti_hex
+ [X] 0003_auto_20171017_2007
+ [X] 0004_auto_20171017_2013
+ [X] 0005_remove_outstandingtoken_jti
+ [X] 0006_auto_20171017_2113
+ [X] 0007_auto_20171017_2214
+ [X] 0008_migrate_to_bigautofield
+ [X] 0010_fix_migrate_to_bigautofield
+ [X] 0011_linearizes_history
+ [X] 0012_alter_outstandingtoken_user
+ [X] 0013_alter_blacklistedtoken_options_and_more
+zerodha
+ [X] 0001_initial
+
 ```
 
 ## 4. All URL Endpoints
 ```
 # django-extensions not installed — run: pip install django-extensions
 # Then add 'django_extensions' to INSTALLED_APPS in settings.py
+# stderr: Unknown command: 'show_urls'
+Type 'manage.py help' for usage.
+
 ```
 
 ## 5. Installed Packages
 ```
-altgraph==0.17.5
-amqp==5.3.1
-asgiref==3.11.1
+amqp==5.4.0
+annotated-types==0.8.0
+anyio==4.15.1
+asgiref==3.12.1
+ast_serialize==0.11.2
+asttokens==3.0.2
 attrs==26.1.0
-billiard==4.2.4
+autobahn==26.7.1
+Automat==25.4.16
+billiard==4.3.0
+black==26.5.1
+cbor2==6.1.4
 celery==5.6.3
-certifi==2026.4.22
-cffi==2.0.0
-charset-normalizer==3.4.7
-click==8.4.2
+certifi==2026.7.22
+cffi==2.1.1
+cfgv==3.5.0
+channels==4.2.0
+channels-redis==4.2.0
+charset-normalizer==3.5.1
+click==8.5.0
 click-didyoumean==0.3.1
 click-plugins==1.1.1.2
-click-repl==0.3.0
+click-repl==0.4.0
 colorama==0.4.6
-crispy-bootstrap5==2026.3
-cron-descriptor==1.4.5
-cryptography==48.0.0
-diff-match-patch==20241021
-Django==6.0.4
-django-axes==8.3.1
-django-celery-beat==2.9.0
-django-ckeditor-5==0.2.20
+constantly==23.10.4
+coverage==7.16.1
+cryptography==50.0.1
+daphne==4.1.2
+distlib==0.4.3
+Django==5.2.17
 django-cors-headers==4.9.0
-django-crispy-forms==2.6
-django-debug-toolbar==6.3.0
-django-extensions==4.1
-django-filter==25.2
-django-import-export==4.4.1
-django-timezone-field==7.2.2
-django-widget-tweaks==1.5.1
-django_celery_results==2.6.0
-djangorestframework==3.17.1
+django-debug-toolbar==8.0.0
+django-filter==26.1
+djangorestframework==3.18.1
 djangorestframework_simplejwt==5.5.1
 drf-spectacular==0.30.0
-et_xmlfile==2.0.0
-idna==3.13
+executing==2.2.1
+factory_boy==3.3.3
+Faker==40.39.0
+filelock==4.0.3
+flake8==7.4.1
+git-filter-repo==2.47.0
+gunicorn==26.2.0
+h11==0.16.0
+httpcore==1.0.9
+httpx==0.28.1
+hyperlink==21.0.0
+identify==2.6.19
+idna==3.20
+Incremental==24.11.0
 inflection==0.5.1
 iniconfig==2.3.0
+ipython==9.17.1
+ipython_pygments_lexers==1.1.1
+isort==9.0.1
+jedi==0.20.0
 jsonschema==4.26.0
 jsonschema-specifications==2025.9.1
 kombu==5.6.2
-mysqlclient==2.2.8
-numpy==2.4.4
-openpyxl==3.1.5
-packaging==26.2
-pandas==3.0.2
-pdfminer.six==20251230
-pdfplumber==0.11.9
-pefile==2024.8.26
-pillow==12.2.0
+librt==0.15.0
+matplotlib-inline==0.2.2
+mccabe==0.7.0
+msgpack==1.2.2
+mypy==2.3.1
+mypy_extensions==1.1.0
+nodeenv==1.10.0
+numpy==2.5.3
+packaging==26.3
+pandas==3.0.6
+parso==0.8.7
+pathspec==1.1.1
+pillow==12.3.0
+platformdirs==4.11.12
 pluggy==1.6.0
-prompt_toolkit==3.0.52
-psycopg==3.3.4
-psycopg-binary==3.3.4
+pre_commit==4.6.2
+prompt_toolkit==3.0.53
+psutil==7.2.2
+psycopg==3.3.6
+psycopg-binary==3.3.6
+pure_eval==0.2.4
+pycodestyle==2.15.0
 pycparser==3.0
-Pygments==2.20.0
-pyinstaller==6.20.0
-pyinstaller-hooks-contrib==2026.6
-PyJWT==2.13.0
-pypdfium2==5.9.0
-pytest==9.0.3
-python-crontab==3.3.0
+pydantic==2.13.5
+pydantic_core==2.46.5
+pyflakes==4.0.0
+Pygments==2.21.0
+PyJWT==2.15.0
+pyOpenSSL==26.4.0
+pytest==9.1.1
+pytest-django==4.14.0
 python-dateutil==2.9.0.post0
-python-decouple==3.8
-python-dotenv==1.2.2
-pytz==2026.2
-pywin32==312
-pywin32-ctypes==0.2.3
+python-discovery==1.6.1
+python-dotenv==1.2.3
+pytokens==0.4.1
 PyYAML==6.0.3
-redis==8.0.1
+redis==8.1.0
 referencing==0.37.0
-requests==2.33.1
+requests==2.34.2
 rpds-py==2026.6.3
-setuptools==82.0.1
+service-identity==26.1.0
 six==1.17.0
-sqlparse==0.5.5
+sqlparse==0.6.0
+stack-data==0.6.3
 structlog==26.1.0
-tablib==3.9.0
-tzdata==2026.2
+traitlets==5.16.1
+Twisted==26.4.0
+txaio==26.6.1
+typing-inspection==0.4.4
+typing_extensions==4.16.0
+tzdata==2026.4
 tzlocal==5.4.4
+ujson==6.0.0
 uritemplate==4.2.0
-urllib3==2.6.3
+urllib3==2.8.0
 vine==5.1.0
-wcwidth==0.8.2
+virtualenv==21.12.1
+wcwidth==0.9.1
 whitenoise==6.12.0
-xlsxwriter==3.2.9
+zope.interface==8.6
 
 ```
 
 ## 6. Environment Variables (keys only — values hidden)
 ```
-# No .env file found
+# From .env:
+DJANGO_SECRET_KEY=***
+DJANGO_DEBUG=***
+DJANGO_ALLOWED_HOSTS=***
+REDIS_URL=***
+ANTHROPIC_API_KEY=***
+GROQ_API_KEY=***
+KIMI_API_KEY=***
+MARKETAUX_API_KEY=***
+TELEGRAM_BOT_TOKEN=***
+ZERODHA_API_KEY=***
+ZERODHA_API_SECRET=***
+ZERODHA_MCP_URL=***
 ```
 
 ## 7. Duplicate Function & Class Report
 ```
 WARNING: Duplicate function 'validate' in:
     - .\backend\apps\accounts\serializers.py
+    - .\backend\apps\ai_engine\services\output_validator.py
     - .\backend\apps\backtesting\api\serializers.py
+WARNING: Duplicate function 'handle' in:
+    - .\backend\apps\ai_engine\management\commands\calibration_report.py
+    - .\backend\apps\ai_engine\management\commands\diagnose_prompt_data.py
+    - .\backend\apps\market_data\management\commands\backfill_candles.py
+    - .\backend\apps\market_data\management\commands\import_instruments.py
+    - .\backend\apps\market_data\management\commands\seed_test_data.py
+WARNING: Duplicate function 'add_arguments' in:
+    - .\backend\apps\ai_engine\management\commands\diagnose_prompt_data.py
+    - .\backend\apps\market_data\management\commands\backfill_candles.py
+    - .\backend\apps\market_data\management\commands\import_instruments.py
+    - .\backend\apps\market_data\management\commands\seed_test_data.py
+WARNING: Duplicate function '_get_options' in:
+    - .\backend\apps\ai_engine\management\commands\diagnose_prompt_data.py
+    - .\backend\apps\market_data\services\analysis_report_service.py
+WARNING: Duplicate function '_resolve_user' in:
+    - .\backend\apps\ai_engine\management\commands\diagnose_prompt_data.py
+    - .\backend\apps\market_data\management\commands\backfill_candles.py
 WARNING: Duplicate function 'get_provider' in:
     - .\backend\apps\ai_engine\providers\ai_provider_factory.py
     - .\backend\apps\market_data\providers\provider_factory.py
 WARNING: Duplicate function 'complete' in:
     - .\backend\apps\ai_engine\providers\base_ai_provider.py
     - .\backend\apps\ai_engine\providers\claude_provider.py
+    - .\backend\apps\ai_engine\providers\groq_provider.py
     - .\backend\apps\ai_engine\providers\mock_ai_provider.py
     - .\backend\apps\ai_engine\services\ai_service.py
 WARNING: Duplicate function 'get_by_type' in:
@@ -707,6 +1697,12 @@ WARNING: Duplicate function 'get_active' in:
 WARNING: Duplicate function 'get_today_signals' in:
     - .\backend\apps\ai_engine\services\analysis_service.py
     - .\backend\apps\strategies\services\strategy_service.py
+WARNING: Duplicate function 'get_breadth' in:
+    - .\backend\apps\ai_engine\services\market_breadth_service.py
+    - .\backend\apps\market_data\services\market_breadth_service.py
+WARNING: Duplicate function 'get_macro_sentiment' in:
+    - .\backend\apps\ai_engine\services\news_sentiment_service.py
+    - .\backend\apps\market_data\services\news_sentiment_service.py
 WARNING: Duplicate function 'get_by_user' in:
     - .\backend\apps\backtesting\repositories\backtest_repository.py
     - .\backend\apps\journal\repositories\journal_repository.py
@@ -822,6 +1818,7 @@ WARNING: Duplicate function 'get_by_symbol' in:
     - .\backend\apps\market_data\repositories\instrument_repository.py
     - .\backend\apps\market_data\repositories\quote_repository.py
     - .\backend\apps\market_data\services\instrument_service.py
+    - .\backend\apps\market_data\services\outcome_stats_service.py
 WARNING: Duplicate function 'get_by_token' in:
     - .\backend\apps\market_data\repositories\instrument_repository.py
     - .\backend\apps\market_data\repositories\quote_repository.py
@@ -845,6 +1842,9 @@ WARNING: Duplicate function 'get_all' in:
     - .\backend\apps\market_data\services\instrument_service.py
     - .\backend\apps\market_data\services\market_service.py
     - .\backend\apps\strategies\services\strategy_service.py
+WARNING: Duplicate function 'get_by_strategy' in:
+    - .\backend\apps\market_data\services\outcome_stats_service.py
+    - .\backend\apps\strategies\repositories\signal_repository.py
 WARNING: Duplicate function 'get_historical' in:
     - .\backend\apps\market_data\services\zerodha_service.py
     - .\backend\apps\zerodha\services\kite_service.py
@@ -893,6 +1893,10 @@ WARNING: Duplicate function 'send_daily_summary' in:
     - .\backend\apps\notifications\services\email_service.py
     - .\backend\apps\notifications\services\telegram_service.py
 WARNING: Duplicate function 'get_by_account' in:
+    - .\backend\apps\paper_trading\repositories\paper_repository.py
+    - .\backend\apps\paper_trading\repositories\paper_repository.py
+WARNING: Duplicate function 'delete_all_for_account' in:
+    - .\backend\apps\paper_trading\repositories\paper_repository.py
     - .\backend\apps\paper_trading\repositories\paper_repository.py
     - .\backend\apps\paper_trading\repositories\paper_repository.py
 WARNING: Duplicate function 'get_open_positions' in:
@@ -1011,6 +2015,18 @@ WARNING: Duplicate class 'Meta' in:
     - .\backend\apps\zerodha\api\serializers.py
     - .\backend\apps\zerodha\api\serializers.py
     - .\backend\shared\models\base_model.py
+WARNING: Duplicate class 'Command' in:
+    - .\backend\apps\ai_engine\management\commands\calibration_report.py
+    - .\backend\apps\ai_engine\management\commands\diagnose_prompt_data.py
+    - .\backend\apps\market_data\management\commands\backfill_candles.py
+    - .\backend\apps\market_data\management\commands\import_instruments.py
+    - .\backend\apps\market_data\management\commands\seed_test_data.py
+WARNING: Duplicate class 'MarketBreadthService' in:
+    - .\backend\apps\ai_engine\services\market_breadth_service.py
+    - .\backend\apps\market_data\services\market_breadth_service.py
+WARNING: Duplicate class 'NewsSentimentService' in:
+    - .\backend\apps\ai_engine\services\news_sentiment_service.py
+    - .\backend\apps\market_data\services\news_sentiment_service.py
 WARNING: Duplicate class 'ZerodhaConfig' in:
     - .\backend\apps\zerodha\apps.py
     - .\backend\apps\zerodha\models.py
@@ -1037,6 +2053,8 @@ requests>=2.32
 httpx>=0.28
 pydantic>=2.11
 structlog>=25.4
+numpy>=2.5
+pandas>=3.0
 pytest>=8.4
 pytest-django>=4.11
 coverage>=7.10
@@ -1321,6 +2339,7 @@ class AiEngineConfig(AppConfig):
 
 ### .\backend\apps\ai_engine\models.py
 ```python
+from django.conf import settings
 from django.db import models
 
 from apps.market_data.models import Instrument
@@ -1489,6 +2508,16 @@ class AISignal(BaseModel):
         related_name="ai_signals",
     )
 
+    # Owning user — needed for background outcome-tracking to know
+    # whose Zerodha credentials to use when fetching real premiums.
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ai_signals",
+    )
+
     signal = models.CharField(
         max_length=10,
         choices=SIGNAL_CHOICES,
@@ -1521,6 +2550,79 @@ class AISignal(BaseModel):
         decimal_places=2,
         null=True,
         blank=True,
+    )
+
+    # Real option contract attached to this signal.
+    PRODUCT_CHOICES = [
+        ("MIS", "Intraday"),
+        ("NRML", "Carry Forward"),
+    ]
+
+    option_instrument = models.ForeignKey(
+        Instrument,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ai_signals_as_option",
+        help_text="The specific option contract (CE/PE, strike, expiry) recommended for this signal.",
+    )
+    entry_premium = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Real option premium (LTP) when this contract was attached.",
+    )
+    product = models.CharField(
+        max_length=10,
+        choices=PRODUCT_CHOICES,
+        default="MIS",
+        help_text="MIS = intraday, auto square-off ~15:15-15:20 IST. NRML = carry forward until target/stop or contract expiry.",
+    )
+
+    # Outcome tracking (Step 5) — filled in by the background task,
+    # never fabricated. OPEN until real price data resolves it one way
+    # or another.
+    OUTCOME_CHOICES = [
+        ("OPEN", "Open"),
+        ("TARGET_HIT", "Target Hit"),
+        ("STOP_HIT", "Stop Hit"),
+        ("SQUARED_OFF", "Squared Off (MIS EOD)"),
+        ("EXPIRED", "Expired (NRML)"),
+    ]
+
+    outcome_status = models.CharField(
+        max_length=15,
+        choices=OUTCOME_CHOICES,
+        default="OPEN",
+        db_index=True,
+        help_text="Result of automated outcome tracking against the real option premium.",
+    )
+    outcome_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Real premium at which tracking concluded.",
+    )
+    outcome_time = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When tracking concluded.",
+    )
+    points_captured = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="outcome_price - entry_premium, in real option points.",
+    )
+    points_captured_pct = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="points_captured as a percentage of entry_premium.",
     )
 
     reasoning = models.TextField(
@@ -1729,7 +2831,7 @@ class AnalysisRunAPIView(APIView):
             )
 
         try:
-            service = AnalysisService()
+            service = AnalysisService(user=request.user)
             result = service.analyze(
                 symbol=serializer.validated_data["symbol"].upper(),
                 timeframe=serializer.validated_data["timeframe"],
@@ -4734,6 +5836,91 @@ class Candle(BaseModel):
         return f"{self.instrument.trading_symbol} {self.timeframe} @ {self.candle_time}"
 ```
 
+### .\backend\apps\market_data\tasks.py
+```python
+import logging
+
+from celery import shared_task
+
+logger = logging.getLogger(__name__)
+
+# Symbols Athena actually trades — no reason to sync intraday candles for
+# anything else on a recurring schedule.
+INTRADAY_SYNC_SYMBOLS = ["NIFTY", "BANKNIFTY"]
+INTRADAY_SYNC_TIMEFRAMES = ["5m", "15m"]
+
+@shared_task
+def track_signal_outcomes():
+    """Scheduled task: check all OPEN signals against real prices."""
+    from .engine.market_state import MarketState
+    from .services.outcome_tracking_service import OutcomeTrackingService
+
+    session = MarketState.session_info()
+    if not session["is_live"]:
+        logger.info("Market closed — skipping outcome tracking run.")
+        return "skipped (market closed)"
+
+    result = OutcomeTrackingService.track_all_open_signals()
+    logger.info(f"Outcome tracking run: {result}")
+    return result
+
+@shared_task
+def sync_intraday_candles():
+    """
+    Scheduled task: keep today's intraday candles current during market
+    hours. Without this, SessionStructureService, multi-timeframe trend,
+    and primary-timeframe indicators would all be reading stale or
+    missing data once the market's actually open — this task exists to
+    close that gap, following the exact same market-hours-check pattern
+    as track_signal_outcomes.
+    """
+    from datetime import date
+
+    from django.contrib.auth import get_user_model
+
+    from .engine.market_state import MarketState
+    from .services.candle_service import CandleService
+    from apps.zerodha.repositories.zerodha_repository import ZerodhaConfigRepository
+
+    session = MarketState.session_info()
+    if not session["is_live"]:
+        logger.info("Market closed — skipping intraday candle sync.")
+        return "skipped (market closed)"
+
+    config = ZerodhaConfigRepository.model.objects.filter(is_connected=True).first()
+    if not config or not config.is_token_valid:
+        logger.warning("No user with a valid Zerodha connection — skipping intraday candle sync.")
+        return "skipped (no valid Zerodha connection)"
+
+    user = config.user
+    today_str = date.today().isoformat()
+    service = CandleService(user=user)
+    results = {}
+
+    for symbol in INTRADAY_SYNC_SYMBOLS:
+        for timeframe in INTRADAY_SYNC_TIMEFRAMES:
+            try:
+                count = service.fetch_and_store(
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    from_date=today_str,
+                    to_date=today_str,
+                )
+                results[f"{symbol}_{timeframe}"] = count
+            except Exception as e:
+                logger.error(f"sync_intraday_candles failed [{symbol} {timeframe}]: {e}")
+                results[f"{symbol}_{timeframe}"] = f"error: {e}"
+
+    logger.info(f"Intraday candle sync run: {results}")
+    return results
+
+@shared_task
+def ping():
+    """Trivial task to confirm Celery is wired up correctly."""
+    logger.info("Celery ping task executed successfully.")
+    return "pong"
+```
+
 ### .\backend\apps\market_data\utils.py
 ```python
 from .constants import INDICES
@@ -4844,6 +6031,18 @@ class BulkQuoteRequestSerializer(serializers.Serializer):
         min_length=1,
         max_length=50,
     )
+
+class OptionChainSummarySerializer(serializers.Serializer):
+    """Serializer for chain-level analytics (PCR, max pain, ATM)."""
+
+    symbol = serializers.CharField()
+    spot_price = serializers.FloatField(allow_null=True)
+    expiry = serializers.CharField(allow_null=True)
+    available_expiries = serializers.ListField(child=serializers.CharField())
+    atm_strike = serializers.FloatField(allow_null=True)
+    pcr_oi = serializers.FloatField(allow_null=True)
+    pcr_volume = serializers.FloatField(allow_null=True)
+    max_pain = serializers.FloatField(allow_null=True)
 ```
 
 ### .\backend\apps\market_data\api\urls.py
@@ -4860,6 +6059,7 @@ from .views import (
     InstrumentListAPIView,
     InstrumentSearchAPIView,
     OptionChainAPIView,
+    OptionChainSummaryAPIView,
     QuoteDetailAPIView,
     QuoteListAPIView,
     # Sprint 11 — Market Engine
@@ -4868,6 +6068,12 @@ from .views import (
     # Sprint 12 — Indicators
     IndicatorAPIView,
     IndicatorListAPIView,
+    # Step 6 — Outcome Tracking Stats
+    OutcomeStatsSummaryAPIView,
+    OutcomeStatsByStrategyAPIView,
+    OutcomeStatsBySymbolAPIView,
+    # Step 8 — Analysis Report
+    AnalysisReportAPIView,
 )
 
 urlpatterns = [
@@ -4946,6 +6152,21 @@ urlpatterns = [
         name="option-chain",
     ),
 
+    path(
+        "option-chain/<str:symbol>/summary/",
+        OptionChainSummaryAPIView.as_view(),
+        name="option-chain-summary",
+    ),
+
+    # ------------------------------------------------------------------
+    # Analysis Report
+    # ------------------------------------------------------------------
+       
+    path(
+        "report/<str:symbol>/",
+        AnalysisReportAPIView.as_view(),
+        name="analysis-report",
+    ),
     # ------------------------------------------------------------------
     # Sprint 11 — Market Engine
     # ------------------------------------------------------------------
@@ -4973,6 +6194,25 @@ urlpatterns = [
         IndicatorAPIView.as_view(),
         name="indicator-calculate",
     ),
+
+    # ------------------------------------------------------------------
+    # Step 6 — Outcome Tracking Stats
+    # ------------------------------------------------------------------
+    path(
+        "outcomes/summary/",
+        OutcomeStatsSummaryAPIView.as_view(),
+        name="outcome-stats-summary",
+    ),
+    path(
+        "outcomes/by-strategy/",
+        OutcomeStatsByStrategyAPIView.as_view(),
+        name="outcome-stats-by-strategy",
+    ),
+    path(
+        "outcomes/by-symbol/",
+        OutcomeStatsBySymbolAPIView.as_view(),
+        name="outcome-stats-by-symbol",
+    ),
 ]
 ```
 
@@ -4990,12 +6230,16 @@ from ..services.candle_service import CandleService
 from ..services.instrument_service import InstrumentService
 from ..services.market_service import MarketService
 from ..services.quote_service import QuoteService
+from ..services.option_chain_service import OptionChainService
+from ..services.outcome_stats_service import OutcomeStatsService
+from ..services.analysis_report_service import AnalysisReportService
 from .serializers import (
     BulkQuoteRequestSerializer,
     CandleSerializer,
     ExpirySerializer,
     InstrumentSerializer,
     OptionChainSerializer,
+    OptionChainSummarySerializer,
     QuoteSerializer,
 )
 
@@ -5101,7 +6345,7 @@ class QuoteListAPIView(APIView):
 
     def get(self, request):
         try:
-            service = QuoteService()
+            service = QuoteService(user=request.user)
             quotes = service.get_quotes(list(INDICES))
             serializer = QuoteSerializer(quotes, many=True)
             return ApiResponse.success(serializer.data)
@@ -5120,7 +6364,7 @@ class QuoteDetailAPIView(APIView):
 
     def get(self, request, symbol: str):
         try:
-            service = QuoteService()
+            service = QuoteService(user=request.user)
             quote = service.get_quote(symbol.upper())
 
             if not quote:
@@ -5157,7 +6401,7 @@ class BulkQuoteAPIView(APIView):
 
         try:
             symbols = serializer.validated_data["symbols"]
-            service = QuoteService()
+            service = QuoteService(user=request.user)
             quotes = service.get_quotes([s.upper() for s in symbols])
             response_serializer = QuoteSerializer(quotes, many=True)
             return ApiResponse.success(response_serializer.data)
@@ -5245,20 +6489,44 @@ class ExpiryListAPIView(APIView):
 class OptionChainAPIView(APIView):
     """
     GET /api/market/option-chain/<symbol>/
-    Return option chain for a given underlying symbol.
+    GET /api/market/option-chain/<symbol>/?expiry=YYYY-MM-DD
+    Return the analyzed option chain (real Greeks + IV) for one
+    expiry — nearest available if not specified.
     """
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request, symbol: str):
         try:
-            service = MarketService()
-            chain = service.option_chain(symbol.upper())
+            service = OptionChainService(user=request.user)
+            expiry = request.query_params.get("expiry")
+            chain = service.get_chain(symbol.upper(), expiry=expiry)
             serializer = OptionChainSerializer(chain, many=True)
             return ApiResponse.success(serializer.data)
         except Exception as e:
             logger.error(f"OptionChainAPIView error: {e}")
             return ApiResponse.error(message="Failed to fetch option chain.")
+
+
+class OptionChainSummaryAPIView(APIView):
+    """
+    GET /api/market/option-chain/<symbol>/summary/
+    GET /api/market/option-chain/<symbol>/summary/?expiry=YYYY-MM-DD
+    Return chain-level analytics: PCR, max pain, ATM strike, spot price.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, symbol: str):
+        try:
+            service = OptionChainService(user=request.user)
+            expiry = request.query_params.get("expiry")
+            summary = service.get_chain_summary(symbol.upper(), expiry=expiry)
+            serializer = OptionChainSummarySerializer(summary)
+            return ApiResponse.success(serializer.data)
+        except Exception as e:
+            logger.error(f"OptionChainSummaryAPIView error: {e}")
+            return ApiResponse.error(message="Failed to fetch option chain summary.")
 
 
 # ----------------------------------------------------------------------
@@ -5406,6 +6674,83 @@ class IndicatorAPIView(APIView):
         except Exception as e:
             logger.error(f"IndicatorAPIView error: {e}")
             return ApiResponse.error(message="Failed to calculate indicators.")
+
+
+class AnalysisReportAPIView(APIView):
+    """
+    GET /api/market/report/<symbol>/
+    Return the full Analysis Report payload: real price history + EMA
+    overlay, stats, support/resistance, multi-timeframe trend, ATM
+    options, and the last AI Analysis run — the "fixed block" report
+    view, symbol-only, no timeframe picker.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, symbol: str):
+        try:
+            data = AnalysisReportService.get_report(symbol.upper(), user=request.user)
+            return ApiResponse.success(data=data)
+        except Exception as e:
+            logger.error(f"AnalysisReportAPIView error: {e}")
+            return ApiResponse.error(message="Failed to generate analysis report.")
+
+
+# ----------------------------------------------------------------------
+# Step 6 — Outcome Tracking Stats
+# ----------------------------------------------------------------------
+
+class OutcomeStatsSummaryAPIView(APIView):
+    """
+    GET /api/market/outcomes/summary/
+    Overall win-rate summary for AI and Strategy signals — open count,
+    resolved wins/losses/win_rate, breakdowns by outcome_status and
+    product (MIS/NRML). Scoped to the requesting user's own signals.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            data = OutcomeStatsService.get_summary(user=request.user)
+            return ApiResponse.success(data=data)
+        except Exception as e:
+            logger.error(f"OutcomeStatsSummaryAPIView error: {e}")
+            return ApiResponse.error(message="Failed to fetch outcome stats.")
+
+
+class OutcomeStatsByStrategyAPIView(APIView):
+    """
+    GET /api/market/outcomes/by-strategy/
+    Win rate per strategy (StrategySignal only).
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            data = OutcomeStatsService.get_by_strategy(user=request.user)
+            return ApiResponse.success(data=data)
+        except Exception as e:
+            logger.error(f"OutcomeStatsByStrategyAPIView error: {e}")
+            return ApiResponse.error(message="Failed to fetch strategy outcome stats.")
+
+
+class OutcomeStatsBySymbolAPIView(APIView):
+    """
+    GET /api/market/outcomes/by-symbol/
+    Win rate per underlying symbol, combining AI and Strategy signals.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            data = OutcomeStatsService.get_by_symbol(user=request.user)
+            return ApiResponse.success(data=data)
+        except Exception as e:
+            logger.error(f"OutcomeStatsBySymbolAPIView error: {e}")
+            return ApiResponse.error(message="Failed to fetch symbol outcome stats.")
 ```
 
 ### .\backend\apps\notifications\admin.py
@@ -6139,6 +7484,7 @@ class PaperTradingConfig(AppConfig):
 
 ### .\backend\apps\paper_trading\models.py
 ```python
+from decimal import Decimal
 from django.db import models
 from django.contrib.auth import get_user_model
 
@@ -6163,13 +7509,13 @@ class PaperAccount(BaseModel):
     balance = models.DecimalField(
         max_digits=15,
         decimal_places=2,
-        default=1000000.00,
+        default=Decimal("1000000.00"),
         help_text="Available cash balance.",
     )
     initial_balance = models.DecimalField(
         max_digits=15,
         decimal_places=2,
-        default=1000000.00,
+        default=Decimal("1000000.00"),
     )
     used_margin = models.DecimalField(
         max_digits=15,
@@ -6994,6 +8340,7 @@ class StrategiesConfig(AppConfig):
 
 ### .\backend\apps\strategies\models.py
 ```python
+from django.conf import settings
 from django.db import models
 
 from apps.market_data.models import Instrument
@@ -7087,6 +8434,16 @@ class StrategySignal(BaseModel):
         related_name="signals",
     )
 
+    # Owning user — needed for background outcome-tracking to know
+    # whose Zerodha credentials to use when fetching real premiums.
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="strategy_signals",
+    )
+
     signal = models.CharField(
         max_length=10,
         choices=SIGNAL_CHOICES,
@@ -7119,6 +8476,78 @@ class StrategySignal(BaseModel):
         decimal_places=2,
         null=True,
         blank=True,
+    )
+
+    # Real option contract attached to this signal — same design as
+    # AISignal, see that model for details.
+    PRODUCT_CHOICES = [
+        ("MIS", "Intraday"),
+        ("NRML", "Carry Forward"),
+    ]
+
+    option_instrument = models.ForeignKey(
+        Instrument,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="strategy_signals_as_option",
+        help_text="The specific option contract (CE/PE, strike, expiry) recommended for this signal.",
+    )
+    entry_premium = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Real option premium (LTP) when this contract was attached.",
+    )
+    product = models.CharField(
+        max_length=10,
+        choices=PRODUCT_CHOICES,
+        default="MIS",
+        help_text="MIS = intraday, auto square-off ~15:15-15:20 IST. NRML = carry forward until target/stop or contract expiry.",
+    )
+
+    # Outcome tracking (Step 5) — same design as AISignal.
+    OUTCOME_CHOICES = [
+        ("OPEN", "Open"),
+        ("TARGET_HIT", "Target Hit"),
+        ("STOP_HIT", "Stop Hit"),
+        ("SQUARED_OFF", "Squared Off (MIS EOD)"),
+        ("EXPIRED", "Expired (NRML)"),
+    ]
+
+    outcome_status = models.CharField(
+        max_length=15,
+        choices=OUTCOME_CHOICES,
+        default="OPEN",
+        db_index=True,
+        help_text="Result of automated outcome tracking against the real option premium.",
+    )
+    outcome_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Real premium at which tracking concluded.",
+    )
+    outcome_time = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When tracking concluded.",
+    )
+    points_captured = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="outcome_price - entry_premium, in real option points.",
+    )
+    points_captured_pct = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="points_captured as a percentage of entry_premium.",
     )
 
     timeframe = models.CharField(max_length=10)
@@ -7403,6 +8832,7 @@ class StrategyRunAPIView(APIView):
             result = StrategyService.run_strategy(
                 strategy_id=serializer.validated_data["strategy_id"],
                 symbol=serializer.validated_data["symbol"].upper(),
+                user=request.user,
             )
             if not result:
                 return ApiResponse.error(
@@ -7436,7 +8866,7 @@ class StrategyRunAllAPIView(APIView):
             )
         try:
             symbols = [s.upper() for s in serializer.validated_data["symbols"]]
-            results = StrategyService.run_all(symbols)
+            results = StrategyService.run_all(symbols, user=request.user)
             return ApiResponse.success(data=results)
         except Exception as e:
             logger.error(f"StrategyRunAllAPIView error: {e}")
@@ -7530,6 +8960,51 @@ from django.apps import AppConfig
 class ZerodhaConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "apps.zerodha"
+```
+
+### .\backend\apps\zerodha\exceptions.py
+```python
+"""
+backend/apps/zerodha/exceptions.py
+
+New file — place at: backend/apps/zerodha/exceptions.py
+
+Distinguishes "token expired, user needs to reconnect" from other Zerodha
+failures, so the API layer can return the right HTTP status and the frontend
+can react correctly instead of every failure mode collapsing into the same
+generic error dict.
+"""
+
+
+class ZerodhaError(Exception):
+    """Base class for Zerodha-related errors."""
+
+
+class ZerodhaTokenExpiredError(ZerodhaError):
+    """
+    Raised when Kite rejects a call because the daily access token has
+    expired or is otherwise invalid. The caller should prompt the user to
+    reconnect (GET /api/zerodha/login-url/) rather than treat this as a
+    generic failure.
+    """
+
+
+def is_token_expiry_message(message: str) -> bool:
+    """
+    Kite's own error strings for this case aren't perfectly consistent, so
+    this checks for the substrings actually seen in practice. Adjust/extend
+    this list if you see a new phrasing show up in logs.
+    """
+    message_lower = message.lower()
+    return any(
+        phrase in message_lower
+        for phrase in (
+            "access token is invalid",
+            "access token is expired",
+            "token is invalid or expired",
+            "invalid or expired",
+        )
+    )
 ```
 
 ### .\backend\apps\zerodha\models.py
@@ -7832,13 +9307,28 @@ urlpatterns = [
 
 ### .\backend\apps\zerodha\api\views.py
 ```python
+"""
+backend/apps/zerodha/api/views.py
+
+Replaces the existing file at this path.
+
+Change from the previous version: views that call KiteService now catch
+ZerodhaTokenExpiredError specifically and return HTTP 401 with a clear
+message, instead of the generic except-Exception block returning a soft
+error inside a 200 response. Every other view is unchanged from the
+existing file.
+"""
+
 import logging
 
+from django.conf import settings
+from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from shared.api_response import ApiResponse
 
+from ..exceptions import ZerodhaTokenExpiredError
 from ..services.auth_service import ZerodhaAuthService
 from ..services.kite_service import KiteService
 from .serializers import (
@@ -7850,6 +9340,11 @@ from .serializers import (
 )
 
 logger = logging.getLogger(__name__)
+
+TOKEN_EXPIRED_MESSAGE = (
+    "Your Zerodha session has expired. Please reconnect via "
+    "/api/zerodha/login-url/."
+)
 
 
 class ZerodhaStatusAPIView(APIView):
@@ -7863,8 +9358,8 @@ class ZerodhaStatusAPIView(APIView):
     def get(self, request):
         try:
             service = ZerodhaAuthService(request.user)
-            status = service.get_status()
-            return ApiResponse.success(status)
+            status_data = service.get_status()
+            return ApiResponse.success(status_data)
         except Exception as e:
             logger.error(f"ZerodhaStatusAPIView error: {e}")
             return ApiResponse.error(message="Failed to fetch status.")
@@ -7992,6 +9487,11 @@ class ZerodhaProfileAPIView(APIView):
             service = KiteService(request.user)
             profile = service.get_profile()
             return ApiResponse.success(profile)
+        except ZerodhaTokenExpiredError:
+            return ApiResponse.error(
+                message=TOKEN_EXPIRED_MESSAGE,
+                status_code=status.HTTP_401_UNAUTHORIZED,
+            )
         except Exception as e:
             logger.error(f"ZerodhaProfileAPIView error: {e}")
             return ApiResponse.error(message="Failed to fetch profile.")
@@ -8010,6 +9510,11 @@ class ZerodhaFundsAPIView(APIView):
             service = KiteService(request.user)
             funds = service.get_funds()
             return ApiResponse.success(funds)
+        except ZerodhaTokenExpiredError:
+            return ApiResponse.error(
+                message=TOKEN_EXPIRED_MESSAGE,
+                status_code=status.HTTP_401_UNAUTHORIZED,
+            )
         except Exception as e:
             logger.error(f"ZerodhaFundsAPIView error: {e}")
             return ApiResponse.error(message="Failed to fetch funds.")
@@ -8028,11 +9533,26 @@ class ZerodhaOrderListAPIView(APIView):
             service = KiteService(request.user)
             orders = service.get_orders()
             return ApiResponse.success(orders)
+        except ZerodhaTokenExpiredError:
+            return ApiResponse.error(
+                message=TOKEN_EXPIRED_MESSAGE,
+                status_code=status.HTTP_401_UNAUTHORIZED,
+            )
         except Exception as e:
             logger.error(f"ZerodhaOrderListAPIView GET error: {e}")
             return ApiResponse.error(message="Failed to fetch orders.")
 
     def post(self, request):
+        if not settings.LIVE_TRADING_ENABLED:
+            return ApiResponse.error(
+                message=(
+                    "Live trading is disabled on this environment. "
+                    "Set LIVE_TRADING_ENABLED=True to allow real "
+                    "Zerodha order placement."
+                ),
+                status_code=status.HTTP_403_FORBIDDEN,
+            )
+
         serializer = OrderPlaceSerializer(data=request.data)
         if not serializer.is_valid():
             return ApiResponse.error(
@@ -8045,6 +9565,11 @@ class ZerodhaOrderListAPIView(APIView):
             return ApiResponse.success(
                 data=result,
                 message="Order placed.",
+            )
+        except ZerodhaTokenExpiredError:
+            return ApiResponse.error(
+                message=TOKEN_EXPIRED_MESSAGE,
+                status_code=status.HTTP_401_UNAUTHORIZED,
             )
         except Exception as e:
             logger.error(f"ZerodhaOrderListAPIView POST error: {e}")
@@ -8067,6 +9592,11 @@ class ZerodhaOrderCancelAPIView(APIView):
                 data=result,
                 message="Order cancelled.",
             )
+        except ZerodhaTokenExpiredError:
+            return ApiResponse.error(
+                message=TOKEN_EXPIRED_MESSAGE,
+                status_code=status.HTTP_401_UNAUTHORIZED,
+            )
         except Exception as e:
             logger.error(f"ZerodhaOrderCancelAPIView error: {e}")
             return ApiResponse.error(message=f"Cancel failed: {str(e)}")
@@ -8085,6 +9615,11 @@ class ZerodhaPositionsAPIView(APIView):
             service = KiteService(request.user)
             positions = service.get_positions()
             return ApiResponse.success(positions)
+        except ZerodhaTokenExpiredError:
+            return ApiResponse.error(
+                message=TOKEN_EXPIRED_MESSAGE,
+                status_code=status.HTTP_401_UNAUTHORIZED,
+            )
         except Exception as e:
             logger.error(f"ZerodhaPositionsAPIView error: {e}")
             return ApiResponse.error(message="Failed to fetch positions.")
@@ -8103,6 +9638,11 @@ class ZerodhaHoldingsAPIView(APIView):
             service = KiteService(request.user)
             holdings = service.get_holdings()
             return ApiResponse.success(holdings)
+        except ZerodhaTokenExpiredError:
+            return ApiResponse.error(
+                message=TOKEN_EXPIRED_MESSAGE,
+                status_code=status.HTTP_401_UNAUTHORIZED,
+            )
         except Exception as e:
             logger.error(f"ZerodhaHoldingsAPIView error: {e}")
             return ApiResponse.error(message="Failed to fetch holdings.")
@@ -8431,6 +9971,174 @@ class IsSuperUser(BasePermission):
 
 ### .\frontend\src\index.css
 ```css
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        @apply bg-dark-950 text-dark-100 font-sans;
+    }
+
+    ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+        @apply bg-dark-900;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        @apply bg-dark-600 rounded-full;
+    }
+
+        ::-webkit-scrollbar-thumb:hover {
+            @apply bg-dark-500;
+        }
+}
+
+@layer components {
+    .card {
+        @apply bg-dark-900 border border-dark-700 rounded-xl p-4;
+    }
+
+    .card-header {
+        @apply flex items-center justify-between mb-4;
+    }
+
+    .card-title {
+        @apply text-sm font-semibold text-dark-200 uppercase tracking-wider;
+    }
+
+    .btn {
+        @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-dark-950 disabled:opacity-50 disabled:cursor-not-allowed;
+    }
+
+    .btn-primary {
+        @apply btn bg-primary-600 hover:bg-primary-500 text-white focus:ring-primary-500;
+    }
+
+    .btn-secondary {
+        @apply btn bg-dark-700 hover:bg-dark-600 text-dark-100 focus:ring-dark-500;
+    }
+
+    .btn-danger {
+        @apply btn bg-red-600 hover:bg-red-500 text-white focus:ring-red-500;
+    }
+
+    .btn-success {
+        @apply btn bg-green-600 hover:bg-green-500 text-white focus:ring-green-500;
+    }
+
+    .btn-ghost {
+        @apply btn bg-transparent hover:bg-dark-800 text-dark-300 hover:text-dark-100;
+    }
+
+    .btn-sm {
+        @apply px-3 py-1.5 text-xs;
+    }
+
+    .btn-lg {
+        @apply px-6 py-3 text-base;
+    }
+
+    .input {
+        @apply w-full bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-sm text-dark-100 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all;
+    }
+
+    .label {
+        @apply block text-xs font-medium text-dark-400 mb-1.5;
+    }
+
+    .badge {
+        @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+    }
+
+    .badge-green {
+        @apply badge bg-green-900/50 text-green-400 border border-green-800;
+    }
+
+    .badge-red {
+        @apply badge bg-red-900/50 text-red-400 border border-red-800;
+    }
+
+    .badge-yellow {
+        @apply badge bg-yellow-900/50 text-yellow-400 border border-yellow-800;
+    }
+
+    .badge-blue {
+        @apply badge bg-blue-900/50 text-blue-400 border border-blue-800;
+    }
+
+    .badge-gray {
+        @apply badge bg-dark-800 text-dark-400 border border-dark-700;
+    }
+
+    .table-wrapper {
+        @apply overflow-x-auto rounded-xl border border-dark-700;
+    }
+
+    .table {
+        @apply w-full text-sm text-left;
+    }
+
+        .table thead {
+            @apply bg-dark-800 text-dark-400 text-xs uppercase tracking-wider;
+        }
+
+            .table thead th {
+                @apply px-4 py-3 font-medium;
+            }
+
+        .table tbody tr {
+            @apply border-t border-dark-800 hover:bg-dark-800/50 transition-colors;
+        }
+
+        .table tbody td {
+            @apply px-4 py-3 text-dark-200;
+        }
+
+    .positive {
+        @apply text-green-400;
+    }
+
+    .negative {
+        @apply text-red-400;
+    }
+
+    .neutral {
+        @apply text-dark-400;
+    }
+
+    .page-title {
+        @apply text-xl font-bold text-dark-50;
+    }
+
+    .page-subtitle {
+        @apply text-sm text-dark-400 mt-1;
+    }
+
+    .section-title {
+        @apply text-base font-semibold text-dark-100 mb-3;
+    }
+
+    .stat-value {
+        @apply text-2xl font-bold text-dark-50;
+    }
+
+    .stat-label {
+        @apply text-xs text-dark-500 mt-1;
+    }
+
+    .divider {
+        @apply border-t border-dark-800 my-4;
+    }
+}
 
 ```
 
@@ -8810,6 +10518,8 @@ export const marketAPI = {
 
     calculateIndicators: (data) =>
         api.post("/market/indicators/calculate/", data),
+
+    getAnalysisReport: (symbol) => api.get(`/market/report/${symbol}/`),
 };
 ```
 

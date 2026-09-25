@@ -3,8 +3,39 @@ import sys
 import subprocess
 import ast
 
-# Always use the same Python that is running this script (respects .venv)
-PY = sys.executable
+# Force UTF-8 stdout/stderr so the emoji status lines below don't crash
+# with UnicodeEncodeError on Windows consoles using a non-UTF-8 codepage
+# (e.g. cp1252) — no need to set PYTHONUTF8=1 externally.
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
+# Resolve paths relative to this script's own location, not the caller's
+# cwd, so `manage.py` and the venv resolve the same way regardless of
+# where this script is invoked from.
+REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
+BACKEND_DIR = os.path.join(REPO_ROOT, 'backend')
+
+# Use the project's own venv explicitly for every subprocess call below
+# — never trust whatever Python happens to be active when this script
+# is run. Fail loudly if it's missing rather than silently running
+# against (and reporting on) the wrong environment.
+if os.name == 'nt':
+    VENV_PY = os.path.join(REPO_ROOT, '.venv', 'Scripts', 'python.exe')
+else:
+    VENV_PY = os.path.join(REPO_ROOT, '.venv', 'bin', 'python')
+
+if not os.path.isfile(VENV_PY):
+    sys.exit(
+        f"ERROR: project venv not found at {VENV_PY}\n"
+        f"Create it first, e.g.:\n"
+        f"    python -m venv .venv\n"
+        f"    .venv{os.sep}Scripts{os.sep}pip install -r requirements-dev.txt"
+    )
+
+PY = VENV_PY
 PIP = [PY, '-m', 'pip']
 
 output = []
@@ -72,7 +103,7 @@ output.append("## 2. Database Structure (Live MySQL — inspectdb)\n```python")
 try:
     result = subprocess.run(
         [PY, 'manage.py', 'inspectdb'],
-        capture_output=True, text=True
+        capture_output=True, text=True, cwd=BACKEND_DIR,
     )
     output.append(result.stdout if result.stdout else "# No output from inspectdb")
     if result.stderr:
@@ -89,9 +120,16 @@ output.append("## 3. Migration History\n```")
 try:
     result = subprocess.run(
         [PY, 'manage.py', 'showmigrations'],
-        capture_output=True, text=True
+        capture_output=True, text=True, cwd=BACKEND_DIR,
     )
-    output.append(result.stdout if result.stdout else "# No migrations found")
+    if result.returncode == 0:
+        output.append(result.stdout if result.stdout else "# No migrations found")
+    else:
+        output.append("# showmigrations failed")
+        if result.stdout:
+            output.append(f"# stdout: {result.stdout[:800]}")
+        if result.stderr:
+            output.append(f"# stderr: {result.stderr[:800]}")
 except Exception as e:
     output.append(f"# Could not extract migrations: {e}")
 output.append("```\n")
@@ -104,13 +142,15 @@ output.append("## 4. All URL Endpoints\n```")
 try:
     result = subprocess.run(
         [PY, 'manage.py', 'show_urls'],
-        capture_output=True, text=True
+        capture_output=True, text=True, cwd=BACKEND_DIR,
     )
     if result.returncode == 0 and result.stdout:
         output.append(result.stdout)
     else:
         output.append("# django-extensions not installed — run: pip install django-extensions")
         output.append("# Then add 'django_extensions' to INSTALLED_APPS in settings.py")
+        if result.stderr:
+            output.append(f"# stderr: {result.stderr[:800]}")
 except Exception as e:
     output.append(f"# Could not extract URLs: {e}")
 output.append("```\n")
