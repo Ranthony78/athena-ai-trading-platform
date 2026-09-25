@@ -264,7 +264,15 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Market Provider
 # -----------------------------------------------------
 
-MARKET_PROVIDER = "zerodha" # mock
+MARKET_PROVIDER = "mock"
+
+# Live broker order placement is a separate, explicit gate from
+# MARKET_PROVIDER above — it must never default to on. Only
+# production.py, or an explicit LIVE_TRADING_ENABLED=True in the
+# environment, may enable it. Enforced directly in
+# ZerodhaOrderListAPIView.post() regardless of what MARKET_PROVIDER
+# resolves to.
+LIVE_TRADING_ENABLED = os.getenv("LIVE_TRADING_ENABLED", "False") == "True"
 
 # -----------------------------------------------------
 # Django Channels

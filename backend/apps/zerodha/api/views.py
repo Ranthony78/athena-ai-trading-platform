@@ -12,6 +12,7 @@ existing file.
 
 import logging
 
+from django.conf import settings
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -233,6 +234,16 @@ class ZerodhaOrderListAPIView(APIView):
             return ApiResponse.error(message="Failed to fetch orders.")
 
     def post(self, request):
+        if not settings.LIVE_TRADING_ENABLED:
+            return ApiResponse.error(
+                message=(
+                    "Live trading is disabled on this environment. "
+                    "Set LIVE_TRADING_ENABLED=True to allow real "
+                    "Zerodha order placement."
+                ),
+                status_code=status.HTTP_403_FORBIDDEN,
+            )
+
         serializer = OrderPlaceSerializer(data=request.data)
         if not serializer.is_valid():
             return ApiResponse.error(
