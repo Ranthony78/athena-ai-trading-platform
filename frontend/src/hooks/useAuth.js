@@ -16,6 +16,27 @@ export function useLogin() {
     });
 }
 
+function useAuthenticate(mutationFn) {
+    const { login } = useAuthStore();
+    const navigate = useNavigate();
+
+    return useMutation({
+        mutationFn,
+        onSuccess: (response) => {
+            login(response.data);
+            navigate("/dashboard");
+        },
+    });
+}
+
+export function useRegister() {
+    return useAuthenticate((details) => authAPI.register(details));
+}
+
+export function useGoogleLogin() {
+    return useAuthenticate((credential) => authAPI.googleLogin(credential));
+}
+
 export function useLogout() {
     const { logout, refreshToken } = useAuthStore();
     const navigate = useNavigate();

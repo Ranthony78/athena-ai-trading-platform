@@ -2,7 +2,749 @@
 @tailwind components;
 @tailwind utilities;
 
+/* AI Workspace arrangement shares the existing card and theme tokens. */
+.portal-shell:has(.analysis-workspace) > aside > :first-child,
+.portal-shell:has(.analysis-workspace) > div > header {
+    height: 4rem;
+}
+
+.portal-shell:has(.analysis-workspace) main {
+    padding: 0.875rem;
+}
+
+.analysis-context-grid,
+.analysis-learning-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.875rem;
+    align-items: stretch;
+}
+
+.analysis-overview-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.875rem;
+    align-items: stretch;
+}
+
+.analysis-workspace-header > section {
+    margin-top: 1rem;
+}
+
+.analysis-workspace-header .page-title {
+    font-size: 2rem;
+}
+
+.analysis-overview-grid > .card {
+    min-width: 0;
+    padding: 1rem;
+}
+
+.analysis-overview-grid .card-header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.analysis-option-side.card {
+    padding: 0.75rem;
+}
+
+.analysis-option-side .text-xl {
+    font-size: 1.125rem;
+}
+
+.analysis-option-snapshot .stat-value {
+    font-size: 0.875rem;
+}
+
+.analysis-overview-grid .card-title {
+    font-size: 0.875rem;
+}
+
+.analysis-paper-learning .card-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+}
+
+.analysis-paper-learning .card-header button {
+    max-width: 6rem;
+}
+
+.analysis-paper-learning .my-4 {
+    margin-top: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.analysis-paper-learning .p-3 {
+    padding: 0.5rem;
+}
+
+.analysis-paper-learning details.mt-4 {
+    margin-top: 0.5rem;
+}
+
+.analysis-paper-learning details > summary {
+    font-size: 0.75rem;
+    line-height: 1.125rem;
+}
+
+.analysis-context-grid .py-2 {
+    padding-top: 0.375rem;
+    padding-bottom: 0.375rem;
+}
+
+.analysis-worker-status {
+    border: 1px solid rgb(var(--color-yellow-500) / 0.25);
+    background: rgb(var(--color-yellow-500) / 0.08);
+    border-radius: 0.5rem;
+    padding: 0.625rem;
+}
+
+.analysis-recent-insight {
+    display: block;
+    max-width: 24rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.analysis-context-grid > *,
+.analysis-learning-grid > * {
+    min-width: 0;
+}
+
+.analysis-context-grid .card-header {
+    margin-bottom: 0.75rem;
+}
+
+.analysis-context-grid .card {
+    padding: 1rem;
+}
+
+.analysis-workspace > :first-child {
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.analysis-workspace > * + * {
+    margin-top: 0.875rem;
+}
+
+.analysis-workspace.space-y-6 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0.875rem;
+}
+
+.analysis-option-side dl {
+    font-size: 0.6875rem;
+    line-height: 1rem;
+}
+
+.analysis-learning-grid .card-header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+@media (min-width: 1024px) {
+    .analysis-learning-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1280px) {
+    .analysis-context-grid {
+        grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.15fr) minmax(0, 1fr);
+    }
+    .analysis-overview-grid {
+        grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.35fr) minmax(0, 0.85fr);
+    }
+}
+
 @layer base {
+    :root,
+    [data-theme="light"] {
+        color-scheme: light;
+        --color-primary-50: 239 246 255;
+        --color-primary-100: 219 234 254;
+        --color-primary-200: 191 219 254;
+        --color-primary-300: 37 99 235;
+        --color-primary-400: 29 78 216;
+        --color-primary-500: 59 130 246;
+        --color-primary-600: 37 99 235;
+        --color-primary-700: 29 78 216;
+        --color-primary-800: 30 64 175;
+        --color-primary-900: 30 58 138;
+        --color-dark-50: 11 18 32;
+        --color-dark-100: 16 24 40;
+        --color-dark-200: 30 41 59;
+        --color-dark-300: 51 65 85;
+        --color-dark-400: 71 85 105;
+        --color-dark-500: 100 116 139;
+        --color-dark-600: 102 112 133;
+        --color-dark-700: 215 222 232;
+        --color-dark-800: 238 242 247;
+        --color-dark-900: 255 255 255;
+        --color-dark-950: 245 247 251;
+        --color-green-50: 240 253 244;
+        --color-green-100: 220 252 231;
+        --color-green-200: 187 247 208;
+        --color-green-300: 134 239 172;
+        --color-green-400: 21 128 61;
+        --color-green-500: 22 163 74;
+        --color-green-600: 21 128 61;
+        --color-green-700: 22 101 52;
+        --color-green-800: 187 247 208;
+        --color-green-900: 240 253 244;
+        --color-red-50: 254 242 242;
+        --color-red-100: 254 226 226;
+        --color-red-200: 254 202 202;
+        --color-red-300: 252 165 165;
+        --color-red-400: 185 28 28;
+        --color-red-500: 220 38 38;
+        --color-red-600: 185 28 28;
+        --color-red-700: 153 27 27;
+        --color-red-800: 254 202 202;
+        --color-red-900: 254 242 242;
+        --color-yellow-50: 254 252 232;
+        --color-yellow-100: 254 243 199;
+        --color-yellow-200: 253 230 138;
+        --color-yellow-300: 252 211 77;
+        --color-yellow-400: 161 98 7;
+        --color-yellow-500: 217 119 6;
+        --color-yellow-600: 161 98 7;
+        --color-yellow-700: 133 77 14;
+        --color-yellow-800: 253 230 138;
+        --color-yellow-900: 254 252 232;
+        --color-blue-50: 239 246 255;
+        --color-blue-100: 219 234 254;
+        --color-blue-200: 191 219 254;
+        --color-blue-300: 147 197 253;
+        --color-blue-400: 29 78 216;
+        --color-blue-500: 37 99 235;
+        --color-blue-600: 37 99 235;
+        --color-blue-700: 29 78 216;
+        --color-blue-800: 191 219 254;
+        --color-blue-900: 239 246 255;
+        --chart-grid: #e4dbe6;
+        --chart-label: #786b80;
+        --chart-accent: #873464;
+        --chart-secondary: #c77b54;
+        --chart-tertiary: #8c77ac;
+        --chart-tooltip: #fffafc;
+        --chart-tooltip-border: #e4dbe6;
+        --chart-tooltip-text: #35253a;
+        --auth-panel: #1b1025;
+        --auth-paper: #fffaf6;
+        --auth-accent: #7b2d5b;
+        --auth-button-start: #4d1b45;
+        --auth-button-end: #792b63;
+        --auth-button-shadow: 92 32 78;
+        --auth-page: #91476f;
+        --auth-page-end: #e69778;
+        --auth-glow: rgb(255 172 200 / 38%);
+        --auth-orbit: rgb(255 194 123 / 42%);
+        --auth-grid: rgb(255 244 247 / 11%);
+        --auth-backdrop-image: url("/images/athena-login-ambient.png");
+        --auth-shadow: 51 19 48;
+        --auth-border: 247 220 229;
+        --portal-backdrop-image: radial-gradient(ellipse at 12% 4%, rgb(59 130 246 / 15%), transparent 38%), radial-gradient(ellipse at 92% 96%, rgb(192 132 252 / 11%), transparent 34%), linear-gradient(135deg, #edf2fb, #f8fafc 56%, #eef2f8);
+        --portal-backdrop-overlay: linear-gradient(110deg, rgb(255 255 255 / 12%), rgb(248 250 252 / 6%), rgb(255 255 255 / 10%));
+        --portal-sidebar-alpha: 0.84;
+        --portal-header-alpha: 0.64;
+        --portal-card-alpha: 0.94;
+        --portal-card-secondary-alpha: 0.91;
+        --portal-inner-alpha: 0.82;
+        --portal-chart-alpha: 0.68;
+        --portal-border-color: rgb(148 163 184 / 34%);
+        --portal-card-border-color: rgb(148 163 184 / 38%);
+    }
+
+    [data-theme="plum"] {
+        color-scheme: dark;
+        --color-primary-50: 253 244 250;
+        --color-primary-100: 250 232 244;
+        --color-primary-200: 242 200 230;
+        --color-primary-300: 242 164 208;
+        --color-primary-400: 230 130 184;
+        --color-primary-500: 213 91 157;
+        --color-primary-600: 174 59 126;
+        --color-primary-700: 133 42 99;
+        --color-primary-800: 96 31 75;
+        --color-primary-900: 65 24 54;
+        --color-dark-50: 255 248 253;
+        --color-dark-100: 246 232 244;
+        --color-dark-200: 224 204 224;
+        --color-dark-300: 194 166 196;
+        --color-dark-400: 164 134 168;
+        --color-dark-500: 178 153 184;
+        --color-dark-600: 102 74 109;
+        --color-dark-700: 75 52 81;
+        --color-dark-800: 51 34 57;
+        --color-dark-900: 34 22 39;
+        --color-dark-950: 18 12 22;
+        --color-green-50: 20 38 30;
+        --color-green-100: 23 58 41;
+        --color-green-200: 32 97 60;
+        --color-green-300: 40 145 78;
+        --color-green-400: 74 222 128;
+        --color-green-500: 34 197 94;
+        --color-green-600: 22 163 74;
+        --color-green-700: 21 128 61;
+        --color-green-800: 22 101 52;
+        --color-green-900: 20 83 45;
+        --color-red-50: 48 26 35;
+        --color-red-100: 72 30 43;
+        --color-red-200: 114 42 60;
+        --color-red-300: 178 58 83;
+        --color-red-400: 248 113 113;
+        --color-red-500: 239 68 68;
+        --color-red-600: 185 28 28;
+        --color-red-700: 185 28 28;
+        --color-red-800: 127 29 29;
+        --color-red-900: 69 10 10;
+        --color-yellow-50: 47 36 22;
+        --color-yellow-100: 82 59 25;
+        --color-yellow-200: 135 93 30;
+        --color-yellow-300: 205 144 49;
+        --color-yellow-400: 250 204 21;
+        --color-yellow-500: 234 179 8;
+        --color-yellow-600: 202 138 4;
+        --color-yellow-700: 161 98 7;
+        --color-yellow-800: 133 77 14;
+        --color-yellow-900: 66 32 6;
+        --color-blue-50: 28 26 46;
+        --color-blue-100: 42 36 67;
+        --color-blue-200: 68 55 101;
+        --color-blue-300: 105 83 148;
+        --color-blue-400: 192 132 252;
+        --color-blue-500: 168 85 247;
+        --color-blue-600: 147 51 234;
+        --color-blue-700: 126 34 206;
+        --color-blue-800: 107 33 168;
+        --color-blue-900: 76 29 120;
+        --chart-grid: #493449;
+        --chart-label: #c4a9c6;
+        --chart-accent: #ee82bc;
+        --chart-secondary: #f0b36b;
+        --chart-tertiary: #b9a0ee;
+        --chart-tooltip: #211522;
+        --chart-tooltip-border: #644661;
+        --chart-tooltip-text: #fff5fc;
+        --auth-panel: rgb(27 16 37 / 82%);
+        --auth-paper: rgb(33 21 34 / 92%);
+        --auth-accent: #f0a0ca;
+        --auth-button-start: #61254f;
+        --auth-button-end: #a23d79;
+        --auth-button-shadow: 113 44 91;
+        --auth-page: #28122e;
+        --auth-page-end: #e69778;
+        --auth-glow: rgb(255 172 200 / 27%);
+        --auth-orbit: rgb(255 194 123 / 32%);
+        --auth-grid: rgb(255 244 247 / 7%);
+        --auth-backdrop-image: url("/images/athena-login-ambient.png");
+        --auth-shadow: 51 19 48;
+        --auth-border: 82 57 91;
+        --portal-backdrop-image: url("/images/athena-login-ambient.png");
+        --portal-backdrop-overlay: linear-gradient(110deg, rgb(18 10 23 / 43%), rgb(27 14 30 / 35%) 53%, rgb(37 17 27 / 29%));
+        --portal-sidebar-alpha: 0.55;
+        --portal-header-alpha: 0.20;
+        --portal-card-alpha: 0.88;
+        --portal-card-secondary-alpha: 0.86;
+        --portal-inner-alpha: 0.88;
+        --portal-chart-alpha: 0.78;
+        --portal-border-color: rgb(114 81 111 / 60%);
+        --portal-card-border-color: #72516f;
+    }
+
+    [data-theme="dark"] {
+        color-scheme: dark;
+        --color-primary-50: 239 246 255;
+        --color-primary-100: 219 234 254;
+        --color-primary-200: 191 219 254;
+        --color-primary-300: 147 197 253;
+        --color-primary-400: 96 165 250;
+        --color-primary-500: 59 130 246;
+        --color-primary-600: 37 99 235;
+        --color-primary-700: 29 78 216;
+        --color-primary-800: 30 64 175;
+        --color-primary-900: 30 58 138;
+        --color-dark-50: 248 250 252;
+        --color-dark-100: 241 245 249;
+        --color-dark-200: 226 232 240;
+        --color-dark-300: 203 213 225;
+        --color-dark-400: 148 163 184;
+        --color-dark-500: 100 116 139;
+        --color-dark-600: 71 85 105;
+        --color-dark-700: 51 65 85;
+        --color-dark-800: 30 41 59;
+        --color-dark-900: 17 24 39;
+        --color-dark-950: 11 18 32;
+        --color-green-50: 240 253 244;
+        --color-green-100: 220 252 231;
+        --color-green-200: 187 247 208;
+        --color-green-300: 134 239 172;
+        --color-green-400: 74 222 128;
+        --color-green-500: 34 197 94;
+        --color-green-600: 22 163 74;
+        --color-green-700: 21 128 61;
+        --color-green-800: 22 101 52;
+        --color-green-900: 20 83 45;
+        --color-red-50: 254 242 242;
+        --color-red-100: 254 226 226;
+        --color-red-200: 254 202 202;
+        --color-red-300: 252 165 165;
+        --color-red-400: 248 113 113;
+        --color-red-500: 239 68 68;
+        --color-red-600: 220 38 38;
+        --color-red-700: 185 28 28;
+        --color-red-800: 127 29 29;
+        --color-red-900: 69 10 10;
+        --color-yellow-50: 254 252 232;
+        --color-yellow-100: 254 243 199;
+        --color-yellow-200: 253 230 138;
+        --color-yellow-300: 252 211 77;
+        --color-yellow-400: 250 204 21;
+        --color-yellow-500: 234 179 8;
+        --color-yellow-600: 202 138 4;
+        --color-yellow-700: 161 98 7;
+        --color-yellow-800: 133 77 14;
+        --color-yellow-900: 66 32 6;
+        --color-blue-50: 239 246 255;
+        --color-blue-100: 219 234 254;
+        --color-blue-200: 191 219 254;
+        --color-blue-300: 147 197 253;
+        --color-blue-400: 96 165 250;
+        --color-blue-500: 59 130 246;
+        --color-blue-600: 37 99 235;
+        --color-blue-700: 29 78 216;
+        --color-blue-800: 30 64 175;
+        --color-blue-900: 30 58 138;
+        --auth-panel: #101f37;
+        --auth-paper: #111827;
+        --auth-accent: #93c5fd;
+        --auth-button-start: #1d4ed8;
+        --auth-button-end: #2563eb;
+        --auth-button-shadow: 37 99 235;
+        --auth-page: #0b1220;
+        --auth-page-end: #17263d;
+        --auth-glow: rgb(37 99 235 / 18%);
+        --auth-orbit: rgb(30 64 175 / 24%);
+        --auth-grid: rgb(148 163 184 / 6%);
+        --auth-backdrop-image: linear-gradient(140deg, #0b1220, #192238 55%, #132033);
+        --auth-shadow: 0 0 0;
+        --auth-border: 51 65 85;
+        --chart-grid: #334155;
+        --chart-label: #94a3b8;
+        --chart-accent: #60a5fa;
+        --chart-secondary: #f59e0b;
+        --chart-tertiary: #a78bfa;
+        --chart-tooltip: #111827;
+        --chart-tooltip-border: #334155;
+        --chart-tooltip-text: #e2e8f0;
+        --portal-backdrop-image: radial-gradient(ellipse at 14% 0%, rgb(59 130 246 / 17%), transparent 40%), radial-gradient(ellipse at 96% 100%, rgb(30 64 175 / 20%), transparent 42%), linear-gradient(145deg, #080d19, #101827 58%, #0b1220);
+        --portal-backdrop-overlay: linear-gradient(110deg, rgb(11 18 32 / 18%), rgb(11 18 32 / 8%) 54%, rgb(11 18 32 / 16%));
+        --portal-sidebar-alpha: 0.76;
+        --portal-header-alpha: 0.30;
+        --portal-card-alpha: 0.91;
+        --portal-card-secondary-alpha: 0.88;
+        --portal-inner-alpha: 0.84;
+        --portal-chart-alpha: 0.76;
+        --portal-border-color: rgb(96 165 250 / 24%);
+        --portal-card-border-color: rgb(96 165 250 / 28%);
+    }
+
+    [data-theme="copper"] {
+        color-scheme: dark;
+        --color-primary-50: 255 247 237;
+        --color-primary-100: 255 237 213;
+        --color-primary-200: 254 215 170;
+        --color-primary-300: 253 186 116;
+        --color-primary-400: 251 146 60;
+        --color-primary-500: 217 119 45;
+        --color-primary-600: 194 95 35;
+        --color-primary-700: 154 72 31;
+        --color-primary-800: 124 58 31;
+        --color-primary-900: 91 43 27;
+        --color-dark-50: 255 248 240;
+        --color-dark-100: 250 238 225;
+        --color-dark-200: 230 211 190;
+        --color-dark-300: 200 174 151;
+        --color-dark-400: 164 138 116;
+        --color-dark-500: 130 105 86;
+        --color-dark-600: 91 70 58;
+        --color-dark-700: 66 49 42;
+        --color-dark-800: 48 35 31;
+        --color-dark-900: 34 25 24;
+        --color-dark-950: 25 19 20;
+        --color-green-50: 240 253 244;
+        --color-green-100: 220 252 231;
+        --color-green-200: 187 247 208;
+        --color-green-300: 134 239 172;
+        --color-green-400: 74 222 128;
+        --color-green-500: 34 197 94;
+        --color-green-600: 22 163 74;
+        --color-green-700: 21 128 61;
+        --color-green-800: 22 101 52;
+        --color-green-900: 20 83 45;
+        --color-red-50: 254 242 242;
+        --color-red-100: 254 226 226;
+        --color-red-200: 254 202 202;
+        --color-red-300: 252 165 165;
+        --color-red-400: 248 113 113;
+        --color-red-500: 239 68 68;
+        --color-red-600: 220 38 38;
+        --color-red-700: 185 28 28;
+        --color-red-800: 127 29 29;
+        --color-red-900: 69 10 10;
+        --color-yellow-50: 255 251 235;
+        --color-yellow-100: 254 243 199;
+        --color-yellow-200: 253 230 138;
+        --color-yellow-300: 252 211 77;
+        --color-yellow-400: 251 191 36;
+        --color-yellow-500: 245 158 11;
+        --color-yellow-600: 217 119 6;
+        --color-yellow-700: 180 83 9;
+        --color-yellow-800: 146 64 14;
+        --color-yellow-900: 120 53 15;
+        --color-blue-50: 239 246 255;
+        --color-blue-100: 219 234 254;
+        --color-blue-200: 191 219 254;
+        --color-blue-300: 147 197 253;
+        --color-blue-400: 96 165 250;
+        --color-blue-500: 59 130 246;
+        --color-blue-600: 37 99 235;
+        --color-blue-700: 29 78 216;
+        --color-blue-800: 30 64 175;
+        --color-blue-900: 30 58 138;
+        --chart-grid: #493632;
+        --chart-label: #c8a995;
+        --chart-accent: #e9945c;
+        --chart-secondary: #f4bd68;
+        --chart-tertiary: #c98276;
+        --chart-tooltip: #302321;
+        --chart-tooltip-border: #60443a;
+        --chart-tooltip-text: #fff1e4;
+        --auth-panel: #211719;
+        --auth-paper: #fff8f0;
+        --auth-accent: #a65032;
+        --auth-button-start: #713d31;
+        --auth-button-end: #bd683d;
+        --auth-button-shadow: 172 91 54;
+        --auth-page: #351f26;
+        --auth-page-end: #d18a56;
+        --auth-glow: rgb(244 164 96 / 35%);
+        --auth-orbit: rgb(255 204 126 / 43%);
+        --auth-grid: rgb(255 239 220 / 10%);
+        --auth-backdrop-image: url("/images/athena-login-ambient.png");
+        --auth-shadow: 62 33 27;
+        --auth-border: 231 203 184;
+        --portal-backdrop-image: url("/images/athena-login-ambient.png");
+        --portal-backdrop-overlay: linear-gradient(112deg, rgb(28 17 19 / 42%), rgb(43 24 23 / 30%) 52%, rgb(74 38 27 / 25%));
+        --portal-sidebar-alpha: 0.58;
+        --portal-header-alpha: 0.22;
+        --portal-card-alpha: 0.89;
+        --portal-card-secondary-alpha: 0.86;
+        --portal-inner-alpha: 0.88;
+        --portal-chart-alpha: 0.78;
+        --portal-border-color: rgb(201 126 83 / 34%);
+        --portal-card-border-color: rgb(201 126 83 / 42%);
+    }
+
+    [data-theme="neon"] {
+        color-scheme: dark;
+        --color-primary-50: 239 246 255;
+        --color-primary-100: 224 231 255;
+        --color-primary-200: 199 210 254;
+        --color-primary-300: 165 180 252;
+        --color-primary-400: 129 140 248;
+        --color-primary-500: 99 102 241;
+        --color-primary-600: 79 70 229;
+        --color-primary-700: 67 56 202;
+        --color-primary-800: 55 48 163;
+        --color-primary-900: 49 46 129;
+        --color-dark-50: 245 247 255;
+        --color-dark-100: 229 232 255;
+        --color-dark-200: 205 210 240;
+        --color-dark-300: 165 174 210;
+        --color-dark-400: 133 145 184;
+        --color-dark-500: 103 116 157;
+        --color-dark-600: 66 76 116;
+        --color-dark-700: 47 56 91;
+        --color-dark-800: 29 35 66;
+        --color-dark-900: 19 23 48;
+        --color-dark-950: 12 15 34;
+        --color-green-50: 223 255 238;
+        --color-green-100: 177 255 212;
+        --color-green-200: 129 255 186;
+        --color-green-300: 79 255 155;
+        --color-green-400: 57 255 136;
+        --color-green-500: 26 230 112;
+        --color-green-600: 0 191 87;
+        --color-green-700: 0 145 67;
+        --color-green-800: 0 96 49;
+        --color-green-900: 0 54 32;
+        --color-red-50: 255 232 241;
+        --color-red-100: 255 201 221;
+        --color-red-200: 255 153 190;
+        --color-red-300: 255 107 160;
+        --color-red-400: 255 77 125;
+        --color-red-500: 244 54 107;
+        --color-red-600: 214 35 87;
+        --color-red-700: 173 27 73;
+        --color-red-800: 117 23 59;
+        --color-red-900: 70 17 42;
+        --color-yellow-50: 255 249 224;
+        --color-yellow-100: 255 240 184;
+        --color-yellow-200: 255 227 133;
+        --color-yellow-300: 255 215 92;
+        --color-yellow-400: 255 209 102;
+        --color-yellow-500: 255 190 56;
+        --color-yellow-600: 230 157 23;
+        --color-yellow-700: 184 121 12;
+        --color-yellow-800: 133 86 9;
+        --color-yellow-900: 74 47 9;
+        --color-blue-50: 232 251 255;
+        --color-blue-100: 201 244 255;
+        --color-blue-200: 153 232 255;
+        --color-blue-300: 102 217 255;
+        --color-blue-400: 64 201 255;
+        --color-blue-500: 21 177 240;
+        --color-blue-600: 0 145 209;
+        --color-blue-700: 0 112 168;
+        --color-blue-800: 0 79 122;
+        --color-blue-900: 0 49 79;
+        --auth-panel: #101432;
+        --auth-paper: #13172f;
+        --auth-accent: #c4b5fd;
+        --auth-button-start: #5b21b6;
+        --auth-button-end: #7c3aed;
+        --auth-button-shadow: 124 58 237;
+        --auth-page: #0c0f22;
+        --auth-page-end: #171333;
+        --auth-glow: rgb(34 211 238 / 22%);
+        --auth-orbit: rgb(168 85 247 / 30%);
+        --auth-grid: rgb(165 180 252 / 8%);
+        --auth-backdrop-image: linear-gradient(140deg, #0b1026, #21153c 55%, #151630);
+        --auth-shadow: 33 25 104;
+        --auth-border: 47 56 91;
+        --chart-grid: #2f385b;
+        --chart-label: #a5b4fc;
+        --chart-accent: #40c9ff;
+        --chart-secondary: #ffd166;
+        --chart-tertiary: #c4b5fd;
+        --chart-tooltip: #13172f;
+        --chart-tooltip-border: #2f385b;
+        --chart-tooltip-text: #e5e8ff;
+        --portal-backdrop-image: radial-gradient(ellipse 58% 42% at 18% 0%, rgb(139 92 246 / 27%), transparent 92%), radial-gradient(ellipse 48% 48% at 84% 8%, rgb(34 211 238 / 22%), transparent 92%), radial-gradient(ellipse 54% 48% at 66% 100%, rgb(14 116 144 / 27%), transparent 90%), linear-gradient(150deg, #090d20, #13112c 53%, #0b1a27);
+        --portal-backdrop-overlay: linear-gradient(110deg, rgb(9 13 32 / 20%), rgb(16 18 42 / 8%) 52%, rgb(8 19 34 / 18%));
+        --portal-sidebar-alpha: 0.60;
+        --portal-header-alpha: 0.22;
+        --portal-card-alpha: 0.89;
+        --portal-card-secondary-alpha: 0.86;
+        --portal-inner-alpha: 0.87;
+        --portal-chart-alpha: 0.78;
+        --portal-border-color: rgb(103 232 249 / 30%);
+        --portal-card-border-color: rgb(103 232 249 / 35%);
+    }
+
+    [data-theme="aurora"] {
+        color-scheme: dark;
+        --color-primary-50: 236 254 255;
+        --color-primary-100: 207 250 254;
+        --color-primary-200: 165 243 252;
+        --color-primary-300: 103 232 249;
+        --color-primary-400: 34 211 238;
+        --color-primary-500: 20 184 210;
+        --color-primary-600: 8 145 178;
+        --color-primary-700: 14 116 144;
+        --color-primary-800: 21 94 117;
+        --color-primary-900: 22 78 99;
+        --color-dark-50: 239 249 255;
+        --color-dark-100: 222 240 250;
+        --color-dark-200: 191 218 235;
+        --color-dark-300: 153 187 209;
+        --color-dark-400: 120 154 181;
+        --color-dark-500: 91 124 153;
+        --color-dark-600: 62 84 119;
+        --color-dark-700: 44 55 91;
+        --color-dark-800: 31 38 68;
+        --color-dark-900: 20 25 48;
+        --color-dark-950: 12 17 36;
+        --color-green-50: 223 255 238;
+        --color-green-100: 177 255 212;
+        --color-green-200: 129 255 186;
+        --color-green-300: 79 255 155;
+        --color-green-400: 57 255 136;
+        --color-green-500: 26 230 112;
+        --color-green-600: 0 191 87;
+        --color-green-700: 0 145 67;
+        --color-green-800: 0 96 49;
+        --color-green-900: 0 54 32;
+        --color-red-50: 255 232 241;
+        --color-red-100: 255 201 221;
+        --color-red-200: 255 153 190;
+        --color-red-300: 255 107 160;
+        --color-red-400: 255 77 125;
+        --color-red-500: 244 54 107;
+        --color-red-600: 214 35 87;
+        --color-red-700: 173 27 73;
+        --color-red-800: 117 23 59;
+        --color-red-900: 70 17 42;
+        --color-yellow-50: 255 249 224;
+        --color-yellow-100: 255 240 184;
+        --color-yellow-200: 255 227 133;
+        --color-yellow-300: 255 215 92;
+        --color-yellow-400: 255 209 102;
+        --color-yellow-500: 255 190 56;
+        --color-yellow-600: 230 157 23;
+        --color-yellow-700: 184 121 12;
+        --color-yellow-800: 133 86 9;
+        --color-yellow-900: 74 47 9;
+        --color-blue-50: 232 251 255;
+        --color-blue-100: 201 244 255;
+        --color-blue-200: 153 232 255;
+        --color-blue-300: 102 217 255;
+        --color-blue-400: 64 201 255;
+        --color-blue-500: 21 177 240;
+        --color-blue-600: 0 145 209;
+        --color-blue-700: 0 112 168;
+        --color-blue-800: 0 79 122;
+        --color-blue-900: 0 49 79;
+        --chart-grid: #2d3858;
+        --chart-label: #a9bdd7;
+        --chart-accent: #39d7e8;
+        --chart-secondary: #ae8cff;
+        --chart-tertiary: #68edc5;
+        --chart-tooltip: #171d3a;
+        --chart-tooltip-border: #3b4770;
+        --chart-tooltip-text: #eaf5ff;
+        --portal-backdrop-image: radial-gradient(ellipse 54% 40% at 16% 0%, rgb(34 211 238 / 18%), transparent 90%), radial-gradient(ellipse 50% 42% at 84% 4%, rgb(139 92 246 / 22%), transparent 92%), radial-gradient(ellipse 55% 52% at 88% 100%, rgb(20 184 210 / 16%), transparent 90%), linear-gradient(150deg, #080e20, #11172e 54%, #091824);
+        --portal-backdrop-overlay: linear-gradient(110deg, rgb(8 14 32 / 22%), rgb(13 18 38 / 10%) 54%, rgb(8 18 32 / 18%));
+        --portal-sidebar-alpha: 0.60;
+        --portal-header-alpha: 0.22;
+        --portal-card-alpha: 0.89;
+        --portal-card-secondary-alpha: 0.86;
+        --portal-inner-alpha: 0.87;
+        --portal-chart-alpha: 0.78;
+        --portal-border-color: rgb(34 211 238 / 27%);
+        --portal-card-border-color: rgb(34 211 238 / 34%);
+        --auth-panel: #10142e;
+        --auth-paper: #f4f8ff;
+        --auth-accent: #147f9b;
+        --auth-button-start: #35256f;
+        --auth-button-end: #087f98;
+        --auth-button-shadow: 25 148 173;
+        --auth-page: #0c1028;
+        --auth-page-end: #173d56;
+        --auth-glow: rgb(34 211 238 / 25%);
+        --auth-orbit: rgb(167 139 250 / 30%);
+        --auth-grid: rgb(196 231 255 / 8%);
+        --auth-backdrop-image: linear-gradient(140deg, #0c1028, #201a44 52%, #12384c);
+        --auth-shadow: 11 22 55;
+        --auth-border: 180 204 229;
+    }
+
     * {
         box-sizing: border-box;
     }
@@ -24,9 +766,100 @@
         @apply bg-dark-600 rounded-full;
     }
 
-        ::-webkit-scrollbar-thumb:hover {
-            @apply bg-dark-500;
-        }
+    ::-webkit-scrollbar-thumb:hover {
+        @apply bg-dark-500;
+    }
+}
+
+@layer base {
+    body,
+    button,
+    input,
+    select {
+        transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease;
+    }
+}
+
+@layer components {
+    .portal-shell {
+        background-image: var(--portal-backdrop-overlay), var(--portal-backdrop-image);
+        background-position: center top;
+        background-size: cover;
+        background-repeat: no-repeat;
+    }
+
+    .auth-shell {
+        background-color: var(--auth-page);
+        background-image:
+            var(--portal-backdrop-overlay),
+            var(--portal-backdrop-image);
+        background-size: cover;
+        background-position: center top;
+        background-repeat: no-repeat;
+    }
+
+    .auth-surface {
+        background-color: var(--auth-paper);
+        border-color: rgb(var(--auth-border));
+        box-shadow: 0 28px 88px -34px rgb(var(--auth-shadow) / 38%);
+        backdrop-filter: blur(14px);
+    }
+
+    .auth-brand-panel {
+        background-color: var(--auth-panel);
+        backdrop-filter: blur(12px);
+    }
+
+    .auth-signin-button {
+        background: linear-gradient(105deg, var(--auth-button-start), var(--auth-button-end));
+        box-shadow: 0 12px 24px -12px rgb(var(--auth-button-shadow) / 55%);
+    }
+
+    .auth-signin-button:hover {
+        filter: brightness(1.08);
+    }
+
+    .auth-signin-button:focus-visible {
+        outline: 3px solid var(--auth-accent);
+        outline-offset: 3px;
+    }
+
+    .auth-eyebrow,
+    .auth-accent-text {
+        color: var(--auth-accent);
+    }
+
+    .auth-input:focus {
+        border-color: var(--auth-accent);
+        box-shadow: 0 0 0 4px color-mix(in srgb, var(--auth-accent) 13%, transparent);
+    }
+}
+
+[data-theme="plum"] .auth-surface .text-dark-50,
+[data-theme="plum"] .auth-surface .text-dark-100,
+[data-theme="plum"] .auth-surface .text-dark-200 {
+    color: #fff8fd !important;
+}
+
+[data-theme="plum"] .auth-surface .text-dark-300,
+[data-theme="plum"] .auth-surface .text-dark-400,
+[data-theme="plum"] .auth-surface .text-dark-500 {
+    color: #d0b8d1 !important;
+}
+
+[data-theme="plum"] .auth-surface .auth-input {
+    color: #fff8fd !important;
+    background-color: rgb(43 28 48 / 94%) !important;
+    border-color: #72516f !important;
+}
+
+[data-theme="plum"] .auth-surface .auth-input::placeholder {
+    color: #b99cbe !important;
+}
+
+[data-theme="plum"] .auth-surface .auth-input:focus {
+    border-color: #f0a0ca !important;
+    box-shadow: 0 0 0 4px rgb(240 160 202 / 18%) !important;
 }
 
 @layer components {
@@ -165,4 +998,291 @@
     .divider {
         @apply border-t border-dark-800 my-4;
     }
+}
+
+/* Keep Atmospheric Plum surfaces explicit across the authenticated portal. */
+[data-theme="plum"] .portal-shell {
+    color-scheme: dark;
+    color: #fff8fd;
+    background-color: #120c16;
+}
+
+/* Native theme menus otherwise fall back to low-contrast OS colors. */
+[data-theme] .portal-shell select option {
+    color: rgb(var(--color-dark-100)) !important;
+    background-color: rgb(var(--color-dark-900)) !important;
+}
+
+/* Shared translucent shell treatment for the non-Plum selectable themes. */
+:is([data-theme="light"], [data-theme="dark"], [data-theme="copper"], [data-theme="aurora"], [data-theme="neon"]) .portal-shell aside {
+    background-color: rgb(var(--color-dark-900) / var(--portal-sidebar-alpha, 0.82)) !important;
+    border-color: var(--portal-border-color) !important;
+    backdrop-filter: blur(8px);
+}
+
+:is([data-theme="light"], [data-theme="dark"], [data-theme="copper"], [data-theme="aurora"], [data-theme="neon"]) .portal-shell header {
+    background-color: rgb(var(--color-dark-900) / var(--portal-header-alpha, 0.55)) !important;
+    border-color: var(--portal-border-color) !important;
+    backdrop-filter: blur(7px);
+}
+
+:is([data-theme="light"], [data-theme="dark"], [data-theme="copper"], [data-theme="aurora"], [data-theme="neon"]) .portal-shell .card,
+:is([data-theme="light"], [data-theme="dark"], [data-theme="copper"], [data-theme="aurora"], [data-theme="neon"]) .portal-shell .bg-dark-900:not(aside):not(header) {
+    background: linear-gradient(
+        145deg,
+        rgb(var(--color-dark-900) / var(--portal-card-alpha, 0.92)),
+        rgb(var(--color-dark-900) / var(--portal-card-secondary-alpha, 0.88))
+    ) !important;
+    border-color: var(--portal-card-border-color) !important;
+    box-shadow: 0 1px 0 rgb(var(--color-dark-50) / 5%), 0 14px 34px rgb(var(--color-dark-950) / 16%);
+    backdrop-filter: blur(12px);
+}
+
+:is([data-theme="light"], [data-theme="dark"], [data-theme="copper"], [data-theme="aurora"], [data-theme="neon"]) .portal-shell .bg-dark-800 {
+    background-color: rgb(var(--color-dark-800) / var(--portal-inner-alpha, 0.84)) !important;
+}
+
+:is([data-theme="light"], [data-theme="dark"], [data-theme="copper"], [data-theme="aurora"], [data-theme="neon"]) .portal-shell .bg-dark-950 {
+    background-color: rgb(var(--color-dark-950) / var(--portal-chart-alpha, 0.76)) !important;
+}
+
+[data-theme="plum"] .portal-shell aside,
+[data-theme="plum"] .portal-shell header {
+    border-color: #493449 !important;
+}
+
+[data-theme="plum"] .portal-shell aside {
+    background-color: rgb(27 16 37 / 55%) !important;
+    backdrop-filter: blur(6px);
+}
+
+[data-theme="plum"] .portal-shell header {
+    background-color: rgb(27 16 37 / 20%) !important;
+    backdrop-filter: blur(5px);
+}
+
+[data-theme="plum"] .portal-shell .card,
+[data-theme="plum"] .portal-shell .bg-dark-900:not(aside):not(header) {
+    background: linear-gradient(145deg, rgb(42 27 48 / 88%), rgb(33 21 34 / 86%)) !important;
+    border-color: #72516f !important;
+    box-shadow: 0 1px 0 rgb(255 222 241 / 5%), 0 16px 36px rgb(7 4 10 / 24%);
+    backdrop-filter: blur(12px);
+}
+
+[data-theme="plum"] .portal-shell .bg-dark-800 {
+    background-color: rgb(51 34 57 / 88%) !important;
+}
+
+[data-theme="plum"] .portal-shell .bg-dark-950 {
+    background-color: rgb(18 12 22 / 78%) !important;
+}
+
+[data-theme="plum"] .portal-shell .text-dark-50,
+[data-theme="plum"] .portal-shell .text-dark-100,
+[data-theme="plum"] .portal-shell .text-dark-200,
+[data-theme="plum"] .portal-shell .page-title,
+[data-theme="plum"] .portal-shell .section-title,
+[data-theme="plum"] .portal-shell .stat-value {
+    color: #fff8fd !important;
+}
+
+[data-theme="plum"] .portal-shell .text-dark-300,
+[data-theme="plum"] .portal-shell .text-dark-400,
+[data-theme="plum"] .portal-shell .page-subtitle {
+    color: #d0b8d1 !important;
+}
+
+[data-theme="plum"] .portal-shell .text-dark-500 {
+    color: #ad8caf !important;
+}
+
+[data-theme="plum"] .portal-shell .text-dark-600 {
+    color: #b99cbe !important;
+}
+
+[data-theme="plum"] .portal-shell .text-dark-700 {
+    color: #ead8ec !important;
+}
+
+[data-theme="plum"] .portal-shell a[aria-current="page"] {
+    color: #ffd3e9 !important;
+    background: linear-gradient(105deg, rgb(173 63 127 / 58%), rgb(112 47 94 / 40%)) !important;
+    border: 1px solid rgb(238 145 195 / 35%);
+    box-shadow: inset 0 1px 0 rgb(255 235 247 / 10%), 0 6px 18px rgb(117 39 89 / 22%);
+}
+
+[data-theme="plum"] .portal-shell .text-primary-400,
+[data-theme="plum"] .portal-shell .text-primary-500,
+[data-theme="plum"] .portal-shell .text-primary-300,
+[data-theme="plum"] .portal-shell .text-primary-600,
+[data-theme="plum"] .portal-shell .text-primary-700 {
+    color: #f0a0ca !important;
+}
+
+[data-theme="plum"] .portal-shell [class*="bg-primary-600/"] {
+    background-color: rgb(174 59 126 / 24%) !important;
+}
+
+[data-theme="plum"] .portal-shell [class*="bg-primary-900/"] {
+    background-color: rgb(96 31 75 / 36%) !important;
+}
+
+[data-theme="plum"] .portal-shell [class*="border-primary-"] {
+    border-color: #80526f !important;
+}
+
+[data-theme="plum"] .portal-shell [class*="hover:text-primary-"]:hover {
+    color: #ffd3e9 !important;
+}
+
+[data-theme="plum"] .portal-shell .btn-primary {
+    color: #fff8fd !important;
+    background: linear-gradient(105deg, #8e356d, #c45191) !important;
+    border: 1px solid rgb(244 164 208 / 35%);
+    box-shadow: 0 8px 22px rgb(119 39 87 / 24%);
+}
+
+[data-theme="plum"] .portal-shell .btn-primary:hover {
+    background: linear-gradient(105deg, #a3437e, #d15c9e) !important;
+}
+
+[data-theme="plum"] .portal-shell .border-green-200 {
+    border-color: #326744 !important;
+}
+
+[data-theme="plum"] .portal-shell .border-red-200 {
+    border-color: #743449 !important;
+}
+
+[data-theme="plum"] .portal-shell .border-yellow-200 {
+    border-color: #73542d !important;
+}
+
+[data-theme="plum"] .portal-shell .border-blue-200 {
+    border-color: #514477 !important;
+}
+
+[data-theme="plum"] .portal-shell .text-green-700 {
+    color: #91e5aa !important;
+}
+
+[data-theme="plum"] .portal-shell .text-red-700 {
+    color: #ff9da7 !important;
+}
+
+[data-theme="plum"] .portal-shell .text-yellow-700 {
+    color: #f3c57c !important;
+}
+
+[data-theme="plum"] .portal-shell .text-blue-700 {
+    color: #b8a4f5 !important;
+}
+
+[data-theme="plum"] .portal-shell .text-green-300 {
+    color: #a6edb8 !important;
+}
+
+[data-theme="plum"] .portal-shell .text-red-300 {
+    color: #ffb1ba !important;
+}
+
+[data-theme="plum"] .portal-shell .text-yellow-300 {
+    color: #f6d28f !important;
+}
+
+[data-theme="plum"] .portal-shell .text-blue-300 {
+    color: #d0c0ff !important;
+}
+
+[data-theme="plum"] .portal-shell .bg-green-50 {
+    background-color: #14261e !important;
+}
+
+[data-theme="plum"] .portal-shell .bg-red-50 {
+    background-color: #301a23 !important;
+}
+
+[data-theme="plum"] .portal-shell .bg-yellow-50 {
+    background-color: #2f2416 !important;
+}
+
+[data-theme="plum"] .portal-shell .bg-blue-50 {
+    background-color: #1c1a2e !important;
+}
+
+[data-theme="plum"] .portal-shell .badge-green,
+[data-theme="plum"] .portal-shell [class*="bg-green-900/"] {
+    background-color: rgb(20 83 45 / 38%) !important;
+    border-color: #326744 !important;
+    color: #a6edb8 !important;
+}
+
+[data-theme="plum"] .portal-shell .badge-red,
+[data-theme="plum"] .portal-shell [class*="bg-red-900/"] {
+    background-color: rgb(69 10 10 / 38%) !important;
+    border-color: #743449 !important;
+    color: #ffb1ba !important;
+}
+
+[data-theme="plum"] .portal-shell .badge-yellow,
+[data-theme="plum"] .portal-shell [class*="bg-yellow-900/"] {
+    background-color: rgb(66 32 6 / 40%) !important;
+    border-color: #73542d !important;
+    color: #f6d28f !important;
+}
+
+[data-theme="plum"] .portal-shell .badge-blue,
+[data-theme="plum"] .portal-shell [class*="bg-blue-900/"] {
+    background-color: rgb(76 29 120 / 35%) !important;
+    border-color: #514477 !important;
+    color: #d0c0ff !important;
+}
+
+[data-theme="plum"] .portal-shell .badge-gray {
+    background-color: rgb(75 52 81 / 35%) !important;
+    border-color: #59405a !important;
+    color: #d0b8d1 !important;
+}
+
+[data-theme="plum"] .portal-shell .input {
+    color: #fff8fd !important;
+    background-color: #2b1c30 !important;
+    border-color: #72516f !important;
+}
+
+[data-theme="plum"] .portal-shell .input::placeholder {
+    color: #ad8caf !important;
+}
+
+[data-theme="plum"] .portal-shell .input:focus {
+    border-color: #e879b8 !important;
+    box-shadow: 0 0 0 3px rgb(232 121 184 / 18%) !important;
+}
+
+[data-theme="plum"] .portal-shell .table-wrapper {
+    border-color: #59405a !important;
+    background-color: rgb(33 21 34 / 76%);
+}
+
+[data-theme="plum"] .portal-shell .table thead {
+    color: #d0b8d1 !important;
+    background-color: #332239 !important;
+}
+
+[data-theme="plum"] .portal-shell .table tbody tr {
+    border-color: #493449 !important;
+}
+
+[data-theme="plum"] .portal-shell .table tbody tr:hover {
+    background-color: rgb(114 47 94 / 18%) !important;
+}
+
+[data-theme="plum"] .portal-shell .table tbody td {
+    color: #eee1f0 !important;
+}
+
+[data-theme="plum"] .portal-shell input[type="checkbox"],
+[data-theme="plum"] .portal-shell input[type="radio"],
+[data-theme="plum"] .portal-shell input[type="range"] {
+    accent-color: #e879b8;
 }

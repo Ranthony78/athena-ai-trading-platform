@@ -1,0 +1,96 @@
+/* Palette adapted from the supplied Claude workspace reference. */
+@font-face {
+    font-family: "Plus Jakarta Sans";
+    src: url("/fonts/plus-jakarta-sans.woff2") format("woff2");
+    font-style: normal;
+    font-weight: 400 800;
+    font-display: swap;
+}
+[data-theme="ivory"] {
+    color-scheme: light;
+    --color-primary-50: 238 242 255;
+    --color-primary-100: 224 231 255;
+    --color-primary-200: 199 210 254;
+    --color-primary-300: 79 70 229;
+    --color-primary-400: 67 56 202;
+    --color-primary-500: 99 102 241;
+    --color-primary-600: 79 70 229;
+    --color-primary-700: 67 56 202;
+    --color-primary-800: 55 48 163;
+    --color-primary-900: 238 242 255;
+    --color-dark-50: 15 26 58;
+    --color-dark-100: 15 26 58;
+    --color-dark-200: 39 51 84;
+    --color-dark-300: 65 78 111;
+    --color-dark-400: 91 103 136;
+    --color-dark-500: 91 103 136;
+    --color-dark-600: 111 124 153;
+    --color-dark-700: 227 232 244;
+    --color-dark-800: 242 245 251;
+    --color-dark-900: 255 255 255;
+    --color-dark-950: 242 245 251;
+    --portal-backdrop-image: none;
+    --portal-backdrop-overlay: none;
+    --chart-grid: #e3e8f4;
+    --chart-label: #5b6788;
+    --chart-accent: #4f46e5;
+    --chart-secondary: #059669;
+    --chart-tertiary: #d97706;
+    --chart-tooltip: #ffffff;
+    --chart-tooltip-border: #e3e8f4;
+    --chart-tooltip-text: #0f1a3a;
+}
+
+[data-theme="ivory"] .portal-shell {
+    background: #f2f5fb;
+    color: #0f1a3a;
+    font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+}
+
+[data-theme="ivory"] .portal-shell .card {
+    background: #ffffff;
+    border-color: #e3e8f4;
+    border-radius: 14px;
+    box-shadow: 0 3px 16px rgb(15 26 58 / 4%);
+}
+
+[data-theme="ivory"] .portal-shell .card-title {
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+[data-theme="ivory"] .portal-shell header {
+    background: #ffffff;
+    border-color: #e3e8f4;
+}
+
+[data-theme="ivory"] .portal-shell aside {
+    --color-dark-50: 255 255 255;
+    --color-dark-100: 255 255 255;
+    --color-dark-200: 225 231 250;
+    --color-dark-300: 199 208 238;
+    --color-dark-400: 180 194 227;
+    --color-dark-500: 145 164 203;
+    --color-dark-700: 37 52 98;
+    --color-dark-800: 27 40 88;
+    --color-primary-400: 199 210 254;
+    --color-primary-900: 49 46 129;
+    background: #111c44;
+    border-color: #253462;
+}
+
+[data-theme="ivory"] .analysis-workspace-header {
+    background: linear-gradient(125deg, #f9faff, #eef2ff);
+}
+
+[data-theme="ivory"] .portal-shell :is(.text-amber-200, .text-amber-300) {
+    color: #93370d;
+}
+
+[data-theme="ivory"] .portal-shell :is(.text-emerald-200, .text-emerald-300) {
+    color: #067647;
+}
+
+[data-theme="ivory"] .portal-shell :is(.text-red-200, .text-red-300) {
+    color: #b42318;
+}

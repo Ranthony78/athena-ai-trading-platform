@@ -3,6 +3,7 @@ import PrivateRoute from "./PrivateRoute";
 
 // Auth
 import Login from "../pages/auth/Login";
+import ResetPassword from "../pages/auth/ResetPassword";
 
 // Dashboard
 import Dashboard from "../pages/dashboard/Dashboard";
@@ -54,12 +55,17 @@ import ZerodhaPositions from "../pages/zerodha/ZerodhaPositions";
 // Settings
 import Settings from "../pages/settings/Settings";
 import Profile from "../pages/settings/Profile";
+import AIConnection from "../pages/settings/AIConnection";
+import UserManagement from "../pages/settings/UserManagement";
+import Help from "../pages/help/Help";
 
 export default function AppRouter() {
     return (
         <Routes>
             {/* Public */}
             <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Login />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
 
             {/* Protected */}
             <Route element={<PrivateRoute />}>
@@ -114,6 +120,9 @@ export default function AppRouter() {
                 {/* Settings */}
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/settings/profile" element={<Profile />} />
+                <Route path="/settings/ai-connection" element={<AIConnection />} />
+                <Route path="/admin/users" element={<UserManagement />} />
+                <Route path="/help" element={<Help />} />
             </Route>
 
             {/* Fallback */}
