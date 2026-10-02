@@ -29,8 +29,8 @@ class ClaudeProvider(BaseAIProvider):
     API_URL = "https://api.anthropic.com/v1/messages"
     API_VERSION = "2023-06-01"
 
-    def __init__(self) -> None:
-        self.api_key = getattr(settings, "ANTHROPIC_API_KEY", "")
+    def __init__(self, api_key=None) -> None:
+        self.api_key = api_key if api_key is not None else getattr(settings, "ANTHROPIC_API_KEY", "")
 
         if not self.api_key:
             raise ValueError(

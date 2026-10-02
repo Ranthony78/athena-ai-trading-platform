@@ -35,8 +35,8 @@ class GroqProvider(BaseAIProvider):
     API_URL = "https://api.groq.com/openai/v1/chat/completions"
     DEFAULT_MODEL = "llama-3.3-70b-versatile"
 
-    def __init__(self) -> None:
-        self.api_key = getattr(settings, "GROQ_API_KEY", "")
+    def __init__(self, api_key=None) -> None:
+        self.api_key = api_key if api_key is not None else getattr(settings, "GROQ_API_KEY", "")
 
         if not self.api_key:
             raise ValueError(

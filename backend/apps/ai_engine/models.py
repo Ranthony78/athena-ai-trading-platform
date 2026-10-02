@@ -5,6 +5,28 @@ from apps.market_data.models import Instrument
 from shared.models import BaseModel
 
 
+class AIProviderCredential(BaseModel):
+    """Per-user AI provider credentials; API keys are Fernet-encrypted at rest."""
+
+    PROVIDER_CHOICES = [
+        ("gemini", "Gemini"),
+        ("kimi", "Kimi"),
+        ("claude", "Claude"),
+        ("groq", "Groq"),
+    ]
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="ai_provider_credential",
+    )
+    provider = models.CharField(max_length=20, choices=PROVIDER_CHOICES)
+    encrypted_api_key = models.TextField()
+
+    class Meta:
+        db_table = "ai_provider_credentials"
+
+
 class PromptTemplate(BaseModel):
     """
     Stores reusable prompt templates for AI analysis.
@@ -78,6 +100,14 @@ class AnalysisSession(BaseModel):
         blank=True,
         related_name="analysis_sessions",
     )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="analysis_sessions",
+        db_index=True,
+    )
     template = models.ForeignKey(
         PromptTemplate,
         on_delete=models.SET_NULL,
@@ -104,6 +134,11 @@ class AnalysisSession(BaseModel):
         help_text="Market data snapshot used as input.",
     )
     prompt_used = models.TextField(blank=True)
+    system_prompt_used = models.TextField(blank=True)
+    prompt_version = models.CharField(max_length=100, blank=True)
+    prompt_hash = models.CharField(max_length=64, blank=True)
+    provider_used = models.CharField(max_length=30, blank=True)
+    paper_evaluation = models.JSONField(default=dict, blank=True)
 
     # Output
     ai_response = models.TextField(blank=True)
@@ -123,6 +158,40 @@ class AnalysisSession(BaseModel):
         db_index=True,
     )
 
+    # A forecast is tracked separately from whether the AI suggested an
+    # option contract. This allows NO_SETUP/NEUTRAL analyses to contribute
+    # to honest probability calibration too.
+    forecast_horizon_minutes = models.PositiveSmallIntegerField(default=15)
+    forecast_anchor_price = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True,
+    )
+    forecast_target_time = models.DateTimeField(null=True, blank=True, db_index=True)
+    forecast_sideways_band_pct = models.DecimalField(
+        max_digits=5, decimal_places=3, default=0.050,
+    )
+    forecast_outcome_status = models.CharField(
+        max_length=20,
+        choices=[
+            ("NOT_TRACKED", "Not tracked"),
+            ("PENDING", "Pending"),
+            ("RESOLVED", "Resolved"),
+            ("INSUFFICIENT_DATA", "Insufficient data"),
+        ],
+        default="NOT_TRACKED",
+        db_index=True,
+    )
+    forecast_actual_class = models.CharField(max_length=10, blank=True)
+    forecast_outcome_price = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True,
+    )
+    forecast_resolved_at = models.DateTimeField(null=True, blank=True)
+    forecast_brier_score = models.DecimalField(
+        max_digits=8, decimal_places=6, null=True, blank=True,
+    )
+    probability_method_version = models.CharField(
+        max_length=40, blank=True, default="",
+    )
+
     class Meta:
         db_table = "ai_analysis_sessions"
         ordering = ["-session_time"]
@@ -134,6 +203,15 @@ class AnalysisSession(BaseModel):
     def __str__(self) -> str:
         symbol = self.instrument.symbol if self.instrument else "N/A"
         return f"{self.session_type} | {symbol} | {self.status}"
+
+
+class LearningWorkerState(models.Model):
+    """Cross-process heartbeat for the local/Celery paper evaluation worker."""
+
+    name = models.CharField(max_length=40, primary_key=True, default="default")
+    heartbeat_at = models.DateTimeField(null=True)
+    lease_until = models.DateTimeField(null=True)
+    result = models.JSONField(default=dict)
 
 
 class AISignal(BaseModel):
