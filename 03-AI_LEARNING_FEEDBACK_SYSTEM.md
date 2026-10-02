@@ -1,9 +1,17 @@
 # 03 — AI LEARNING, FEEDBACK & CONTINUOUS IMPROVEMENT
 
-**Status: ⬜ PLANNED** — none of this is built yet (see
-`02-CURRENT_IMPLEMENTATION.md`). This is the design spec to build toward once
-`ai_engine`, `journal`, `backtesting`, and `knowledge` exist and have real
-data flowing through them.
+**Status: PARTIALLY IMPLEMENTED — NOT COMPLETE.** This file is the original
+target design, not a completion claim. The current implementation and known
+limits are tracked in [`docs/ai/ai-workspace-paper-evaluation.md`](docs/ai/ai-workspace-paper-evaluation.md).
+
+Current foundations include versioned prompt/evidence snapshots, resolved
+horizon forecasts (including No Trade analyses), Brier/direction reporting,
+retrospective outcome counts, a non-promoting calibration candidate, and
+AI-linked one-lot paper evaluation. They do **not** yet implement every
+outcome/classification item below. In particular, MFE/MAE and time-to-target
+analysis, reviewed mistake labels, full market-regime/daypart evaluation,
+and a reviewed model/prompt improvement workflow remain future work. A
+language model does not retrain itself from a journal entry.
 
 Athena must be designed to learn from historical predictions, trading
 decisions, paper trades, backtests, market outcomes, and user feedback.
