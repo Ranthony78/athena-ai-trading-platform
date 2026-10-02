@@ -264,7 +264,10 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Market Provider
 # -----------------------------------------------------
 
-MARKET_PROVIDER = os.getenv("MARKET_PROVIDER", "zerodha").strip().lower()
+# Defaults to "mock" so an unconfigured environment never talks to the broker.
+# Set MARKET_PROVIDER=zerodha in the environment (production.py does so
+# explicitly) to use live market data.
+MARKET_PROVIDER = os.getenv("MARKET_PROVIDER", "mock").strip().lower()
 
 # Live broker order placement is a separate server-side gate from
 # MARKET_PROVIDER. The shared default fails closed; environment-specific
