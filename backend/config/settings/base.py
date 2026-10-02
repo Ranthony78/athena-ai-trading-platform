@@ -305,7 +305,6 @@ CHANNEL_LAYERS = {
 # -----------------------------------------------------
 
 AI_PROVIDER = os.getenv("AI_PROVIDER", "gemini").strip().lower()  # mock | claude | gemini | groq
-#GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash").strip()
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
@@ -313,6 +312,7 @@ KIMI_API_KEY = os.getenv("KIMI_API_KEY", os.getenv("MOONSHOT_API_KEY", ""))
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 MARKETAUX_API_KEY = os.getenv("MARKETAUX_API_KEY", "")
 KIMI_MODEL = os.getenv("KIMI_MODEL", "kimi-k3").strip()
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash").strip()
 GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID", "").strip()
 
 # -----------------------------------------------------

@@ -422,3 +422,6 @@ frontend/dist/
 
 # Design-reference scratch (screenshots, templates)
 output/
+
+# Celery beat runtime state
+celerybeat-schedule*
