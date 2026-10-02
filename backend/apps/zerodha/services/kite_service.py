@@ -145,9 +145,9 @@ class KiteService:
         except ZerodhaTokenExpiredError:
             raise
         except Exception as e:
-            logger.error(f"KiteService place_order error: {e}")
+            logger.error("KiteService place_order failed (%s).", type(e).__name__)
             self._raise_if_token_expired(e)
-            return {"success": False, "error": str(e)}
+            raise
 
     def cancel_order(self, order_id: str) -> dict:
         """Cancel an order."""

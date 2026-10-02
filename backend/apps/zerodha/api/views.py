@@ -50,6 +50,9 @@ class ZerodhaStatusAPIView(APIView):
         try:
             service = ZerodhaAuthService(request.user)
             status_data = service.get_status()
+            # This is the server-side real-order permission gate, not a claim
+            # that a broker order or position is currently live.
+            status_data["live_orders_enabled"] = bool(settings.LIVE_TRADING_ENABLED)
             return ApiResponse.success(status_data)
         except Exception as e:
             logger.error(f"ZerodhaStatusAPIView error: {e}")
@@ -244,6 +247,13 @@ class ZerodhaOrderListAPIView(APIView):
                 status_code=status.HTTP_403_FORBIDDEN,
             )
 
+        from apps.market_data.engine.market_state import MarketState
+        if not MarketState.session_info()["is_live"]:
+            return ApiResponse.error(
+                message="Live orders can only be submitted during regular market hours.",
+                status_code=status.HTTP_403_FORBIDDEN,
+            )
+
         serializer = OrderPlaceSerializer(data=request.data)
         if not serializer.is_valid():
             return ApiResponse.error(
@@ -252,7 +262,9 @@ class ZerodhaOrderListAPIView(APIView):
             )
         try:
             service = KiteService(request.user)
-            result = service.place_order(serializer.validated_data)
+            order_data = dict(serializer.validated_data)
+            order_data.pop("confirm_live_order", None)
+            result = service.place_order(order_data)
             return ApiResponse.success(
                 data=result,
                 message="Order placed.",
@@ -263,8 +275,29 @@ class ZerodhaOrderListAPIView(APIView):
                 status_code=status.HTTP_401_UNAUTHORIZED,
             )
         except Exception as e:
-            logger.error(f"ZerodhaOrderListAPIView POST error: {e}")
-            return ApiResponse.error(message=f"Order failed: {str(e)}")
+            response = getattr(e, "response", None)
+            broker_message = None
+            if response is not None:
+                try:
+                    broker_message = (response.json().get("message") or "").strip()
+                except (ValueError, AttributeError):
+                    broker_message = None
+            if broker_message:
+                logger.warning("Zerodha rejected live order (%s).", type(e).__name__)
+                return ApiResponse.error(
+                    message=f"Zerodha rejected the order: {broker_message}",
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                )
+            logger.error("Zerodha order submission failed (%s).", type(e).__name__)
+            if "timeout" in type(e).__name__.lower():
+                return ApiResponse.error(
+                    message="Order submission timed out; its status is unknown. Check Zerodha Live Orders before retrying.",
+                    status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+                )
+            return ApiResponse.error(
+                message="Zerodha could not confirm the order. Check Live Orders before retrying.",
+                status_code=status.HTTP_502_BAD_GATEWAY,
+            )
 
 
 class ZerodhaOrderCancelAPIView(APIView):

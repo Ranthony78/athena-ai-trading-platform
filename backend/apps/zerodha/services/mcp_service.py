@@ -31,11 +31,8 @@ class ZerodhaKiteMCPService:
     DATA methods below (quotes, funds, profile, historical data,
     positions, holdings) call the real Kite Connect REST API.
 
-    ORDER methods (place_order, modify_order, cancel_order, get_orders,
-    get_order_history, GTT methods) are UNCHANGED from the original
-    MCP-based implementation and still point at self.mcp_url. They are
-    intentionally left as-is and not used by this application's data
-    features — order placement/execution is out of scope by design.
+    Order methods use the authenticated Kite Connect REST API. They remain
+    behind the server live-order gate and the dashboard's per-order review.
     """
 
     KITE_API_URL = "https://api.kite.trade"
@@ -161,6 +158,34 @@ class ZerodhaKiteMCPService:
                 f"Kite Connect HTTP error [{path}]: "
                 f"{e.response.status_code} — {e.response.text}"
             )
+            raise
+
+    def _kite_write(self, method: str, path: str, params: dict = None) -> dict:
+        """Call a Kite Connect order endpoint using form-encoded parameters."""
+        if not self.config.is_token_valid:
+            raise ValueError(
+                "Zerodha access token is invalid or expired. Please login again."
+            )
+
+        url = f"{self.KITE_API_URL}{path}"
+        try:
+            with httpx.Client(timeout=30.0) as client:
+                response = client.request(
+                    method,
+                    url,
+                    headers=self._kite_headers(),
+                    data=params or {},
+                )
+                response.raise_for_status()
+                body = response.json()
+            if body.get("status") != "success":
+                raise ValueError(body.get("message") or "Kite rejected the request.")
+            return body.get("data", {})
+        except httpx.HTTPStatusError as exc:
+            logger.warning("Kite order API returned HTTP %s for %s.", exc.response.status_code, path)
+            raise
+        except httpx.TimeoutException:
+            logger.warning("Kite order API timed out for %s; broker acceptance is unknown.", path)
             raise
         except httpx.TimeoutException:
             logger.error(f"Kite Connect timeout [{path}]")
@@ -296,20 +321,16 @@ class ZerodhaKiteMCPService:
             return response.text
 
     # ------------------------------------------------------------------
-    # Orders — UNCHANGED, legacy MCP path, not used by this app's
-    # data features. Left exactly as originally written.
+    # Orders — authenticated Kite Connect REST API.
     # ------------------------------------------------------------------
 
     def get_orders(self) -> list[dict]:
         """Fetch all orders for today."""
-        return self._call("get_orders")
+        return self._kite_get("/orders")
 
     def get_order_history(self, order_id: str) -> list[dict]:
         """Fetch order history for a specific order."""
-        return self._call(
-            "get_order_history",
-            {"order_id": order_id},
-        )
+        return self._kite_get(f"/orders/{order_id}")
 
     def place_order(
         self,
@@ -324,7 +345,7 @@ class ZerodhaKiteMCPService:
         tag: str = "",
     ) -> dict:
         """
-        Place an order via Zerodha MCP.
+        Place an order via Kite Connect.
         Only available in live trading mode.
         """
         params = {
@@ -346,14 +367,14 @@ class ZerodhaKiteMCPService:
         if tag:
             params["tag"] = tag
 
-        return self._call("place_order", params)
+        if order_type == "MARKET":
+            params["market_protection"] = -1
+
+        return self._kite_write("POST", "/orders/regular", params)
 
     def cancel_order(self, order_id: str, variety: str = "regular") -> dict:
         """Cancel an order."""
-        return self._call(
-            "cancel_order",
-            {"order_id": order_id, "variety": variety},
-        )
+        return self._kite_write("DELETE", f"/orders/{variety}/{order_id}")
 
     def modify_order(
         self,

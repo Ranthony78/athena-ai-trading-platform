@@ -57,6 +57,7 @@ class ZerodhaSessionSerializer(serializers.ModelSerializer):
 
 class OrderPlaceSerializer(serializers.Serializer):
     """Request body for placing a live order."""
+    confirm_live_order = serializers.BooleanField(required=True)
     tradingsymbol = serializers.CharField()
     exchange = serializers.ChoiceField(
         choices=["NSE", "BSE", "NFO", "MCX"],
@@ -75,3 +76,10 @@ class OrderPlaceSerializer(serializers.Serializer):
     price = serializers.FloatField(default=0)
     trigger_price = serializers.FloatField(default=0)
     tag = serializers.CharField(default="", allow_blank=True)
+
+    def validate_confirm_live_order(self, value):
+        if value is not True:
+            raise serializers.ValidationError(
+                "Review and confirm the live order before submitting it."
+            )
+        return value
