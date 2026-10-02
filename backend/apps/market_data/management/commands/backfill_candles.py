@@ -107,7 +107,7 @@ class Command(BaseCommand):
 
         self.stdout.write(
             f"Backfilling {symbols} [{timeframe}] from {from_date_str} to "
-            f"{to_date_str} as user={user} — {len(chunks)} chunk(s)"
+            f"{to_date_str} as user={user} - {len(chunks)} chunk(s)"
         )
         if clean:
             self.stdout.write(self.style.WARNING(
@@ -118,7 +118,7 @@ class Command(BaseCommand):
         if dry_run:
             for c_from, c_to in chunks:
                 self.stdout.write(f"  would fetch: {c_from} to {c_to}")
-            self.stdout.write(self.style.WARNING("Dry run — no DB writes."))
+            self.stdout.write(self.style.WARNING("Dry run - no DB writes."))
             return
 
         if clean:
@@ -137,11 +137,12 @@ class Command(BaseCommand):
                         to_date=c_to,
                     )
                     total += count
-                    self.stdout.write(f"  {symbol} [{c_from} → {c_to}]: {count} candles")
+                    self.stdout.write(f"  {symbol} [{c_from} to {c_to}]: {count} candles")
                 except Exception as e:
-                    logger.error(f"backfill_candles failed for {symbol} [{c_from}→{c_to}]: {e}")
+                    safe_error = str(e).encode("ascii", "backslashreplace").decode("ascii")
+                    logger.error("backfill_candles failed for %s [%s to %s]: %s", symbol, c_from, c_to, safe_error)
                     self.stdout.write(self.style.ERROR(
-                        f"  {symbol} [{c_from} → {c_to}]: failed — {e}"
+                        f"  {symbol} [{c_from} to {c_to}]: failed - {safe_error}"
                     ))
             self.stdout.write(self.style.SUCCESS(f"{symbol}: {total} candles stored total"))
 

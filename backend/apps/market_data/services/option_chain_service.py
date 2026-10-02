@@ -48,6 +48,7 @@ class OptionChainService:
 
     def __init__(self, user=None) -> None:
         self.user = user
+        self.status_message = "Success"
 
     # ------------------------------------------------------------------
     # Public API
@@ -71,16 +72,28 @@ class OptionChainService:
         isn't meaningful to show as one table — this filters to one).
         """
         from ..services.market_service import MarketService
+        from django.conf import settings
 
         market = MarketService(user=self.user)
 
-        spot_quote = market.quote(symbol)
-        spot_price = spot_quote.get("ltp") if spot_quote else None
+        if settings.MARKET_PROVIDER == "mock":
+            self.status_message = "The mock provider does not supply option-chain quotes."
+            return []
 
         available_expiries = self._get_available_expiries(symbol)
         target_expiry = expiry or (
             str(available_expiries[0]) if available_expiries else None
         )
+
+        if not target_expiry or target_expiry not in [str(e) for e in available_expiries]:
+            self.status_message = "No current NFO contracts found for this expiry. Refresh the instrument catalog."
+            return []
+
+        spot_quote = market.quote(symbol)
+        spot_price = spot_quote.get("ltp") if spot_quote else None
+        if spot_price is None or spot_price <= 0:
+            self.status_message = "The provider returned no usable underlying quote. Check the Zerodha connection and quote access."
+            return []
 
         raw_chain = market.option_chain(symbol, expiry=target_expiry)
 
@@ -90,7 +103,8 @@ class OptionChainService:
                 if str(row.get("expiry")) == str(target_expiry)
             ]
 
-        if not raw_chain or spot_price is None:
+        if not raw_chain:
+            self.status_message = "NFO contracts exist, but the provider returned no option quotes. Check the Zerodha connection and quote access."
             return []
 
         time_to_expiry = self._time_to_expiry_years(target_expiry)
@@ -145,9 +159,11 @@ class OptionChainService:
     @staticmethod
     def _get_available_expiries(symbol: str) -> list[date]:
         from ..repositories.instrument_repository import InstrumentRepository
+        from ..engine.market_state import MarketState
 
         expiries = (
             InstrumentRepository.get_options(symbol)
+            .filter(expiry__gte=MarketState.now_ist().date())
             .exclude(expiry__isnull=True)
             .values_list("expiry", flat=True)
             .distinct()

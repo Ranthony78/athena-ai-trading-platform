@@ -37,7 +37,7 @@ class Command(BaseCommand):
     help = "Import market instruments from Zerodha CSV"
 
     # Exchanges we care about
-    SUPPORTED_EXCHANGES = {"NSE", "BSE", "NFO", "MCX"}
+    SUPPORTED_EXCHANGES = {"NSE", "BSE", "NFO", "CDS", "MCX"}
 
     def add_arguments(self, parser) -> None:
         parser.add_argument(
@@ -50,7 +50,7 @@ class Command(BaseCommand):
             "--exchange",
             type=str,
             default=None,
-            help="Import only this exchange (NSE, BSE, NFO, MCX)",
+            help="Import only this exchange (NSE, BSE, NFO, CDS, MCX)",
         )
         parser.add_argument(
             "--deactivate-first",

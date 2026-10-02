@@ -18,6 +18,7 @@ DEFAULT_BASE_PRICE = 1000.00
 
 
 class MockMarketProvider(BaseMarketProvider):
+    data_source = "MOCK"
     """
     Mock market data provider for development and testing.
     Returns static, symbol-aware dummy data — no real API calls.

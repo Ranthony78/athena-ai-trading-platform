@@ -3,9 +3,9 @@ backend/apps/market_data/services/news_sentiment_service.py
 
 New file.
 
-Real news sentiment via Marketaux's structured API (real per-article
-sentiment scores from actual financial press, not scraped HTML, not an
-LLM guessing). Requires MARKETAUX_API_KEY to be set — degrades to None
+Real market-driver headlines and per-article sentiment via Marketaux's
+structured API, not scraped HTML or LLM guesses. Requires MARKETAUX_API_KEY
+to be set — degrades to None
 (renders as NA everywhere downstream) if the key is missing or the
 request fails for any reason.
 
@@ -29,31 +29,38 @@ from typing import Optional
 
 import requests
 from django.conf import settings
+from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
 MARKETAUX_BASE_URL = "https://api.marketaux.com/v1/news/all"
 REQUEST_TIMEOUT_SECONDS = 8
 
-# Keywords covering the macro events that actually move Nifty/Bank Nifty
-# intraday. Kept short and specific — a broad match would pull in noise
-# and burn through the free-tier daily quota faster for no real gain.
-MACRO_SEARCH_QUERY = '"RBI"|"repo rate"|"inflation"|"Union Budget"|"Fed rate"'
+# Query terms cover India and external drivers. Sentiment is still averaged
+# only across India-relevant titles; global headlines remain separate evidence.
+MACRO_SEARCH_QUERY = '"RBI"|"Fed"|"NIFTY"|"crude"|"rupee"|"USD/INR"|"Nasdaq"|"Asian markets"|"earnings"|"Union Budget"|"S&P 500"|"Dow Jones"|"Brent"|"OPEC"'
+INDIA_SENTIMENT_TERMS = (
+    "india", "indian", "nifty", "banknifty", "sensex", "rbi", "rupee",
+    "usd/inr", "usd-inr", "national stock exchange",
+)
 
 
 class NewsSentimentService:
     """
-    Fetches real, keyword-matched news sentiment for India-macro topics
-    (RBI policy, rates, budget, Fed spillover) via Marketaux. Never
-    fabricates — returns None if the API key isn't configured or the
-    call fails, same pattern as every other service in this pipeline.
+    Fetches sourced headlines for Market Drivers and calculates an India-only
+    sentiment average. Global stories never enter that numeric average.
+    Returns None if the API key is missing or the request fails.
     """
 
     @classmethod
-    def get_macro_sentiment(cls, max_articles: int = 5) -> Optional[dict]:
+    def get_macro_sentiment(cls, max_articles: int = 25) -> Optional[dict]:
         api_key = getattr(settings, "MARKETAUX_API_KEY", "")
         if not api_key:
             return None
+        cache_key = f"market-driver-news-v2:{max_articles}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached or None
 
         try:
             response = requests.get(
@@ -61,7 +68,6 @@ class NewsSentimentService:
                 params={
                     "api_token": api_key,
                     "search": MACRO_SEARCH_QUERY,
-                    "countries": "in",
                     "language": "en",
                     "limit": max_articles,
                     "sort": "published_at",
@@ -71,7 +77,9 @@ class NewsSentimentService:
             response.raise_for_status()
             payload = response.json()
         except Exception as e:
-            logger.error(f"NewsSentimentService request failed: {e}")
+            # requests exceptions may contain the URL's API token.
+            logger.warning("News provider request failed (%s)", type(e).__name__)
+            cache.set(cache_key, {}, 60)
             return None
 
         articles = payload.get("data") or []
@@ -79,7 +87,8 @@ class NewsSentimentService:
             return None
 
         headlines = []
-        sentiment_scores = []
+        india_sentiment_scores = []
+        india_article_count = 0
         for article in articles:
             entities = article.get("entities") or []
             # Average this article's own entity sentiment scores (an
@@ -97,16 +106,25 @@ class NewsSentimentService:
                 "title": article.get("title"),
                 "source": article.get("source"),
                 "published_at": article.get("published_at"),
+                "url": article.get("url"),
                 "sentiment": avg_article_sentiment,
             })
-            if avg_article_sentiment is not None:
-                sentiment_scores.append(avg_article_sentiment)
+            # Global headlines populate separate driver cards. Only
+            # India-relevant headlines contribute to India's sentiment value.
+            title = str(article.get("title") or "").lower()
+            if any(term in title for term in INDIA_SENTIMENT_TERMS):
+                india_article_count += 1
+                if avg_article_sentiment is not None:
+                    india_sentiment_scores.append(avg_article_sentiment)
 
-        return {
+        result = {
             "article_count": len(articles),
             "avg_sentiment": (
-                round(sum(sentiment_scores) / len(sentiment_scores), 3)
-                if sentiment_scores else None
+                round(sum(india_sentiment_scores) / len(india_sentiment_scores), 3)
+                if india_sentiment_scores else None
             ),
+            "sentiment_article_count": india_article_count,
             "headlines": headlines,
         }
+        cache.set(cache_key, result, 300)
+        return result

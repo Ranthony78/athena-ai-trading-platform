@@ -30,6 +30,7 @@ class CandleRepository(BaseRepository[Candle]):
         symbol: str,
         timeframe: str,
         limit: int = 100,
+        source: Optional[str] = None,
     ) -> QuerySet[Candle]:
         """
         Return candles by symbol string + timeframe.
@@ -50,10 +51,13 @@ class CandleRepository(BaseRepository[Candle]):
         if not instrument:
             return cls.model.objects.none()
 
-        return cls.model.objects.filter(
+        queryset = cls.model.objects.filter(
             instrument=instrument,
             timeframe=timeframe,
-        ).select_related("instrument").order_by("-candle_time")[:limit]
+        ).select_related("instrument")
+        if source:
+            queryset = queryset.filter(source=source)
+        return queryset.order_by("-candle_time")[:limit]
 
     @classmethod
     def get_latest(
@@ -89,8 +93,9 @@ class CandleRepository(BaseRepository[Candle]):
         instrument: Instrument,
         timeframe: str,
         candles: list[dict],
+        source: str = "UNKNOWN",
     ) -> None:
-        """Bulk insert candles, ignoring duplicates."""
+        """Store candles with their source; real data may replace unverified rows."""
         objects = [
             Candle(
                 instrument=instrument,
@@ -101,14 +106,20 @@ class CandleRepository(BaseRepository[Candle]):
                 low=c["low"],
                 close=c["close"],
                 volume=c["volume"],
+                source=source,
             )
             for c in candles
         ]
-        cls.model.objects.bulk_create(
-            objects,
-            batch_size=500,
-            ignore_conflicts=True,
-        )
+        if source == "ZERODHA":
+            cls.model.objects.bulk_create(
+                objects,
+                batch_size=500,
+                update_conflicts=True,
+                update_fields=["open", "high", "low", "close", "volume", "source"],
+                unique_fields=["instrument", "timeframe", "candle_time"],
+            )
+        else:
+            cls.model.objects.bulk_create(objects, batch_size=500, ignore_conflicts=True)
 
     @classmethod
     def delete_by_instrument(

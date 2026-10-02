@@ -17,6 +17,7 @@ class Instrument(BaseModel):
         ("NSE", "NSE"),
         ("BSE", "BSE"),
         ("NFO", "NFO"),
+        ("CDS", "CDS"),
         ("MCX", "MCX"),
     ]
 
@@ -213,6 +214,13 @@ class Candle(BaseModel):
         ("1d", "1 Day"),
     ]
 
+    SOURCE_CHOICES = [
+        ("UNKNOWN", "Unknown / legacy"),
+        ("ZERODHA", "Zerodha"),
+        ("MOCK", "Mock provider"),
+        ("SYNTHETIC", "Synthetic test data"),
+    ]
+
     instrument = models.ForeignKey(
         Instrument,
         on_delete=models.CASCADE,
@@ -233,6 +241,12 @@ class Candle(BaseModel):
     close = models.DecimalField(max_digits=12, decimal_places=2)
 
     volume = models.BigIntegerField(default=0)
+    source = models.CharField(
+        max_length=12,
+        choices=SOURCE_CHOICES,
+        default="UNKNOWN",
+        db_index=True,
+    )
 
     class Meta:
         db_table = "market_candles"

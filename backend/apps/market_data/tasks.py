@@ -7,20 +7,24 @@ logger = logging.getLogger(__name__)
 # Symbols Athena actually trades — no reason to sync intraday candles for
 # anything else on a recurring schedule.
 INTRADAY_SYNC_SYMBOLS = ["NIFTY", "BANKNIFTY"]
-INTRADAY_SYNC_TIMEFRAMES = ["5m", "15m"]
+INTRADAY_SYNC_TIMEFRAMES = ["1m", "5m", "15m"]
 
 @shared_task
 def track_signal_outcomes():
     """Scheduled task: check all OPEN signals against real prices."""
     from .engine.market_state import MarketState
     from .services.outcome_tracking_service import OutcomeTrackingService
+    from apps.ai_engine.services.learning_worker_service import LearningWorkerService
+
+    forecast_result = LearningWorkerService.tick()
 
     session = MarketState.session_info()
     if not session["is_live"]:
-        logger.info("Market closed — skipping outcome tracking run.")
+        logger.info(f"Market closed — forecast outcomes checked: {forecast_result}")
         return "skipped (market closed)"
 
     result = OutcomeTrackingService.track_all_open_signals()
+    result["probability_forecasts"] = forecast_result
     logger.info(f"Outcome tracking run: {result}")
     return result
 

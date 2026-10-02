@@ -2,6 +2,7 @@ EXCHANGES = (
     "NSE",
     "BSE",
     "NFO",
+    "CDS",
     "MCX",
 )
 

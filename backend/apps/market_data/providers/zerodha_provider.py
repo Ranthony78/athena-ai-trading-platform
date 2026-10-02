@@ -7,6 +7,7 @@ logger = logging.getLogger(__name__)
 
 
 class ZerodhaProvider(BaseMarketProvider):
+    data_source = "ZERODHA"
     """
     Zerodha Kite market data provider.
     Uses ZerodhaKiteMCPService (a real Kite Connect REST client) for
@@ -51,7 +52,15 @@ class ZerodhaProvider(BaseMarketProvider):
         from apps.market_data.repositories.instrument_repository import (
             InstrumentRepository,
         )
-        instrument = InstrumentRepository.get_by_symbol(symbol)
+        # Callers may pass an index alias (NIFTY) or a concrete derivative
+        # trading symbol (for example an option contract). The regular
+        # symbol lookup intentionally excludes derivatives because their
+        # underlying symbol is shared by many contracts, so try the exact
+        # trading-symbol lookup second.
+        instrument = (
+            InstrumentRepository.get_by_symbol(symbol)
+            or InstrumentRepository.get_by_trading_symbol(symbol)
+        )
         if not instrument:
             raise ValueError(f"Instrument not found: {symbol}")
         return f"{instrument.exchange}:{instrument.trading_symbol}"
@@ -122,35 +131,42 @@ class ZerodhaProvider(BaseMarketProvider):
         Builds from NFO instruments + live quotes.
 
         Args:
-            expiry: if given, restrict to just this expiry BEFORE
-                capping the batch size — without this, the [:200] cap
-                below was silently slicing an arbitrary, unordered mix
-                across every expiry NIFTY has (thousands of contracts),
-                frequently missing the true ATM strikes entirely.
+            expiry: if given, restrict to this expiry before batching.
+                Fetch every selected contract in bounded quote requests.
         """
         try:
             from apps.market_data.repositories.instrument_repository import (
                 InstrumentRepository,
             )
-            options = InstrumentRepository.get_options(symbol, expiry=expiry)
-            exchange_symbols = [f"{o.exchange}:{o.trading_symbol}" for o in options[:200]]
+            options = list(InstrumentRepository.get_options(symbol, expiry=expiry))
+            exchange_symbols = [f"{o.exchange}:{o.trading_symbol}" for o in options]
 
             if not exchange_symbols:
                 return []
 
             service = self._get_service()
-            quotes = service.get_quotes(exchange_symbols)
+            quotes = {}
+            # Preserve full expiry coverage without an oversized request.
+            for offset in range(0, len(exchange_symbols), 200):
+                quotes.update(service.get_quotes(exchange_symbols[offset:offset + 200]))
 
             chain = []
-            for opt in options[:200]:
+            for opt in options:
                 key = f"{opt.exchange}:{opt.trading_symbol}"
                 quote = quotes.get(key, {})
+                # A missing quote is not a zero-priced option.
+                if not quote or quote.get("last_price") is None:
+                    continue
                 chain.append({
                     "strike": float(opt.strike or 0),
                     "option_type": opt.option_type,
                     "trading_symbol": opt.trading_symbol,
+                    "lot_size": opt.lot_size,
                     "expiry": str(opt.expiry),
+                    "quote_timestamp": quote.get("timestamp") or quote.get("last_trade_time"),
                     "ltp": quote.get("last_price", 0),
+                    "best_bid": (quote.get("depth", {}).get("buy") or [{}])[0].get("price"),
+                    "best_ask": (quote.get("depth", {}).get("sell") or [{}])[0].get("price"),
                     "oi": quote.get("oi", 0),
                     "volume": quote.get("volume", 0),
                     "iv": 0,
@@ -187,6 +203,15 @@ class ZerodhaProvider(BaseMarketProvider):
         prev_close = raw.get("ohlc", {}).get("close", 0)
         change = round(ltp - prev_close, 2) if prev_close else 0
         change_percent = round(change / prev_close * 100, 2) if prev_close else 0
+        quote_time = raw.get("last_trade_time") or raw.get("timestamp")
+        if hasattr(quote_time, "isoformat"):
+            quote_time = quote_time.isoformat()
+        quote_timestamp = raw.get("timestamp")
+        if hasattr(quote_timestamp, "isoformat"):
+            quote_timestamp = quote_timestamp.isoformat()
+        last_trade_time = raw.get("last_trade_time")
+        if hasattr(last_trade_time, "isoformat"):
+            last_trade_time = last_trade_time.isoformat()
 
         return {
             "symbol": symbol,
@@ -198,12 +223,15 @@ class ZerodhaProvider(BaseMarketProvider):
             "change": change,
             "change_percent": change_percent,
             "volume": raw.get("volume", 0),
+            "average_price": raw.get("average_price"),
             "oi": raw.get("oi", 0),
             "bid": raw.get("depth", {}).get("buy", [{}])[0].get("price", 0),
             "ask": raw.get("depth", {}).get("sell", [{}])[0].get("price", 0),
             "bid_qty": raw.get("depth", {}).get("buy", [{}])[0].get("quantity", 0),
             "ask_qty": raw.get("depth", {}).get("sell", [{}])[0].get("quantity", 0),
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": quote_time,
+            "quote_timestamp": quote_timestamp,
+            "last_trade_time": last_trade_time,
         }
 
     @staticmethod

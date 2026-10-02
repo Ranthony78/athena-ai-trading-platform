@@ -1,7 +1,8 @@
 """
-Assembles the full Analysis Report payload: real price history + EMA
-overlay, current stats, support/resistance, multi-timeframe trend,
-ATM option data, and the last AI Analysis run for this symbol.
+Assembles the intraday Analysis Report payload: current stats,
+support/resistance, multi-timeframe trend, ATM option data, and the last
+AI Analysis run for this symbol. The 60-session daily chart was removed
+because this workspace is designed for day traders.
 
 This is symbol-only, timeframe-agnostic by design (matches the "fixed
 block" report format, not the interval-picker AI Analysis flow) — it
@@ -14,11 +15,9 @@ or NA" principle as everywhere else, never fabricates a chart point
 or a stat.
 """
 import logging
-from datetime import date, timedelta
 
 logger = logging.getLogger(__name__)
 
-CHART_SESSIONS = 60  # trading sessions of real daily history to fetch
 MULTI_TIMEFRAME_SET = ["5m", "15m", "30m"]
 
 
@@ -39,13 +38,6 @@ class AnalysisReportService:
             "options": cls._safe(cls._get_options, symbol, user),
             "last_analysis": cls._safe(cls._get_last_analysis, symbol),
         }
-
-        history = cls._safe(cls._get_price_history, symbol, user)
-        if history:
-            report["price_history"] = history["candles"]
-            report["range_high"] = history["range_high"]
-            report["range_low"] = history["range_low"]
-            report["range_label"] = f"{history['session_count']}-Session"
 
         return report
 
@@ -75,62 +67,6 @@ class AnalysisReportService:
     def _get_spot(symbol: str, user) -> dict:
         from .market_service import MarketService
         return MarketService(user=user).quote(symbol)
-
-    @staticmethod
-    def _get_price_history(symbol: str, user) -> dict:
-        """
-        Fetch real daily candles live (not assumed pre-stored), persist
-        them for reuse, then compute EMA20/EMA50 for the chart overlay.
-        """
-        from .candle_service import CandleService
-        from ..indicators.indicator_service import IndicatorService
-
-        service = CandleService(user=user)
-
-        to_date = date.today()
-        from_date = to_date - timedelta(days=int(CHART_SESSIONS * 1.6))  # buffer for weekends/holidays
-
-        count = service.fetch_and_store(
-            symbol=symbol,
-            timeframe="1d",
-            from_date=str(from_date),
-            to_date=str(to_date),
-        )
-        if not count:
-            return None
-
-        candles = list(
-            service.get_candles(symbol=symbol, timeframe="1d", limit=CHART_SESSIONS)
-            .values("candle_time", "close")
-        )
-        candles.reverse()  # ascending chronological order for a chart
-
-        if not candles:
-            return None
-
-        indicators = IndicatorService.calculate(
-            symbol=symbol, timeframe="1d",
-            indicators=["EMA_20", "EMA_50"], limit=CHART_SESSIONS,
-        )
-        ema20_series = indicators.get("EMA_20") or []
-        ema50_series = indicators.get("EMA_50") or []
-
-        rows = []
-        for i, c in enumerate(candles):
-            rows.append({
-                "date": str(c["candle_time"])[:10],
-                "close": float(c["close"]),
-                "ema_20": round(ema20_series[i], 2) if i < len(ema20_series) and ema20_series[i] is not None else None,
-                "ema_50": round(ema50_series[i], 2) if i < len(ema50_series) and ema50_series[i] is not None else None,
-            })
-
-        closes = [r["close"] for r in rows]
-        return {
-            "candles": rows,
-            "range_high": max(closes),
-            "range_low": min(closes),
-            "session_count": len(rows),
-        }
 
     @staticmethod
     def _get_support_resistance(symbol: str) -> dict:
