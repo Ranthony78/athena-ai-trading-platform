@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 
 from .mock_provider import MockMarketProvider
 from .zerodha_provider import ZerodhaProvider
@@ -20,4 +21,7 @@ class ProviderFactory:
         if provider == "zerodha":
             return ZerodhaProvider(user=user)
 
-        return MockMarketProvider()
+        if provider == "mock":
+            return MockMarketProvider()
+
+        raise ImproperlyConfigured("MARKET_PROVIDER must be 'mock' or 'zerodha'.")

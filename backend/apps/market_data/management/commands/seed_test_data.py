@@ -116,6 +116,7 @@ class Command(BaseCommand):
                 low=Decimal(str(low_price)),
                 close=Decimal(str(close_price)),
                 volume=volume,
+                source="SYNTHETIC",
             ))
 
             price = close_price

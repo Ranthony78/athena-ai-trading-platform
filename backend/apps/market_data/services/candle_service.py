@@ -115,6 +115,7 @@ class CandleService:
             instrument=instrument,
             timeframe=timeframe,
             candles=candles,
+            source=getattr(self.provider, "data_source", "UNKNOWN"),
         )
 
         return len(candles)

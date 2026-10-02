@@ -11,7 +11,7 @@ export default function PrivateRoute() {
     }
 
     return (
-        <div className="flex h-screen bg-dark-950 overflow-hidden">
+        <div className="portal-shell flex h-screen bg-dark-950 overflow-hidden">
             <Sidebar />
             <div className="flex flex-col flex-1 overflow-hidden">
                 <Topbar />

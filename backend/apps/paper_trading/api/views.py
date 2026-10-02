@@ -63,7 +63,7 @@ class OrderListAPIView(APIView):
     def get(self, request):
         try:
             status = request.query_params.get("status")
-            service = OrderService()
+            service = OrderService(request.user)
             orders = service.get_orders(request.user, status)
             serializer = PaperOrderSerializer(orders, many=True)
             return ApiResponse.success(serializer.data)
@@ -81,7 +81,7 @@ class OrderListAPIView(APIView):
             )
 
         try:
-            service = OrderService()
+            service = OrderService(request.user)
             result = service.place_order(
                 user=request.user,
                 symbol=serializer.validated_data["symbol"].upper(),
@@ -91,6 +91,8 @@ class OrderListAPIView(APIView):
                 price=serializer.validated_data["price"],
                 product=serializer.validated_data["product"],
                 tag=serializer.validated_data["tag"],
+                instrument_id=serializer.validated_data.get("instrument_id"),
+                analysis_session_id=serializer.validated_data.get("analysis_session_id"),
             )
 
             if result["success"]:
@@ -115,7 +117,7 @@ class OrderCancelAPIView(APIView):
 
     def post(self, request, pk: int):
         try:
-            service = OrderService()
+            service = OrderService(request.user)
             result = service.cancel_order(request.user, pk)
 
             if result["success"]:

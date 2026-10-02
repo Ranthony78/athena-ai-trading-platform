@@ -34,7 +34,7 @@ level of direct source verification, not assumption.
 | market_data | Technical indicators: SMA/EMA/WMA, RSI/MACD/Stochastic, Bollinger Bands/ATR, VWAP/OBV, Pivot/CPR | ✅ IMPLEMENTED | `indicators/` package + `IndicatorService`, exposed via `/api/market/indicators/` |
 | market_data | Celery background tasks: intraday candle sync, signal-outcome tracking | ✅ IMPLEMENTED | `apps/market_data/tasks.py`, scheduled via `CELERY_BEAT_SCHEDULE` |
 | ai_engine | AI interpretation layer, provider abstraction, structured output | ✅ IMPLEMENTED | Providers: mock, Claude, Groq, Kimi (`AI_PROVIDER` setting). Prompt templates, analysis sessions, AI signals all modeled and exposed via API |
-| strategies | Deterministic strategy engine | ✅ IMPLEMENTED | EMA crossover, RSI, VWAP, ORB strategies; `StrategyEngine`/`StrategyService`, signal generation and persistence |
+| strategies | Deterministic strategy engine (read-only API; execution retired) | 🟡 PARTIAL | EMA crossover, RSI, VWAP, ORB strategies and `StrategyEngine` remain and power backtesting. The API is now read-only: list/detail/signals work, create/update/delete are removed, and `POST /api/strategies/run/` and `/run-all/` return **410 Gone** in favour of the AI Workspace. `StrategyService.create/update/delete/run_strategy/run_all` are no longer reachable from the API. Covered by `strategies/tests.py` (6 tests) |
 | paper_trading | Simulated order/position/P&L engine | ✅ IMPLEMENTED | `BrokerSimulator`, order/position/trade services, brokerage simulation. **Real test coverage** — 367 lines in `tests.py` covering P&L math, including two documented/fixed known issues |
 | backtesting | Strategy evaluation against historical data | ✅ IMPLEMENTED | Engine, `ReportService` (win rate, drawdown, Sharpe, expectancy, profit factor, equity curve). **Real test coverage** — 261 lines in `tests.py` |
 | journal | Trade journaling | ✅ IMPLEMENTED | Entries, trade notes, lessons/rules, AI review service |
@@ -106,10 +106,13 @@ stage" this file previously described.
 - **Risk engine** — no deterministic position-sizing / loss-limit /
   exposure-limit engine exists yet, despite being a stated core
   requirement in `01-ATHENA_APPLICATION_CONTEXT.md` §19.
-- **Test coverage** — only `paper_trading`, `backtesting`, and (narrowly)
-  `zerodha`'s live-trading gate have real tests. `accounts`, `ai_engine`,
-  `dashboard`, `journal`, `knowledge`, `market_data`, `notifications`, and
-  `strategies` still have the default Django test stub only, despite
+- **Test coverage** — `paper_trading`, `backtesting`, `strategies`
+  (read-only API / 410 stubs), `accounts` (registration, login, Google
+  sign-in, refresh, user management, password reset, throttling, production
+  secret-key guard), `ai_engine` and `market_data` (targeted regression
+  tests, not full coverage), and `zerodha`'s live-trading gate
+  have real tests. `dashboard`, `journal`, `knowledge`, and `notifications`
+  still have the default Django test stub only, despite
   several of them containing trading-relevant calculations.
 - **Frontend functional verification** — the React app is fully
   scaffolded per module but hasn't been verified end-to-end against the

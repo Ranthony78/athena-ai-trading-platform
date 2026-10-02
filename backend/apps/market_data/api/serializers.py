@@ -49,7 +49,7 @@ class QuoteSerializer(serializers.Serializer):
     oi = serializers.IntegerField(default=0)
     bid = serializers.FloatField(default=0)
     ask = serializers.FloatField(default=0)
-    timestamp = serializers.DateTimeField()
+    timestamp = serializers.DateTimeField(allow_null=True, required=False)
 
 
 class CandleSerializer(serializers.ModelSerializer):
@@ -74,12 +74,18 @@ class OptionChainSerializer(serializers.Serializer):
 
     strike = serializers.FloatField()
     option_type = serializers.CharField()
+    trading_symbol = serializers.CharField()
+    lot_size = serializers.IntegerField()
+    expiry = serializers.CharField()
+    quote_timestamp = serializers.DateTimeField(allow_null=True, required=False)
     ltp = serializers.FloatField()
     oi = serializers.IntegerField()
     volume = serializers.IntegerField()
     iv = serializers.FloatField(default=0)
     delta = serializers.FloatField(default=0)
+    gamma = serializers.FloatField(default=0)
     theta = serializers.FloatField(default=0)
+    vega = serializers.FloatField(default=0)
 
 
 class ExpirySerializer(serializers.Serializer):

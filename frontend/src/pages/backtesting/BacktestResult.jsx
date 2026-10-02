@@ -41,15 +41,17 @@ export default function BacktestResult() {
                             <YAxis domain={["auto", "auto"]} />
                             <Tooltip
                                 contentStyle={{
-                                    background: "#1e293b",
-                                    border: "1px solid #334155",
+                                    background: "var(--chart-tooltip)",
+                                    border: "1px solid var(--chart-tooltip-border)",
                                     borderRadius: "8px",
                                 }}
+                                labelStyle={{ color: "var(--chart-tooltip-text)" }}
+                                itemStyle={{ color: "var(--chart-tooltip-text)" }}
                             />
                             <Line
                                 type="monotone"
                                 dataKey="capital"
-                                stroke="#3b82f6"
+                                stroke="var(--chart-accent)"
                                 dot={false}
                                 strokeWidth={2}
                             />

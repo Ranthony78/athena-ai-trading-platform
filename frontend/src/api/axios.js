@@ -21,6 +21,32 @@ api.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
+// One in-flight refresh shared by every request that hits a 401 at the same
+// time. Refresh tokens rotate, so a second parallel refresh would present a
+// token that has just been blacklisted and wrongly log the user out.
+let refreshPromise = null;
+
+function refreshAccessToken() {
+    if (!refreshPromise) {
+        const { refreshToken } = useAuthStore.getState();
+        refreshPromise = axios
+            .post("/api/accounts/token/refresh/", { refresh: refreshToken })
+            .then((response) => {
+                useAuthStore.getState().setTokens(response.data);
+                return response.data.access;
+            })
+            .finally(() => {
+                refreshPromise = null;
+            });
+    }
+    return refreshPromise;
+}
+
+function forceLogout() {
+    useAuthStore.getState().logout();
+    window.location.href = "/login";
+}
+
 // Response interceptor — handle auth errors
 api.interceptors.response.use(
     (response) => response,
@@ -30,27 +56,17 @@ api.interceptors.response.use(
         if (error.response?.status === 401 && !original._retry) {
             original._retry = true;
 
+            if (!useAuthStore.getState().refreshToken) {
+                forceLogout();
+                return Promise.reject(error);
+            }
+
             try {
-                const refreshToken = useAuthStore.getState().refreshToken;
-
-                if (!refreshToken) {
-                    useAuthStore.getState().logout();
-                    window.location.href = "/login";
-                    return Promise.reject(error);
-                }
-
-                const response = await axios.post("/api/accounts/token/refresh/", {
-                    refresh: refreshToken,
-                });
-
-                const { access } = response.data;
-                useAuthStore.getState().setAccessToken(access);
+                const access = await refreshAccessToken();
                 original.headers.Authorization = `Bearer ${access}`;
-
                 return api(original);
             } catch {
-                useAuthStore.getState().logout();
-                window.location.href = "/login";
+                forceLogout();
                 return Promise.reject(error);
             }
         }

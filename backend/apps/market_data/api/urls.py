@@ -4,6 +4,7 @@ from .views import (
     # Instruments
     BulkQuoteAPIView,
     ExpiryListAPIView,
+    FuturesActivityAPIView,
     HistoricalDataAPIView,
     IndexListAPIView,
     InstrumentDetailAPIView,
@@ -15,6 +16,7 @@ from .views import (
     QuoteListAPIView,
     # Sprint 11 — Market Engine
     MarketEngineStatusAPIView,
+    MarketReadAPIView,
     MarketSessionAPIView,
     # Sprint 12 — Indicators
     IndicatorAPIView,
@@ -85,6 +87,12 @@ urlpatterns = [
         name="historical-data",
     ),
 
+    path(
+        "futures/<str:symbol>/activity/",
+        FuturesActivityAPIView.as_view(),
+        name="futures-activity",
+    ),
+
     # ------------------------------------------------------------------
     # Expiry
     # ------------------------------------------------------------------
@@ -107,6 +115,12 @@ urlpatterns = [
         "option-chain/<str:symbol>/summary/",
         OptionChainSummaryAPIView.as_view(),
         name="option-chain-summary",
+    ),
+
+    path(
+        "read/<str:symbol>/",
+        MarketReadAPIView.as_view(),
+        name="market-read",
     ),
 
     # ------------------------------------------------------------------

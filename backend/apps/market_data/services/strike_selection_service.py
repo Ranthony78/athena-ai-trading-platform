@@ -22,13 +22,14 @@ class StrikeSelectionService:
     """
 
     @staticmethod
-    def select_for_signal(symbol: str, direction: str, user) -> Optional[dict]:
+    def select_for_signal(symbol: str, direction: str, user, moneyness: str = "ATM") -> Optional[dict]:
         """
         Args:
             symbol: underlying symbol, e.g. "NIFTY"
             direction: "BUY" or "SELL" — anything else (NEUTRAL,
                 NO_SETUP, WATCH) returns None, since there's no
                 directional call to attach a contract to.
+            moneyness: ATM, ITM, or OTM relative to the selected option side.
             user: required to fetch real option chain data.
 
         Returns:
@@ -48,6 +49,9 @@ class StrikeSelectionService:
             return None
         if not user:
             return None
+        moneyness = str(moneyness or "ATM").upper()
+        if moneyness not in {"ATM", "ITM", "OTM"}:
+            moneyness = "ATM"
 
         option_type = "CE" if direction == "BUY" else "PE"
 
@@ -64,13 +68,32 @@ class StrikeSelectionService:
                 return None
 
             chain = service.get_chain(symbol, expiry=expiry)
-            row = next(
-                (
-                    r for r in chain
-                    if r.get("strike") == atm_strike and r.get("option_type") == option_type
-                ),
-                None,
-            )
+            candidates = [
+                row for row in chain
+                if row.get("option_type") == option_type
+                and row.get("ltp")
+                and (
+                    (moneyness == "ATM" and row.get("strike") == atm_strike)
+                    or (moneyness == "ITM" and (
+                        row.get("strike") < atm_strike if option_type == "CE"
+                        else row.get("strike") > atm_strike
+                    ))
+                    or (moneyness == "OTM" and (
+                        row.get("strike") > atm_strike if option_type == "CE"
+                        else row.get("strike") < atm_strike
+                    ))
+                )
+            ]
+            if moneyness == "ATM":
+                row = candidates[0] if candidates else None
+            elif moneyness == "ITM" and option_type == "CE":
+                row = max(candidates, key=lambda item: item["strike"]) if candidates else None
+            elif moneyness == "ITM":
+                row = min(candidates, key=lambda item: item["strike"]) if candidates else None
+            elif option_type == "CE":
+                row = min(candidates, key=lambda item: item["strike"]) if candidates else None
+            else:
+                row = max(candidates, key=lambda item: item["strike"]) if candidates else None
             if not row or not row.get("ltp"):
                 return None
 
@@ -88,10 +111,12 @@ class StrikeSelectionService:
             return {
                 "instrument_id": instrument.id,
                 "trading_symbol": row["trading_symbol"],
-                "strike": atm_strike,
+                "strike": row["strike"],
                 "option_type": option_type,
+                "moneyness": moneyness,
                 "expiry": expiry,
                 "entry_premium": row["ltp"],
+                "lot_size": instrument.lot_size,
             }
 
         except Exception as e:

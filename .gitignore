@@ -417,3 +417,11 @@ redis_data/
 # Windows
 Thumbs.db
 desktop.ini
+# Frontend build output
+frontend/dist/
+
+# Design-reference scratch (screenshots, templates)
+output/
+
+# Celery beat runtime state
+celerybeat-schedule*

@@ -1,32 +1,20 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { FlaskConical } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowRight, Brain } from "lucide-react";
+import { Link } from "react-router-dom";
 import { PageWrapper } from "../../components/layout";
-import { Card, Table, Badge, Button, Modal, Spinner } from "../../components/common";
-import BacktestForm from "./components/BacktestForm";
+import { Card, Table, Badge, Spinner } from "../../components/common";
 import { backtestingAPI } from "../../api/backtesting";
 import { formatDate, formatNumber } from "../../utils/formatters";
 
 export default function Backtesting() {
-    const [showModal, setShowModal] = useState(false);
-    const queryClient = useQueryClient();
-
     const { data: runs, isLoading } = useQuery({
         queryKey: ["backtest-runs"],
         queryFn: () => backtestingAPI.getRuns(),
         select: (res) => res.data.data,
     });
 
-    const { mutate: create, isPending } = useMutation({
-        mutationFn: (data) => backtestingAPI.createRun(data),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["backtest-runs"] });
-            setShowModal(false);
-        },
-    });
-
     const columns = [
-        { key: "strategy_name", label: "Strategy" },
+        { key: "strategy_name", label: "Archived rule set" },
         { key: "symbol", label: "Symbol" },
         { key: "timeframe", label: "TF" },
         { key: "from_date", label: "From", render: (v) => formatDate(v) },
@@ -55,26 +43,29 @@ export default function Backtesting() {
 
     return (
         <PageWrapper
-            title="Backtesting"
-            subtitle="Test strategies against historical data"
-            actions={
-                <Button variant="primary" size="sm" icon={FlaskConical}
-                    onClick={() => setShowModal(true)}>
-                    New Backtest
-                </Button>
-            }
+            title="Backtesting Archive"
+            subtitle="Review saved historical runs. AI forecast evaluation is available in the AI Workspace."
         >
+            <Card className="mb-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <p className="text-sm font-semibold text-dark-100">AI-led research</p>
+                        <p className="mt-1 text-xs text-dark-400">
+                            New analysis, No Trade decisions, prediction history, and forecast calibration live in one place.
+                            The rule-based runs below are preserved for reference.
+                        </p>
+                    </div>
+                    <Link to="/analysis" className="inline-flex shrink-0 items-center gap-2 text-sm font-medium text-primary-400 hover:text-primary-300">
+                        <Brain className="h-4 w-4" /> Open AI Workspace <ArrowRight className="h-4 w-4" />
+                    </Link>
+                </div>
+            </Card>
             <Card padding={false}>
                 {isLoading ? <Spinner /> : (
                     <Table columns={columns} data={runs || []}
-                        emptyTitle="No backtests yet" />
+                        emptyTitle="No archived backtests" />
                 )}
             </Card>
-
-            <Modal isOpen={showModal} onClose={() => setShowModal(false)}
-                title="New Backtest" size="lg">
-                <BacktestForm onSubmit={create} loading={isPending} />
-            </Modal>
         </PageWrapper>
     );
 }

@@ -28,6 +28,14 @@ const useAuthStore = create(
             setAccessToken: (token) =>
                 set({ accessToken: token }),
 
+            // Refresh rotates the refresh token (the old one is blacklisted),
+            // so both must be stored together.
+            setTokens: ({ access, refresh }) =>
+                set((state) => ({
+                    accessToken: access,
+                    refreshToken: refresh || state.refreshToken,
+                })),
+
             setUser: (user) =>
                 set({ user }),
         }),

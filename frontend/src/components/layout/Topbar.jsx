@@ -1,8 +1,9 @@
-import { Bell, LogOut, User, Wifi, WifiOff } from "lucide-react";
+import { Bell, LogOut, Palette, User, Wifi, WifiOff } from "lucide-react";
 import { useLogout } from "../../hooks/useAuth";
 import { useSession } from "../../hooks/useMarket";
 import useAuthStore from "../../store/authStore";
 import useNotificationStore from "../../store/notificationStore";
+import useUIStore from "../../store/uiStore";
 import { getSessionColor } from "../../utils/helpers";
 
 export default function Topbar() {
@@ -10,9 +11,10 @@ export default function Topbar() {
     const { mutate: logout } = useLogout();
     const { unreadCount } = useNotificationStore();
     const { data: session } = useSession();
+    const { theme, setTheme } = useUIStore();
 
     return (
-        <header className="h-16 bg-dark-900 border-b border-dark-800 flex items-center justify-between px-6 shrink-0">
+        <header className="h-[104px] bg-dark-900 border-b border-dark-800 flex items-center justify-between px-6 shrink-0">
             <div className="flex items-center gap-3">
                 {session ? (
                     <div className="flex items-center gap-2">
@@ -34,6 +36,25 @@ export default function Topbar() {
             </div>
 
             <div className="flex items-center gap-2">
+                <label className="flex items-center gap-1.5 rounded-lg border border-dark-700 bg-dark-800 px-2 py-1.5 text-dark-400" title="Choose appearance">
+                    <Palette className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span className="sr-only">Choose appearance</span>
+                    <select
+                        aria-label="Choose appearance"
+                        value={theme}
+                        onChange={(event) => setTheme(event.target.value)}
+                        className="max-w-[92px] cursor-pointer bg-transparent text-[11px] font-medium text-dark-200 outline-none"
+                    >
+                        <option value="plum">Plum</option>
+                        <option value="ivory">Ivory &amp; Indigo</option>
+                        <option value="copper">Copper</option>
+                        <option value="aurora">Aurora</option>
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                        <option value="neon">Neon</option>
+                    </select>
+                </label>
+
                 <a href="/notifications" className="relative p-2 rounded-lg text-dark-400 hover:text-dark-100 hover:bg-dark-800 transition-colors">
                     <Bell className="w-4 h-4" />
                     {unreadCount > 0 && (

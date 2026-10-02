@@ -123,6 +123,14 @@ class PaperOrder(BaseModel):
         on_delete=models.CASCADE,
         related_name="paper_orders",
     )
+    analysis_session = models.ForeignKey(
+        "ai_engine.AnalysisSession",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="paper_orders",
+        help_text="AI forecast that led to this paper-only order, when applicable.",
+    )
 
     order_type = models.CharField(
         max_length=10,
@@ -217,6 +225,14 @@ class PaperPosition(BaseModel):
         on_delete=models.CASCADE,
         related_name="paper_positions",
     )
+    analysis_session = models.ForeignKey(
+        "ai_engine.AnalysisSession",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="paper_positions",
+        help_text="AI forecast linked to this position when all opening fills share it.",
+    )
 
     direction = models.CharField(
         max_length=5,
@@ -226,6 +242,12 @@ class PaperPosition(BaseModel):
     average_price = models.DecimalField(
         max_digits=12,
         decimal_places=2,
+    )
+    entry_brokerage = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        help_text="Opening commissions still attributable to this open position.",
     )
     last_price = models.DecimalField(
         max_digits=12,
@@ -302,12 +324,20 @@ class PaperTrade(BaseModel):
         on_delete=models.CASCADE,
         related_name="paper_trades",
     )
-    position = models.OneToOneField(
+    position = models.ForeignKey(
         PaperPosition,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="trade",
+        related_name="trades",
+    )
+    analysis_session = models.ForeignKey(
+        "ai_engine.AnalysisSession",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="paper_trades",
+        help_text="AI forecast linked to this completed paper trade, when unambiguous.",
     )
 
     direction = models.CharField(max_length=5)

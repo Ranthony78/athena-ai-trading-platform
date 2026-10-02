@@ -4,6 +4,7 @@ import re
 import time
 
 from ..providers.ai_provider_factory import AIProviderFactory
+from .provider_credentials import ProviderCredentialService
 
 logger = logging.getLogger(__name__)
 
@@ -13,8 +14,13 @@ class AIService:
     Core AI service — sends prompts and parses responses.
     """
 
-    def __init__(self) -> None:
-        self.provider = AIProviderFactory.get_provider()
+    def __init__(self, user=None) -> None:
+        self.provider_config = ProviderCredentialService.resolve(user)
+        self.provider = AIProviderFactory.get_provider(
+            self.provider_config["provider"],
+            api_key=self.provider_config["api_key"] or None,
+        )
+        self.provider_name = self.provider_config["provider"]
 
     def complete(
         self,
@@ -44,6 +50,7 @@ class AIService:
             temperature=temperature,
         )
 
+        result["provider"] = self.provider_name
         result["parsed"] = self._parse_json_block(result["content"])
         return result
 
@@ -63,7 +70,10 @@ class AIService:
 
             if match:
                 json_str = match.group(1).strip()
-                return json.loads(json_str)
+                value = json.loads(json_str)
+            else:
+                value = json.loads(content.strip())
+            return value if isinstance(value, dict) else {}
 
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse AI JSON block: {e}")

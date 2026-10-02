@@ -35,12 +35,15 @@ class AnalysisSessionRepository(BaseRepository[AnalysisSession]):
     model = AnalysisSession
 
     @classmethod
-    def get_today(cls) -> QuerySet[AnalysisSession]:
-        """Return all sessions from today."""
+    def get_today(cls, user=None) -> QuerySet[AnalysisSession]:
+        """Return today's sessions, scoped to the requesting user."""
         today = timezone.now().date()
-        return cls.model.objects.filter(
+        queryset = cls.model.objects.filter(
             session_time__date=today,
-        ).select_related("instrument", "template").order_by("-session_time")
+        )
+        if user:
+            queryset = queryset.filter(user=user)
+        return queryset.select_related("instrument", "template").order_by("-session_time")
 
     @classmethod
     def get_by_instrument(
@@ -60,18 +63,29 @@ class AnalysisSessionRepository(BaseRepository[AnalysisSession]):
             status="COMPLETE",
         ).select_related("instrument").order_by("-session_time")[:limit]
 
+    @classmethod
+    def get_by_id_for_user(cls, session_id: int, user) -> Optional[AnalysisSession]:
+        return cls.model.objects.filter(id=session_id, user=user).select_related(
+            "instrument", "template",
+        ).first()
+
 
 class AISignalRepository(BaseRepository[AISignal]):
 
     model = AISignal
 
     @classmethod
-    def get_today(cls) -> QuerySet[AISignal]:
-        """Return all AI signals from today."""
+    def get_today(cls, user=None) -> QuerySet[AISignal]:
+        """Return today's AI signals, scoped to the requesting user."""
         today = timezone.now().date()
-        return cls.model.objects.filter(
+        queryset = cls.model.objects.filter(
             signal_time__date=today,
-        ).select_related("instrument", "session").order_by("-signal_time")
+        )
+        if user:
+            queryset = queryset.filter(user=user)
+        return queryset.select_related(
+            "instrument", "session", "option_instrument",
+        ).order_by("-signal_time")
 
     @classmethod
     def get_by_instrument(

@@ -1,5 +1,5 @@
 import logging
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime
 
 from django.utils import timezone
@@ -30,6 +30,8 @@ class PositionService:
         execution_price: Decimal,
         product: str = "MIS",
         tag: str = "",
+        analysis_session=None,
+        order_brokerage: Decimal = None,
     ) -> PaperPosition:
         """
         Create or update a position after order execution.
@@ -57,6 +59,8 @@ class PositionService:
                 last_price=execution_price,
                 product=product,
                 tag=tag,
+                analysis_session=analysis_session,
+                entry_brokerage=order_brokerage or Decimal("0"),
             )
 
             # Reserve margin. Note: balance is intentionally NOT reduced
@@ -79,81 +83,88 @@ class PositionService:
             )
             existing.average_price = total_cost / total_qty
             existing.quantity = total_qty
+            existing.entry_brokerage += order_brokerage or Decimal("0")
+            # Preserve the attribution only while it remains unambiguous.
+            # If a position combines entries from different sessions (or
+            # manual entries), do not credit one forecast with the whole trade.
+            if existing.analysis_session_id != getattr(analysis_session, "id", None):
+                existing.analysis_session = None
             existing.last_price = execution_price
             existing.save()
+            account.used_margin += execution_price * quantity
+            account.save()
             return existing
 
         else:
             # Opposite direction — reduce or close position
-            if quantity >= existing.quantity:
-                # Close position fully
-                pnl = PositionService._calculate_pnl(
-                    direction=existing.direction,
-                    quantity=existing.quantity,
-                    entry_price=existing.average_price,
-                    exit_price=execution_price,
-                )
+            close_quantity = min(quantity, existing.quantity)
+            pnl = PositionService._calculate_pnl(
+                direction=existing.direction,
+                quantity=close_quantity,
+                entry_price=existing.average_price,
+                exit_price=execution_price,
+            )
+            is_full_close = close_quantity == existing.quantity
+            allocated_entry_brokerage = (
+                existing.entry_brokerage
+                if is_full_close
+                else (existing.entry_brokerage * Decimal(close_quantity) / Decimal(existing.quantity))
+                .quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            )
+            exit_brokerage = order_brokerage if order_brokerage is not None else BROKERAGE
+            total_brokerage = allocated_entry_brokerage + exit_brokerage
+            net_pnl = pnl - total_brokerage
 
-                net_pnl = pnl - BROKERAGE
+            # Record each realized close fill. The optional FK supports
+            # partial exits while keeping the forecast attribution intact.
+            PaperTrade.objects.create(
+                account=account,
+                instrument=instrument,
+                position=existing,
+                direction=existing.direction,
+                quantity=close_quantity,
+                entry_price=existing.average_price,
+                exit_price=execution_price,
+                entry_time=existing.open_time,
+                exit_time=timezone.now(),
+                pnl=pnl,
+                pnl_pct=float(pnl / (existing.average_price * close_quantity) * 100),
+                brokerage=total_brokerage,
+                net_pnl=net_pnl,
+                product=existing.product,
+                tag=existing.tag,
+                analysis_session=existing.analysis_session,
+                ai_signal=(
+                    "BOTH" if existing.tag == "AI_PAPER_VOLATILITY"
+                    else existing.analysis_session.ai_signal.signal
+                    if existing.analysis_session_id else ""
+                ),
+            )
 
-                # Create trade record
-                PaperTrade.objects.create(
-                    account=account,
-                    instrument=instrument,
-                    position=existing,
-                    direction=existing.direction,
-                    quantity=existing.quantity,
-                    entry_price=existing.average_price,
-                    exit_price=execution_price,
-                    entry_time=existing.open_time,
-                    exit_time=timezone.now(),
-                    pnl=pnl,
-                    pnl_pct=float(pnl / (existing.average_price * existing.quantity) * 100),
-                    brokerage=BROKERAGE,
-                    net_pnl=net_pnl,
-                    product=existing.product,
-                    tag=existing.tag,
-                )
+            margin = existing.average_price * close_quantity
+            account.used_margin -= margin
+            # In the regular order flow, the order's commission is charged
+            # just after this method. Direct callers include it here.
+            realized_account_pnl = pnl if order_brokerage is not None else net_pnl
+            account.balance += realized_account_pnl
+            account.total_pnl += realized_account_pnl
+            account.today_pnl += realized_account_pnl
+            account.total_trades += 1
+            if net_pnl > 0:
+                account.winning_trades += 1
+            elif net_pnl < 0:
+                account.losing_trades += 1
+            account.save()
 
-                # Close position
+            existing.quantity -= close_quantity
+            existing.entry_brokerage -= allocated_entry_brokerage
+            existing.realized_pnl += pnl
+            existing.last_price = execution_price
+            if is_full_close:
                 existing.is_open = False
                 existing.close_time = timezone.now()
-                existing.realized_pnl = pnl
-                existing.save()
-
-                # Update account. balance was never reduced by margin at
-                # open time (see the open-position branch above), so
-                # only the realized net P&L is added back here — adding
-                # margin too would double-count it in the other direction.
-                margin = existing.average_price * existing.quantity
-                account.used_margin -= margin
-                account.balance += net_pnl
-                account.total_pnl += net_pnl
-                account.today_pnl += net_pnl
-                account.total_trades += 1
-
-                if float(pnl) > 0:
-                    account.winning_trades += 1
-                else:
-                    account.losing_trades += 1
-
-                account.save()
-
-                return existing
-
-            else:
-                # Partial close
-                pnl = PositionService._calculate_pnl(
-                    direction=existing.direction,
-                    quantity=quantity,
-                    entry_price=existing.average_price,
-                    exit_price=execution_price,
-                )
-                existing.quantity -= quantity
-                existing.realized_pnl += pnl
-                existing.last_price = execution_price
-                existing.save()
-                return existing
+            existing.save()
+            return existing
 
     @staticmethod
     def _calculate_pnl(
@@ -181,7 +192,12 @@ class PositionService:
 
         for position in positions:
             try:
-                quote = provider.get_quote(position.instrument.symbol)
+                quote_symbol = (
+                    position.instrument.trading_symbol
+                    if position.instrument.option_type
+                    else position.instrument.symbol
+                )
+                quote = provider.get_quote(quote_symbol)
                 if quote:
                     ltp = Decimal(str(quote["ltp"]))
                     position.last_price = ltp

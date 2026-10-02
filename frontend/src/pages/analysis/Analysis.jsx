@@ -15,17 +15,17 @@ function friendlyErrorMessage(rawError) {
 
     const lower = rawError.toLowerCase();
 
-    if (lower.includes("credit balance is too low")) {
-        return "Your Anthropic API account has no usable credit balance. Add credits or claim a trial credit at console.anthropic.com, then try again.";
+    if (lower.includes("gemini_api_key is not configured")) {
+        return "Gemini is selected, but GEMINI_API_KEY is not configured on the backend.";
     }
     if (lower.includes("anthropic_api_key not set")) {
         return "No Anthropic API key is configured on the backend. Add ANTHROPIC_API_KEY to your .env file and restart the server.";
     }
-    if (lower.includes("401") || lower.includes("authentication")) {
-        return "The Anthropic API rejected the request as unauthenticated. Check that your API key is valid.";
+    if (lower.includes("groq_api_key not set")) {
+        return "Groq is selected, but GROQ_API_KEY is not configured on the backend.";
     }
     if (lower.includes("rate limit") || lower.includes("429")) {
-        return "The Anthropic API rate limit was hit. Wait a moment and try again.";
+        return "The selected AI provider rate limit or quota was reached. Wait a moment or check its project quota.";
     }
     if (lower.includes("live data not available") || lower.includes("no candle data")) {
         return "No market data is available for this symbol yet, so no analysis could be run.";
@@ -67,8 +67,8 @@ export default function Analysis() {
 
     return (
         <PageWrapper
-            title="AI Analysis"
-            subtitle="AI-powered market analysis and setup detection"
+            title="AI Workspace"
+            subtitle="AI-led market analysis grounded in current market evidence"
             actions={
                 <div className="flex items-center gap-4">
                     <a

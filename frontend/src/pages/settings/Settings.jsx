@@ -1,6 +1,6 @@
 import { PageWrapper } from "../../components/layout";
 import { Card } from "../../components/common";
-import { User, Bell, Link2, Shield } from "lucide-react";
+import { User, Bell, Link2, Cpu } from "lucide-react";
 
 const settingsLinks = [
     {
@@ -20,6 +20,12 @@ const settingsLinks = [
         icon: Link2,
         title: "Zerodha Connection",
         description: "Connect or manage your Kite account",
+    },
+    {
+        href: "/settings/ai-connection",
+        icon: Cpu,
+        title: "AI Connection",
+        description: "Connect your personal provider key and test it",
     },
 ];
 

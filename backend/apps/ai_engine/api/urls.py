@@ -2,13 +2,25 @@ from django.urls import path
 
 from .views import (
     AISignalListAPIView,
+    AnalysisPromptPreviewAPIView,
     AnalysisRunAPIView,
     AnalysisSessionDetailAPIView,
     AnalysisSessionListAPIView,
     PromptTemplateListAPIView,
+    LearningReportAPIView,
+    MarketDriversAPIView,
+    ProviderConnectionAPIView,
 )
 
 urlpatterns = [
+    path("provider/", ProviderConnectionAPIView.as_view(), name="ai-provider-connection"),
+    path("learning/", LearningReportAPIView.as_view(), name="ai-learning"),
+    path("market-drivers/", MarketDriversAPIView.as_view(), name="ai-market-drivers"),
+    path(
+        "preview/",
+        AnalysisPromptPreviewAPIView.as_view(),
+        name="ai-prompt-preview",
+    ),
     path(
         "analyze/",
         AnalysisRunAPIView.as_view(),

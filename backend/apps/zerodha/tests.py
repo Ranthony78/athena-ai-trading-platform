@@ -20,6 +20,7 @@ from .exceptions import ZerodhaTokenExpiredError
 User = get_user_model()
 
 ORDER_PAYLOAD = {
+    "confirm_live_order": True,
     "tradingsymbol": "NIFTY24SEP24000CE",
     "exchange": "NFO",
     "transaction_type": "BUY",
@@ -29,6 +30,9 @@ ORDER_PAYLOAD = {
 }
 
 PLACE_ORDER_TARGET = "apps.zerodha.services.kite_service.KiteService.place_order"
+SESSION_INFO_TARGET = (
+    "apps.market_data.engine.market_state.MarketState.session_info"
+)
 
 
 class LiveTradingGateTestCase(APITestCase):
@@ -39,6 +43,12 @@ class LiveTradingGateTestCase(APITestCase):
         )
         self.client.force_authenticate(user=self.user)
         self.url = reverse("zerodha-orders")
+
+        # The view also requires regular market hours; pin the session so
+        # these tests don't depend on the wall clock.
+        session_patcher = patch(SESSION_INFO_TARGET, return_value={"is_live": True})
+        session_patcher.start()
+        self.addCleanup(session_patcher.stop)
 
     @override_settings(LIVE_TRADING_ENABLED=False)
     def test_gate_blocks_when_disabled(self):
@@ -62,6 +72,35 @@ class LiveTradingGateTestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data["success"])
         mock_place_order.assert_called_once()
+
+    @override_settings(LIVE_TRADING_ENABLED=True)
+    def test_blocks_outside_market_hours(self):
+        """Even with the flag on, orders are rejected when the market is closed."""
+        with patch(SESSION_INFO_TARGET, return_value={"is_live": False}), patch(
+            PLACE_ORDER_TARGET
+        ) as mock_place_order:
+            response = self.client.post(self.url, ORDER_PAYLOAD, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertFalse(response.data["success"])
+        mock_place_order.assert_not_called()
+
+    @override_settings(LIVE_TRADING_ENABLED=True)
+    def test_requires_explicit_order_confirmation(self):
+        """Missing or false confirm_live_order never reaches KiteService."""
+        for confirm in (None, False):
+            payload = dict(ORDER_PAYLOAD)
+            if confirm is None:
+                payload.pop("confirm_live_order")
+            else:
+                payload["confirm_live_order"] = confirm
+
+            with patch(PLACE_ORDER_TARGET) as mock_place_order:
+                response = self.client.post(self.url, payload, format="json")
+
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertFalse(response.data["success"])
+            mock_place_order.assert_not_called()
 
     @override_settings(LIVE_TRADING_ENABLED=True)
     def test_expired_token_still_returns_401_past_the_gate(self):

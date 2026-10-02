@@ -5,28 +5,57 @@ Covers PositionService.update_position() — opening, adding to, and
 closing positions — since this is where all real money-math for the
 paper trading feature lives.
 
-One known issue is documented explicitly below (not fixed here, per
-project rule "ask before restructuring"):
-
-- Win/loss classification uses gross pnl, not net_pnl (after
-  brokerage). A trade that's barely profitable before brokerage but
-  a net loss after it is still counted as a "win" in win_rate stats.
-  See test_win_loss_classification_uses_gross_pnl_not_net.
-
-A second issue (double-counted margin in available_balance) WAS found
-and fixed in position_service.py — see test_available_balance_* below,
-which are regression tests for that fix.
+Win/loss classification and partial-close accounting use realized net
+results. These tests protect the paper journal's accounting semantics.
 """
+from datetime import timedelta
 from decimal import Decimal
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
+from django.utils import timezone
 
 from apps.market_data.models import Instrument
 from apps.paper_trading.models import PaperAccount, PaperPosition, PaperTrade
 from apps.paper_trading.services.position_service import PositionService, BROKERAGE
+from apps.paper_trading.services.broker_simulator import BrokerSimulator
 
 User = get_user_model()
+
+
+class OptionPaperFillQuoteTests(SimpleTestCase):
+    @patch("apps.market_data.repositories.instrument_repository.InstrumentRepository.get_by_trading_symbol")
+    @patch("apps.market_data.providers.provider_factory.ProviderFactory.get_provider")
+    def test_option_buys_use_ask_and_sells_use_bid(self, get_provider, get_instrument):
+        provider = get_provider.return_value
+        provider.get_quote.return_value = {
+            "timestamp": timezone.now().isoformat(), "ltp": 100,
+            "bid": 99, "ask": 101,
+        }
+        get_instrument.return_value = SimpleNamespace(option_type="CE")
+        simulator = BrokerSimulator()
+
+        self.assertEqual(simulator.get_execution_price("NIFTYTESTCE", "MARKET", "BUY"), Decimal("101"))
+        self.assertEqual(simulator.get_execution_price("NIFTYTESTCE", "MARKET", "SELL"), Decimal("99"))
+
+    @patch("apps.market_data.repositories.instrument_repository.InstrumentRepository.get_by_trading_symbol")
+    @patch("apps.market_data.providers.provider_factory.ProviderFactory.get_provider")
+    def test_option_paper_fill_refuses_missing_or_stale_bid_ask(self, get_provider, get_instrument):
+        provider = get_provider.return_value
+        get_instrument.return_value = SimpleNamespace(option_type="PE")
+        simulator = BrokerSimulator()
+        provider.get_quote.return_value = {
+            "timestamp": timezone.now().isoformat(), "ltp": 100, "bid": 0, "ask": 101,
+        }
+        self.assertEqual(simulator.get_execution_price("NIFTYTESTPE", "MARKET", "BUY"), Decimal("0"))
+
+        provider.get_quote.return_value = {
+            "timestamp": (timezone.now() - timedelta(minutes=5)).isoformat(),
+            "ltp": 100, "bid": 99, "ask": 101,
+        }
+        self.assertEqual(simulator.get_execution_price("NIFTYTESTPE", "MARKET", "BUY"), Decimal("0"))
 
 
 class PositionServiceTestCase(TestCase):
@@ -216,19 +245,13 @@ class PositionServiceTestCase(TestCase):
         self.assertEqual(self.account.losing_trades, 1)
 
     # ------------------------------------------------------------------
-    # KNOWN ISSUE — documented, not fixed
+    # Net outcome classification
     # ------------------------------------------------------------------
 
-    def test_win_loss_classification_uses_gross_pnl_not_net(self):
+    def test_win_loss_classification_uses_net_pnl_after_brokerage(self):
         """
-        KNOWN ISSUE: a trade can be a net LOSS after brokerage but still
-        get counted as a "win" in account.winning_trades, because the
-        win/loss check in PositionService.update_position() compares
-        `pnl` (gross) rather than `net_pnl` (after brokerage).
-
-        This test documents the current (surprising) behavior rather
-        than asserting it's correct. If this is fixed, this test
-        should be updated to assert losing_trades == 1 instead.
+        A gross gain smaller than brokerage is a net loss and must count
+        as a losing outcome in paper account statistics.
         """
         PositionService.update_position(
             account=self.account,
@@ -253,11 +276,8 @@ class PositionServiceTestCase(TestCase):
         self.assertEqual(trade.net_pnl, Decimal("-10.00"))
 
         self.account.refresh_from_db()
-        # Documents current behavior: counted as a WIN despite net loss.
-        self.assertEqual(self.account.winning_trades, 1)
-        self.assertEqual(self.account.losing_trades, 0)
-        # total_pnl correctly reflects the real net loss even though
-        # winning_trades does not.
+        self.assertEqual(self.account.winning_trades, 0)
+        self.assertEqual(self.account.losing_trades, 1)
         self.assertEqual(self.account.total_pnl, Decimal("-10.00"))
 
     # ------------------------------------------------------------------
@@ -266,10 +286,8 @@ class PositionServiceTestCase(TestCase):
 
     def test_partial_close_does_not_update_account_balance(self):
         """
-        KNOWN ISSUE: partially closing a position updates the
-        position's own quantity/realized_pnl, but never touches
-        account.balance, account.used_margin, or account.total_pnl.
-        No PaperTrade record is created for a partial close either.
+        Partial closes create a trade-ledger row, release proportional
+        margin, and apply realized net P&L to the account.
 
         This test documents the current (surprising) behavior rather
         than asserting it's correct.
@@ -298,18 +316,15 @@ class PositionServiceTestCase(TestCase):
         # Position-level realized PnL: (110-100)*5 = 50
         self.assertEqual(position.realized_pnl, Decimal("50.00"))
 
-        # No trade record created for a partial close.
-        self.assertEqual(
-            PaperTrade.objects.filter(account=self.account).count(), 0
-        )
+        trade = PaperTrade.objects.get(account=self.account)
+        self.assertEqual(trade.quantity, 5)
+        self.assertEqual(trade.pnl, Decimal("50.00"))
+        self.assertEqual(trade.net_pnl, Decimal("30.00"))
 
         self.account.refresh_from_db()
-        # Documents current behavior: balance/margin/total_pnl are
-        # UNCHANGED by the partial close, even though the position
-        # itself recorded a real ₹50 realized gain.
-        self.assertEqual(self.account.balance, balance_after_open)
-        self.assertEqual(self.account.used_margin, margin_after_open)
-        self.assertEqual(self.account.total_pnl, Decimal("0.00"))
+        self.assertEqual(self.account.balance, balance_after_open + Decimal("30.00"))
+        self.assertEqual(self.account.used_margin, margin_after_open - Decimal("500.00"))
+        self.assertEqual(self.account.total_pnl, Decimal("30.00"))
 
     # ------------------------------------------------------------------
     # available_balance correctness (margin should be counted once)

@@ -1,9 +1,10 @@
+import { useEffect } from "react";
 import { NavLink } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import {
     LayoutDashboard,
     TrendingUp,
     Brain,
-    Zap,
     Briefcase,
     BookOpen,
     FlaskConical,
@@ -13,18 +14,42 @@ import {
     Settings,
     ChevronLeft,
     Activity,
+    BarChart3,
+    History,
+    Cpu,
+    Users,
+    CircleHelp,
 } from "lucide-react";
 import useUIStore from "../../store/uiStore";
+import useAuthStore from "../../store/authStore";
+import { authAPI } from "../../api/auth";
 import { APP_NAME } from "../../utils/constants";
 
 const navItems = [
     {
-        group: "Main",
+        group: "Overview",
         items: [
-            { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-            { to: "/market", icon: TrendingUp, label: "Market Watch" },
-            { to: "/analysis", icon: Brain, label: "AI Analysis" },
-            { to: "/strategies", icon: Zap, label: "Strategies" },
+            { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard", end: true },
+        ],
+    },
+    {
+        group: "Market",
+        items: [
+            { to: "/market", icon: TrendingUp, label: "Market Watch", end: true },
+            { to: "/market/option-chain", icon: BarChart3, label: "Options Workspace" },
+            { to: "/market/historical", icon: History, label: "Historical Data" },
+        ],
+    },
+    {
+        group: "Analysis",
+        items: [
+            { to: "/analysis", icon: Brain, label: "AI Workspace" },
+        ],
+    },
+    {
+        group: "Research",
+        items: [
+            { to: "/backtest", icon: FlaskConical, label: "Backtesting" },
         ],
     },
     {
@@ -32,22 +57,46 @@ const navItems = [
         items: [
             { to: "/paper", icon: Briefcase, label: "Paper Trading" },
             { to: "/journal", icon: BookOpen, label: "Journal" },
-            { to: "/backtest", icon: FlaskConical, label: "Backtesting" },
         ],
     },
     {
         group: "Resources",
         items: [
             { to: "/knowledge", icon: Library, label: "Knowledge Base" },
+            { to: "/help", icon: CircleHelp, label: "Help & FAQ" },
+        ],
+    },
+    {
+        group: "Account",
+        items: [
+            { to: "/zerodha", icon: Link, label: "Zerodha Connection" },
+            { to: "/settings/ai-connection", icon: Cpu, label: "AI Connection" },
             { to: "/notifications", icon: Bell, label: "Notifications" },
-            { to: "/zerodha", icon: Link, label: "Zerodha" },
             { to: "/settings", icon: Settings, label: "Settings" },
+        ],
+    },
+    {
+        group: "Administration",
+        adminOnly: true,
+        items: [
+            { to: "/admin/users", icon: Users, label: "User Management" },
         ],
     },
 ];
 
 export default function Sidebar() {
     const { sidebarOpen, toggleSidebar } = useUIStore();
+    const { user, setUser } = useAuthStore();
+    const { data: profileResponse } = useQuery({
+        queryKey: ["auth-profile"],
+        queryFn: authAPI.profile,
+        staleTime: 5 * 60 * 1000,
+        retry: false,
+    });
+
+    useEffect(() => {
+        if (profileResponse?.data?.user) setUser(profileResponse.data.user);
+    }, [profileResponse, setUser]);
 
     return (
         <aside
@@ -58,7 +107,7 @@ export default function Sidebar() {
       `}
         >
             {/* Logo */}
-            <div className="flex items-center justify-between px-4 h-16 border-b border-dark-800">
+            <div className="flex items-center justify-between px-4 h-[104px] border-b border-dark-800">
                 {sidebarOpen && (
                     <div className="flex items-center gap-2">
                         <Activity className="w-5 h-5 text-primary-500" />
@@ -81,7 +130,7 @@ export default function Sidebar() {
 
             {/* Navigation */}
             <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-6">
-                {navItems.map((group) => (
+                {navItems.filter((group) => !group.adminOnly || user?.is_staff).map((group) => (
                     <div key={group.group}>
                         {sidebarOpen && (
                             <p className="text-xs font-semibold text-dark-600
@@ -94,6 +143,7 @@ export default function Sidebar() {
                                 <li key={item.to}>
                                     <NavLink
                                         to={item.to}
+                                        end={item.end}
                                         className={({ isActive }) => `
                       flex items-center gap-3 px-2 py-2 rounded-lg
                       text-sm font-medium transition-all duration-150
