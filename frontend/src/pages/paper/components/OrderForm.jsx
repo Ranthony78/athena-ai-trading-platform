@@ -2,11 +2,13 @@ import { useState } from "react";
 import { Input, Select, Button } from "../../../components/common";
 import { INDICES } from "../../../utils/constants";
 
-export default function OrderForm({ onSubmit, loading }) {
+export default function OrderForm({ onSubmit, loading, initialValues = {} }) {
     const [form, setForm] = useState({
-        symbol: "NIFTY",
-        transaction_type: "BUY",
-        quantity: 1,
+        symbol: initialValues.symbol || "NIFTY",
+        instrument_id: initialValues.instrument_id || undefined,
+        analysis_session_id: initialValues.analysis_session_id || undefined,
+        transaction_type: initialValues.transaction_type || "BUY",
+        quantity: Number(initialValues.quantity || 1),
         order_type: "MARKET",
         price: 0,
         product: "MIS",
@@ -14,16 +16,26 @@ export default function OrderForm({ onSubmit, loading }) {
     });
 
     const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
+    const aiLinked = Boolean(form.analysis_session_id && form.instrument_id);
 
     return (
         <div className="space-y-4">
+            {aiLinked && (
+                <div className="rounded-lg border border-primary-500/30 bg-primary-500/10 px-3 py-2 text-xs text-dark-300">
+                    Paper simulation only. This records the AI analysis link and never sends an order to Zerodha.
+                </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
-                <Select
-                    label="Symbol"
-                    options={INDICES.map((i) => ({ value: i, label: i }))}
-                    value={form.symbol}
-                    onChange={(e) => set("symbol", e.target.value)}
-                />
+                {aiLinked ? (
+                    <Input label="AI-suggested option contract" value={form.symbol} readOnly />
+                ) : (
+                    <Select
+                        label="Symbol"
+                        options={INDICES.map((i) => ({ value: i, label: i }))}
+                        value={form.symbol}
+                        onChange={(e) => set("symbol", e.target.value)}
+                    />
+                )}
                 <Select
                     label="Type"
                     options={[
@@ -31,6 +43,7 @@ export default function OrderForm({ onSubmit, loading }) {
                         { value: "SELL", label: "Sell" },
                     ]}
                     value={form.transaction_type}
+                    disabled={aiLinked}
                     onChange={(e) => set("transaction_type", e.target.value)}
                 />
                 <Input

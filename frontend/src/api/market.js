@@ -29,13 +29,22 @@ export const marketAPI = {
     getHistorical: (symbol, params) =>
         api.get(`/market/historical/${symbol}/`, { params }),
 
+    getFuturesActivity: (symbol) =>
+        api.get(`/market/futures/${symbol}/activity/`),
+
     // Expiry
     getExpiry: (symbol) =>
         api.get(`/market/expiry/${symbol}/`),
 
     // Option Chain
-    getOptionChain: (symbol) =>
-        api.get(`/market/option-chain/${symbol}/`),
+    getOptionChain: (symbol, params) =>
+        api.get(`/market/option-chain/${symbol}/`, { params }),
+
+    getOptionChainSummary: (symbol, params) =>
+        api.get(`/market/option-chain/${symbol}/summary/`, { params }),
+
+    getMarketRead: (symbol) =>
+        api.get(`/market/read/${symbol}/`),
 
     // Session
     getSession: () =>
