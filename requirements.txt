@@ -21,9 +21,9 @@ pandas>=3.0
 pytest>=8.4
 pytest-django>=4.11
 coverage>=7.10
-black>=25.1
-isort>=6.0
-flake8>=7.3
+black==26.5.1
+isort==9.0.2
+flake8==7.4.1
 mypy>=1.17
 channels==4.2.0
 channels-redis==4.2.0

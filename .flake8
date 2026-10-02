@@ -1,0 +1,21 @@
+[flake8]
+# Keep in step with black (88). A little headroom is allowed for the few
+# strings, URLs and comments that black cannot split.
+max-line-length = 100
+extend-ignore =
+    # Black owns whitespace around slices and line breaks around operators.
+    E203,
+    W503
+exclude =
+    .git,
+    __pycache__,
+    migrations,
+    .venv,
+    venv,
+    node_modules,
+    frontend
+per-file-ignores =
+    # Settings modules intentionally layer with `from .base import *`.
+    backend/config/settings/*.py: F403, F405
+    # Package __init__ files re-export names on purpose.
+    __init__.py: F401
