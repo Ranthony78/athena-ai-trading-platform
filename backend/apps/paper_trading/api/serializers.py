@@ -29,16 +29,22 @@ class PaperAccountSerializer(serializers.ModelSerializer):
 
 class PaperOrderSerializer(serializers.ModelSerializer):
 
-    symbol = serializers.CharField(
-        source="instrument.symbol",
-        read_only=True,
-    )
+    symbol = serializers.SerializerMethodField()
+    analysis_session_id = serializers.IntegerField(read_only=True)
+
+    def get_symbol(self, obj):
+        return (
+            obj.instrument.trading_symbol
+            if obj.instrument.option_type
+            else obj.instrument.symbol
+        )
 
     class Meta:
         model = PaperOrder
         fields = [
             "id",
             "symbol",
+            "analysis_session_id",
             "transaction_type",
             "order_type",
             "product",
@@ -71,6 +77,8 @@ class PlaceOrderSerializer(serializers.Serializer):
         default="MIS",
     )
     tag = serializers.CharField(default="", allow_blank=True)
+    instrument_id = serializers.IntegerField(min_value=1, required=False)
+    analysis_session_id = serializers.IntegerField(min_value=1, required=False)
 
 
 class PaperPositionSerializer(serializers.ModelSerializer):
@@ -86,12 +94,18 @@ class PaperPositionSerializer(serializers.ModelSerializer):
     current_value = serializers.FloatField(read_only=True)
     invested_value = serializers.FloatField(read_only=True)
     pnl_pct = serializers.FloatField(read_only=True)
+    analysis_session_id = serializers.IntegerField(read_only=True)
+    instrument_id = serializers.IntegerField(read_only=True)
+    option_type = serializers.CharField(source="instrument.option_type", read_only=True)
 
     class Meta:
         model = PaperPosition
         fields = [
             "id",
             "symbol",
+            "analysis_session_id",
+            "instrument_id",
+            "option_type",
             "trading_symbol",
             "direction",
             "quantity",
@@ -111,16 +125,22 @@ class PaperPositionSerializer(serializers.ModelSerializer):
 
 class PaperTradeSerializer(serializers.ModelSerializer):
 
-    symbol = serializers.CharField(
-        source="instrument.symbol",
-        read_only=True,
-    )
+    symbol = serializers.SerializerMethodField()
+    analysis_session_id = serializers.IntegerField(read_only=True)
+
+    def get_symbol(self, obj):
+        return (
+            obj.instrument.trading_symbol
+            if obj.instrument.option_type
+            else obj.instrument.symbol
+        )
 
     class Meta:
         model = PaperTrade
         fields = [
             "id",
             "symbol",
+            "analysis_session_id",
             "direction",
             "quantity",
             "entry_price",
