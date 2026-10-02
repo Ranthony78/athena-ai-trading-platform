@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+# Least privilege: CI only needs to read the repository.
+permissions:
+  contents: read
+
+# A new push to the same branch/PR supersedes the run still in progress.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (Django)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      # Not a real secret: a throwaway value that satisfies the 32-character
+      # minimum so features that derive keys from SECRET_KEY can run in tests.
+      DJANGO_SECRET_KEY: ci-only-not-a-secret-0123456789-abcdefghijklmnop
+      DJANGO_DEBUG: "False"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        working-directory: .
+        run: pip install -r requirements.txt
+
+      # Real errors only (syntax errors, undefined names). The full flake8 /
+      # black / isort rules in .pre-commit-config.yaml are not enforced yet:
+      # the existing code base has far too many style findings.
+      - name: Lint (errors only)
+        run: python -m flake8 --select=E9,F63,F7,F82 --exclude=migrations,__pycache__ .
+
+      - name: Django system check
+        run: python manage.py check
+
+      - name: Models and migrations are in sync
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Run tests
+        run: python manage.py test --noinput
+
+  frontend:
+    name: Frontend (build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # `npm run lint` is not run: eslint is installed but has no config yet.
+      - name: Production build
+        run: npm run build
