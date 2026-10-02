@@ -1,0 +1,6 @@
+# Revisions to hide from git blame (mechanical formatting only).
+# GitHub honours this file automatically; locally run:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# NOTE: only valid while commits are kept (merge commit / rebase, not squash).
+# style: apply isort and black to the backend
+1cc8becdeda33ce643927df09e95b21c7791d0bc
