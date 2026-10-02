@@ -82,19 +82,21 @@ class NewsSentimentService:
             # article can mention several entities at different
             # sentiment levels) rather than picking just the first.
             article_scores = [
-                e["sentiment_score"] for e in entities
+                e["sentiment_score"]
+                for e in entities
                 if e.get("sentiment_score") is not None
             ]
             avg_article_sentiment = (
-                sum(article_scores) / len(article_scores)
-                if article_scores else None
+                sum(article_scores) / len(article_scores) if article_scores else None
             )
-            headlines.append({
-                "title": article.get("title"),
-                "source": article.get("source"),
-                "published_at": article.get("published_at"),
-                "sentiment": avg_article_sentiment,
-            })
+            headlines.append(
+                {
+                    "title": article.get("title"),
+                    "source": article.get("source"),
+                    "published_at": article.get("published_at"),
+                    "sentiment": avg_article_sentiment,
+                }
+            )
             if avg_article_sentiment is not None:
                 sentiment_scores.append(avg_article_sentiment)
 
@@ -102,7 +104,8 @@ class NewsSentimentService:
             "article_count": len(articles),
             "avg_sentiment": (
                 round(sum(sentiment_scores) / len(sentiment_scores), 3)
-                if sentiment_scores else None
+                if sentiment_scores
+                else None
             ),
             "headlines": headlines,
         }

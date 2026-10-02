@@ -18,11 +18,13 @@ class BacktestRunRepository(BaseRepository[BacktestRun]):
         limit: int = 20,
     ) -> QuerySet[BacktestRun]:
         """Return recent backtest runs for a user."""
-        return cls.model.objects.filter(
-            user=user,
-        ).select_related(
-            "strategy", "instrument", "result"
-        ).order_by("-created_at")[:limit]
+        return (
+            cls.model.objects.filter(
+                user=user,
+            )
+            .select_related("strategy", "instrument", "result")
+            .order_by("-created_at")[:limit]
+        )
 
     @classmethod
     def get_by_id_for_user(
@@ -31,12 +33,14 @@ class BacktestRunRepository(BaseRepository[BacktestRun]):
         run_id: int,
     ) -> Optional[BacktestRun]:
         """Return a single run owned by the user."""
-        return cls.model.objects.filter(
-            id=run_id,
-            user=user,
-        ).select_related(
-            "strategy", "instrument", "result"
-        ).first()
+        return (
+            cls.model.objects.filter(
+                id=run_id,
+                user=user,
+            )
+            .select_related("strategy", "instrument", "result")
+            .first()
+        )
 
     @classmethod
     def get_completed(cls, user) -> QuerySet[BacktestRun]:

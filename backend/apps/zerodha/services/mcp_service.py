@@ -72,8 +72,7 @@ class ZerodhaKiteMCPService:
         """
         if not self.config.is_token_valid:
             raise ValueError(
-                "Zerodha access token is invalid or expired. "
-                "Please login again."
+                "Zerodha access token is invalid or expired. " "Please login again."
             )
 
         payload = {
@@ -130,8 +129,7 @@ class ZerodhaKiteMCPService:
         """
         if not self.config.is_token_valid:
             raise ValueError(
-                "Zerodha access token is invalid or expired. "
-                "Please login again."
+                "Zerodha access token is invalid or expired. " "Please login again."
             )
 
         url = f"{self.KITE_API_URL}{path}"
@@ -182,10 +180,16 @@ class ZerodhaKiteMCPService:
                 raise ValueError(body.get("message") or "Kite rejected the request.")
             return body.get("data", {})
         except httpx.HTTPStatusError as exc:
-            logger.warning("Kite order API returned HTTP %s for %s.", exc.response.status_code, path)
+            logger.warning(
+                "Kite order API returned HTTP %s for %s.",
+                exc.response.status_code,
+                path,
+            )
             raise
         except httpx.TimeoutException:
-            logger.warning("Kite order API timed out for %s; broker acceptance is unknown.", path)
+            logger.warning(
+                "Kite order API timed out for %s; broker acceptance is unknown.", path
+            )
             raise
         except httpx.TimeoutException:
             logger.error(f"Kite Connect timeout [{path}]")
@@ -308,8 +312,7 @@ class ZerodhaKiteMCPService:
         """
         if not self.config.is_token_valid:
             raise ValueError(
-                "Zerodha access token is invalid or expired. "
-                "Please login again."
+                "Zerodha access token is invalid or expired. " "Please login again."
             )
 
         path = f"/instruments/{exchange}" if exchange else "/instruments"

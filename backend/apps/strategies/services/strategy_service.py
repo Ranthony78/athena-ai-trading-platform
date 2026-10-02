@@ -61,6 +61,7 @@ class StrategyService:
         from apps.market_data.repositories.instrument_repository import (
             InstrumentRepository,
         )
+
         instrument = InstrumentRepository.get_by_symbol(symbol)
         if not instrument:
             return StrategySignal.objects.none()

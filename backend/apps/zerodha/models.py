@@ -1,5 +1,5 @@
-from django.db import models
 from django.contrib.auth import get_user_model
+from django.db import models
 
 from shared.models import BaseModel
 
@@ -63,6 +63,7 @@ class ZerodhaConfig(BaseModel):
         if not self.token_expires_at:
             return True
         from django.utils import timezone
+
         return timezone.now() < self.token_expires_at
 
 
@@ -113,8 +114,4 @@ class ZerodhaSession(BaseModel):
         ordering = ["-login_at"]
 
     def __str__(self) -> str:
-        return (
-            f"{self.user.username} | "
-            f"{self.zerodha_user_id} | "
-            f"{self.status}"
-        )
+        return f"{self.user.username} | " f"{self.zerodha_user_id} | " f"{self.status}"

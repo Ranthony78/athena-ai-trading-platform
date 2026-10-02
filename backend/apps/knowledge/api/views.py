@@ -309,6 +309,7 @@ class TradingRuleDetailAPIView(APIView):
 
     def put(self, request, pk: int):
         from ..repositories.knowledge_repository import TradingRuleRepository
+
         rule = TradingRuleRepository.first(id=pk, user=request.user)
         if not rule:
             return ApiResponse.error(message="Rule not found.")
@@ -324,6 +325,7 @@ class TradingRuleDetailAPIView(APIView):
 
     def delete(self, request, pk: int):
         from ..repositories.knowledge_repository import TradingRuleRepository
+
         rule = TradingRuleRepository.first(id=pk, user=request.user)
         if not rule:
             return ApiResponse.error(message="Rule not found.")
@@ -369,9 +371,7 @@ class PromptListAPIView(APIView):
             if public:
                 prompts = KnowledgeService.get_public_prompts()
             else:
-                prompts = KnowledgeService.get_prompts(
-                    request.user, prompt_type
-                )
+                prompts = KnowledgeService.get_prompts(request.user, prompt_type)
 
             serializer = PromptSerializer(prompts, many=True)
             return ApiResponse.success(serializer.data)

@@ -13,6 +13,7 @@ MIS signals force-resolve at 15:15-15:20 IST if neither level hit.
 NRML signals track until target/stop hit or the contract's real
 expiry passes.
 """
+
 import logging
 from datetime import time
 
@@ -29,6 +30,7 @@ class OutcomeTrackingService:
         """Entry point called by the scheduled Celery task."""
         from apps.ai_engine.models import AISignal
         from apps.strategies.models import StrategySignal
+
         from ..engine.market_state import MarketState
 
         now = MarketState.now_ist()

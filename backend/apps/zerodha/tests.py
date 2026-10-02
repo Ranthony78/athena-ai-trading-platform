@@ -7,6 +7,7 @@ elsewhere. Covers: gate blocks when disabled, gate allows when enabled,
 and the existing 401-on-expired-token behavior still works once past
 the gate.
 """
+
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -30,9 +31,7 @@ ORDER_PAYLOAD = {
 }
 
 PLACE_ORDER_TARGET = "apps.zerodha.services.kite_service.KiteService.place_order"
-SESSION_INFO_TARGET = (
-    "apps.market_data.engine.market_state.MarketState.session_info"
-)
+SESSION_INFO_TARGET = "apps.market_data.engine.market_state.MarketState.session_info"
 
 
 class LiveTradingGateTestCase(APITestCase):
@@ -76,9 +75,10 @@ class LiveTradingGateTestCase(APITestCase):
     @override_settings(LIVE_TRADING_ENABLED=True)
     def test_blocks_outside_market_hours(self):
         """Even with the flag on, orders are rejected when the market is closed."""
-        with patch(SESSION_INFO_TARGET, return_value={"is_live": False}), patch(
-            PLACE_ORDER_TARGET
-        ) as mock_place_order:
+        with (
+            patch(SESSION_INFO_TARGET, return_value={"is_live": False}),
+            patch(PLACE_ORDER_TARGET) as mock_place_order,
+        ):
             response = self.client.post(self.url, ORDER_PAYLOAD, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)

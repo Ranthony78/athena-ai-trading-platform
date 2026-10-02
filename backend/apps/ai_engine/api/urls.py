@@ -6,14 +6,16 @@ from .views import (
     AnalysisRunAPIView,
     AnalysisSessionDetailAPIView,
     AnalysisSessionListAPIView,
-    PromptTemplateListAPIView,
     LearningReportAPIView,
     MarketDriversAPIView,
+    PromptTemplateListAPIView,
     ProviderConnectionAPIView,
 )
 
 urlpatterns = [
-    path("provider/", ProviderConnectionAPIView.as_view(), name="ai-provider-connection"),
+    path(
+        "provider/", ProviderConnectionAPIView.as_view(), name="ai-provider-connection"
+    ),
     path("learning/", LearningReportAPIView.as_view(), name="ai-learning"),
     path("market-drivers/", MarketDriversAPIView.as_view(), name="ai-market-drivers"),
     path(

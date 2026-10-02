@@ -9,12 +9,14 @@ logger = logging.getLogger(__name__)
 INTRADAY_SYNC_SYMBOLS = ["NIFTY", "BANKNIFTY"]
 INTRADAY_SYNC_TIMEFRAMES = ["1m", "5m", "15m"]
 
+
 @shared_task
 def track_signal_outcomes():
     """Scheduled task: check all OPEN signals against real prices."""
+    from apps.ai_engine.services.learning_worker_service import LearningWorkerService
+
     from .engine.market_state import MarketState
     from .services.outcome_tracking_service import OutcomeTrackingService
-    from apps.ai_engine.services.learning_worker_service import LearningWorkerService
 
     forecast_result = LearningWorkerService.tick()
 
@@ -27,6 +29,7 @@ def track_signal_outcomes():
     result["probability_forecasts"] = forecast_result
     logger.info(f"Outcome tracking run: {result}")
     return result
+
 
 @shared_task
 def sync_intraday_candles():
@@ -42,9 +45,10 @@ def sync_intraday_candles():
 
     from django.contrib.auth import get_user_model
 
+    from apps.zerodha.repositories.zerodha_repository import ZerodhaConfigRepository
+
     from .engine.market_state import MarketState
     from .services.candle_service import CandleService
-    from apps.zerodha.repositories.zerodha_repository import ZerodhaConfigRepository
 
     session = MarketState.session_info()
     if not session["is_live"]:
@@ -53,7 +57,9 @@ def sync_intraday_candles():
 
     config = ZerodhaConfigRepository.model.objects.filter(is_connected=True).first()
     if not config or not config.is_token_valid:
-        logger.warning("No user with a valid Zerodha connection — skipping intraday candle sync.")
+        logger.warning(
+            "No user with a valid Zerodha connection — skipping intraday candle sync."
+        )
         return "skipped (no valid Zerodha connection)"
 
     user = config.user
@@ -72,11 +78,14 @@ def sync_intraday_candles():
                 )
                 results[f"{symbol}_{timeframe}"] = count
             except Exception as e:
-                logger.error(f"sync_intraday_candles failed [{symbol} {timeframe}]: {e}")
+                logger.error(
+                    f"sync_intraday_candles failed [{symbol} {timeframe}]: {e}"
+                )
                 results[f"{symbol}_{timeframe}"] = f"error: {e}"
 
     logger.info(f"Intraday candle sync run: {results}")
     return results
+
 
 @shared_task
 def ping():

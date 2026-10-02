@@ -20,16 +20,56 @@ logger = logging.getLogger(__name__)
 
 # Snapshot as of 8 Dec 2025 — see module docstring for staleness caveat.
 NIFTY50_CONSTITUENTS = [
-    "ADANIENT", "ADANIPORTS", "APOLLOHOSP", "ASIANPAINT", "AXISBANK",
-    "BAJAJ-AUTO", "BAJFINANCE", "BAJAJFINSV", "BEL", "BHARTIARTL",
-    "CIPLA", "COALINDIA", "DRREDDY", "EICHERMOT", "ETERNAL",
-    "GRASIM", "HCLTECH", "HDFCBANK", "HDFCLIFE", "HINDALCO",
-    "HINDUNILVR", "ICICIBANK", "INDIGO", "INFY", "ITC",
-    "JIOFIN", "JSWSTEEL", "KOTAKBANK", "LT", "M&M",
-    "MARUTI", "MAXHEALTH", "NESTLEIND", "NTPC", "ONGC",
-    "POWERGRID", "RELIANCE", "SBILIFE", "SHRIRAMFIN", "SBIN",
-    "SUNPHARMA", "TCS", "TATACONSUM", "TMPV", "TATASTEEL",
-    "TECHM", "TITAN", "TRENT", "ULTRACEMCO", "WIPRO",
+    "ADANIENT",
+    "ADANIPORTS",
+    "APOLLOHOSP",
+    "ASIANPAINT",
+    "AXISBANK",
+    "BAJAJ-AUTO",
+    "BAJFINANCE",
+    "BAJAJFINSV",
+    "BEL",
+    "BHARTIARTL",
+    "CIPLA",
+    "COALINDIA",
+    "DRREDDY",
+    "EICHERMOT",
+    "ETERNAL",
+    "GRASIM",
+    "HCLTECH",
+    "HDFCBANK",
+    "HDFCLIFE",
+    "HINDALCO",
+    "HINDUNILVR",
+    "ICICIBANK",
+    "INDIGO",
+    "INFY",
+    "ITC",
+    "JIOFIN",
+    "JSWSTEEL",
+    "KOTAKBANK",
+    "LT",
+    "M&M",
+    "MARUTI",
+    "MAXHEALTH",
+    "NESTLEIND",
+    "NTPC",
+    "ONGC",
+    "POWERGRID",
+    "RELIANCE",
+    "SBILIFE",
+    "SHRIRAMFIN",
+    "SBIN",
+    "SUNPHARMA",
+    "TCS",
+    "TATACONSUM",
+    "TMPV",
+    "TATASTEEL",
+    "TECHM",
+    "TITAN",
+    "TRENT",
+    "ULTRACEMCO",
+    "WIPRO",
 ]
 
 MIN_SAMPLE_FOR_CONFIDENCE = 40  # out of 50 — below this, flag low confidence
@@ -49,14 +89,15 @@ class MarketBreadthService:
             return None
 
         try:
-            from .market_service import MarketService
             from ..repositories.instrument_repository import InstrumentRepository
+            from .market_service import MarketService
 
             # Pre-filter to symbols that actually resolve to a real
             # Instrument — a single unresolvable symbol would otherwise
             # raise inside get_quotes() and kill the whole batch.
             resolvable = [
-                s for s in NIFTY50_CONSTITUENTS
+                s
+                for s in NIFTY50_CONSTITUENTS
                 if InstrumentRepository.get_by_symbol(s) is not None
             ]
             if not resolvable:

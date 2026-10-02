@@ -1,15 +1,18 @@
-import logging
 import json
+import logging
 from typing import Optional
 
 from django.conf import settings
 from django.utils import timezone
 
+from apps.market_data.engine.market_state import MarketState
+from apps.market_data.indicators.indicator_service import IndicatorService
 from apps.market_data.repositories.candle_repository import CandleRepository
 from apps.market_data.repositories.instrument_repository import InstrumentRepository
-from apps.market_data.indicators.indicator_service import IndicatorService
-from apps.market_data.engine.market_state import MarketState
-from apps.market_data.services.historical_distribution_service import HistoricalDistributionService
+from apps.market_data.services.historical_distribution_service import (
+    HistoricalDistributionService,
+)
+
 from .rule_evidence_service import RuleEvidenceService
 
 logger = logging.getLogger(__name__)
@@ -106,9 +109,20 @@ CURRENT OUTPUT CONTRACT (overrides legacy prompt-template instructions):
     @classmethod
     def request_config(cls, template=None, provider=None, model_override=None):
         provider = provider or getattr(settings, "AI_PROVIDER", "mock")
-        defaults = {"gemini": "gemini-3.5-flash", "kimi": "kimi-k3", "claude": "claude-sonnet-4-6", "groq": "llama-3.3-70b-versatile", "mock": "mock"}
+        defaults = {
+            "gemini": "gemini-3.5-flash",
+            "kimi": "kimi-k3",
+            "claude": "claude-sonnet-4-6",
+            "groq": "llama-3.3-70b-versatile",
+            "mock": "mock",
+        }
         model = template.model if template else ""
-        prefixes = {"gemini": "gemini-", "kimi": "kimi-", "claude": "claude-", "groq": "llama-"}
+        prefixes = {
+            "gemini": "gemini-",
+            "kimi": "kimi-",
+            "claude": "claude-",
+            "groq": "llama-",
+        }
         if provider in prefixes and not model.startswith(prefixes[provider]):
             model = defaults[provider]
         if provider == "mock":
@@ -116,11 +130,16 @@ CURRENT OUTPUT CONTRACT (overrides legacy prompt-template instructions):
         if model_override:
             model = model_override
         return {
-            "system_prompt": (template.system_prompt if template else cls.DEFAULT_SYSTEM_PROMPT) + "\n" + cls.CONTRACT,
+            "system_prompt": (
+                template.system_prompt if template else cls.DEFAULT_SYSTEM_PROMPT
+            )
+            + "\n"
+            + cls.CONTRACT,
             "model": model or defaults.get(provider, "mock"),
             "max_tokens": template.max_tokens if template else 6000,
             "temperature": template.temperature if template else 0.3,
-            "prompt_version": cls.VERSION + ("/" + template.version if template else "/default"),
+            "prompt_version": cls.VERSION
+            + ("/" + template.version if template else "/default"),
             "template_source": "database" if template else "built_in_default",
             "template_name": template.name if template else None,
         }
@@ -173,9 +192,15 @@ Rules:
             (user_prompt, market_context)
         """
         instrument = InstrumentRepository.get_by_symbol(symbol)
-        context = {"symbol": symbol, "timeframe": timeframe, "as_of": timezone.now().isoformat()}
+        context = {
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "as_of": timezone.now().isoformat(),
+        }
         context["forecast_horizon_minutes"] = forecast_horizon_minutes
-        context["analysis_mode"] = analysis_mode if analysis_mode in {"LIVE", "NEXT_SESSION"} else "LIVE"
+        context["analysis_mode"] = (
+            analysis_mode if analysis_mode in {"LIVE", "NEXT_SESSION"} else "LIVE"
+        )
 
         try:
             context["session"] = MarketState.session_info()
@@ -197,26 +222,35 @@ Rules:
                 "Unavailable while MARKET_PROVIDER is not Zerodha; mock or unverified candles are excluded from probability evidence."
             )
         else:
-            context["intraday_probability_base_rate"] = PromptService._safe_intraday_probability_base_rate(
-                symbol, timeframe, forecast_horizon_minutes,
-                analysis_mode=context["analysis_mode"],
+            context["intraday_probability_base_rate"] = (
+                PromptService._safe_intraday_probability_base_rate(
+                    symbol,
+                    timeframe,
+                    forecast_horizon_minutes,
+                    analysis_mode=context["analysis_mode"],
+                )
             )
             if not context["intraday_probability_base_rate"]:
                 context["intraday_probability_unavailable_reason"] = (
                     f"Unavailable — fewer than {HistoricalDistributionService.INTRADAY_MIN_SAMPLE_SIZE} usable completed-session one-minute observations for {forecast_horizon_minutes} minutes anchored at 09:15 IST."
-                    if context["analysis_mode"] == "NEXT_SESSION" else
-                    f"Unavailable — fewer than {HistoricalDistributionService.INTRADAY_MIN_SAMPLE_SIZE} usable completed-session one-minute observations for {forecast_horizon_minutes} minutes near this time of day."
+                    if context["analysis_mode"] == "NEXT_SESSION"
+                    else f"Unavailable — fewer than {HistoricalDistributionService.INTRADAY_MIN_SAMPLE_SIZE} usable completed-session one-minute observations for {forecast_horizon_minutes} minutes near this time of day."
                 )
-        context["conditional_probability"] = PromptService._safe_conditional_probability(
-            symbol, context["gap"]
+        context["conditional_probability"] = (
+            PromptService._safe_conditional_probability(symbol, context["gap"])
         )
         context["vix"] = PromptService._safe_get_vix(user)
         context["breadth"] = PromptService._safe_get_breadth(user)
         context["news_sentiment"] = PromptService._safe_get_news_sentiment()
-        from .market_drivers_service import MarketDriversService
         from .learning_service import LearningService
-        context["market_drivers"] = MarketDriversService.build(context["news_sentiment"], user=user)
-        context["prior_outcomes"] = LearningService.lessons(user, symbol, forecast_horizon_minutes)
+        from .market_drivers_service import MarketDriversService
+
+        context["market_drivers"] = MarketDriversService.build(
+            context["news_sentiment"], user=user
+        )
+        context["prior_outcomes"] = LearningService.lessons(
+            user, symbol, forecast_horizon_minutes
+        )
         context["session_structure"] = PromptService._safe_get_session_structure(symbol)
 
         candles = CandleRepository.get_by_instrument_and_timeframe(
@@ -226,9 +260,7 @@ Rules:
         )
 
         candle_list = list(
-            candles.values(
-                "candle_time", "open", "high", "low", "close", "volume"
-            )
+            candles.values("candle_time", "open", "high", "low", "close", "volume")
         )
         candle_list.reverse()
 
@@ -247,9 +279,20 @@ Rules:
         }
 
         context["indicators"] = PromptService._safe_indicators(
-            symbol, timeframe,
-            ["EMA_9", "EMA_21", "EMA_50", "RSI_14", "MACD", "BB_20",
-             "VWAP", "ATR_14", "CPR", "PIVOT"],
+            symbol,
+            timeframe,
+            [
+                "EMA_9",
+                "EMA_21",
+                "EMA_50",
+                "RSI_14",
+                "MACD",
+                "BB_20",
+                "VWAP",
+                "ATR_14",
+                "CPR",
+                "PIVOT",
+            ],
             limit,
         )
 
@@ -282,9 +325,14 @@ Rules:
             return None
         try:
             from apps.market_data.services.market_service import MarketService
+
             service = MarketService(user=user)
             quote = service.quote(symbol)
-            return {**quote, "source": getattr(service.provider, "data_source", "UNKNOWN")} if quote else None
+            return (
+                {**quote, "source": getattr(service.provider, "data_source", "UNKNOWN")}
+                if quote
+                else None
+            )
         except Exception as e:
             logger.error(f"PromptService quote error [{symbol}]: {e}")
             return None
@@ -301,6 +349,7 @@ Rules:
             return None
         try:
             from apps.market_data.services.market_service import MarketService
+
             return MarketService(user=user).quote("VIX")
         except Exception as e:
             logger.error(f"PromptService VIX quote error: {e}")
@@ -317,6 +366,7 @@ Rules:
             from apps.market_data.services.market_breadth_service import (
                 MarketBreadthService,
             )
+
             return MarketBreadthService.get_breadth(user)
         except Exception as e:
             logger.error(f"PromptService breadth error: {e}")
@@ -333,6 +383,7 @@ Rules:
             from apps.market_data.services.news_sentiment_service import (
                 NewsSentimentService,
             )
+
             return NewsSentimentService.get_macro_sentiment()
         except Exception as e:
             logger.error(f"PromptService news sentiment error: {e}")
@@ -349,6 +400,7 @@ Rules:
             from apps.market_data.services.session_structure_service import (
                 SessionStructureService,
             )
+
             return SessionStructureService.get_today_structure(symbol)
         except Exception as e:
             logger.error(f"PromptService session structure error [{symbol}]: {e}")
@@ -400,7 +452,9 @@ Rules:
         return f"gap_{'up' if direction == 'Gap Up' else 'down'}_{size}"
 
     @staticmethod
-    def _safe_conditional_probability(symbol: str, gap: Optional[dict]) -> Optional[dict]:
+    def _safe_conditional_probability(
+        symbol: str, gap: Optional[dict]
+    ) -> Optional[dict]:
         """
         Real, pre-computed answer to "given today's specific gap type,
         how did the rest of the day historically close" — a genuinely
@@ -413,7 +467,9 @@ Rules:
         if not bucket:
             return None
         try:
-            result = HistoricalDistributionService.close_direction_given_gap(symbol, bucket)
+            result = HistoricalDistributionService.close_direction_given_gap(
+                symbol, bucket
+            )
             return None if result.get("error") else result
         except Exception as e:
             logger.error(f"PromptService conditional probability error [{symbol}]: {e}")
@@ -421,12 +477,19 @@ Rules:
 
     @staticmethod
     def _safe_intraday_probability_base_rate(
-        symbol: str, timeframe: str, horizon_minutes: int, analysis_mode: str = "LIVE",
+        symbol: str,
+        timeframe: str,
+        horizon_minutes: int,
+        analysis_mode: str = "LIVE",
     ) -> Optional[dict]:
         try:
             result = HistoricalDistributionService.intraday_direction_base_rate(
-                symbol, timeframe, horizon_minutes,
-                reference_minute=9 * 60 + 15 if analysis_mode == "NEXT_SESSION" else None,
+                symbol,
+                timeframe,
+                horizon_minutes,
+                reference_minute=(
+                    9 * 60 + 15 if analysis_mode == "NEXT_SESSION" else None
+                ),
                 include_completed_today=analysis_mode == "NEXT_SESSION",
             )
             return None if result.get("error") else result
@@ -461,7 +524,9 @@ Rules:
             else:
                 gap_type = "Extreme Gap"
 
-            direction = "Gap Up" if gap_pct > 0 else ("Gap Down" if gap_pct < 0 else "Flat")
+            direction = (
+                "Gap Up" if gap_pct > 0 else ("Gap Down" if gap_pct < 0 else "Flat")
+            )
 
             return {
                 "previous_close": prev_close,
@@ -484,16 +549,19 @@ Rules:
             vals = [v for v in data if v is not None]
             return round(vals[-1], 2) if vals else None
         if isinstance(data, dict):
-            return {
-                k: PromptService._latest_val(v) for k, v in data.items()
-            }
+            return {k: PromptService._latest_val(v) for k, v in data.items()}
         return data
 
     @staticmethod
-    def _safe_indicators(symbol: str, timeframe: str, names: list[str], limit: int) -> dict:
+    def _safe_indicators(
+        symbol: str, timeframe: str, names: list[str], limit: int
+    ) -> dict:
         try:
             raw = IndicatorService.calculate(
-                symbol=symbol, timeframe=timeframe, indicators=names, limit=limit,
+                symbol=symbol,
+                timeframe=timeframe,
+                indicators=names,
+                limit=limit,
             )
             return {k: PromptService._latest_val(v) for k, v in raw.items()}
         except Exception as e:
@@ -510,8 +578,10 @@ Rules:
         for tf in PromptService.MULTI_TIMEFRAME_SET:
             try:
                 data = IndicatorService.calculate(
-                    symbol=symbol, timeframe=tf,
-                    indicators=["EMA_20", "RSI_14"], limit=60,
+                    symbol=symbol,
+                    timeframe=tf,
+                    indicators=["EMA_20", "RSI_14"],
+                    limit=60,
                 )
                 ema_series = data.get("EMA_20") or []
                 rsi_series = data.get("RSI_14") or []
@@ -525,7 +595,9 @@ Rules:
                 instrument = InstrumentRepository.get_by_symbol(symbol)
                 candles = list(
                     CandleRepository.get_by_instrument_and_timeframe(
-                        instrument=instrument, timeframe=tf, limit=1,
+                        instrument=instrument,
+                        timeframe=tf,
+                        limit=1,
                     ).values("close")
                 )
                 latest_close = float(candles[0]["close"]) if candles else None
@@ -560,7 +632,10 @@ Rules:
         if not user:
             return None
         try:
-            from apps.market_data.services.option_chain_service import OptionChainService
+            from apps.market_data.services.option_chain_service import (
+                OptionChainService,
+            )
+
             service = OptionChainService(user=user)
             summary = service.get_chain_summary(symbol)
 
@@ -569,11 +644,21 @@ Rules:
 
             chain = service.get_chain(symbol, expiry=summary.get("expiry"))
             atm_call = next(
-                (r for r in chain if r.get("strike") == summary["atm_strike"] and r.get("option_type") == "CE"),
+                (
+                    r
+                    for r in chain
+                    if r.get("strike") == summary["atm_strike"]
+                    and r.get("option_type") == "CE"
+                ),
                 None,
             )
             atm_put = next(
-                (r for r in chain if r.get("strike") == summary["atm_strike"] and r.get("option_type") == "PE"),
+                (
+                    r
+                    for r in chain
+                    if r.get("strike") == summary["atm_strike"]
+                    and r.get("option_type") == "PE"
+                ),
                 None,
             )
 
@@ -612,6 +697,7 @@ Rules:
             from apps.market_data.services.iv_realized_vol_service import (
                 IVRealizedVolatilityService,
             )
+
             return IVRealizedVolatilityService.get_iv_vs_realized(symbol, avg_iv)
         except Exception as e:
             logger.error(f"PromptService IV-vs-HV error [{symbol}]: {e}")
@@ -659,8 +745,8 @@ Rules:
             session_text = "**Session:** NA (session state unavailable)"
         mode_text = (
             f"NEXT_SESSION OUTLOOK — the {context.get('forecast_horizon_minutes')}-minute horizon starts at 09:15 IST on the next trading session. Planning only; no current entry or paper trade."
-            if analysis_mode == "NEXT_SESSION" else
-            f"LIVE SESSION ANALYSIS — requested outcome horizon: {context.get('forecast_horizon_minutes')} minutes from this analysis time."
+            if analysis_mode == "NEXT_SESSION"
+            else f"LIVE SESSION ANALYSIS — requested outcome horizon: {context.get('forecast_horizon_minutes')} minutes from this analysis time."
         )
 
         if quote:
@@ -707,7 +793,9 @@ Note: gap direction does not guarantee trend direction. Evaluate continuation vs
 
 These are full-session historical context values. Do not use them as a short-horizon probability; use the horizon-matched intraday section below for that purpose."""
         else:
-            historical_text = "NA — insufficient backfilled daily history for a reliable base rate."
+            historical_text = (
+                "NA — insufficient backfilled daily history for a reliable base rate."
+            )
 
         if conditional_probability:
             cp = conditional_probability
@@ -725,8 +813,8 @@ This describes full-session outcomes conditional on the opening gap. It is conte
             base = intraday_base_rate
             sampling_basis = (
                 f"anchored at 09:15 IST ±{base['time_of_day_tolerance_minutes']} minutes"
-                if base.get("reference_minute_ist") is not None else
-                f"near the current time of day ±{base['time_of_day_tolerance_minutes']} minutes"
+                if base.get("reference_minute_ist") is not None
+                else f"near the current time of day ±{base['time_of_day_tolerance_minutes']} minutes"
             )
             historical_text += f"""
 
@@ -749,7 +837,8 @@ This is the numeric probability split for this forecast horizon. {'For NEXT_SESS
         if breadth:
             confidence_note = (
                 " (fewer than 40/50 constituents resolved — treat as directional only)"
-                if breadth["low_confidence"] else ""
+                if breadth["low_confidence"]
+                else ""
             )
             breadth_text = (
                 f"**Advances:** {breadth['advances']} · "
@@ -773,12 +862,17 @@ This is the numeric probability split for this forecast horizon. {'For NEXT_SESS
                 for item in topic.get("articles", []):
                     if item.get("usable") and item.get("url"):
                         usable_by_url[item["url"]] = item
-            headline_rows = "\n".join(
-                f"  - [{sentiment_by_url.get(url):+.2f}] {item['title']} — {item['source']} — {item['published_at']} — {url}"
-                if sentiment_by_url.get(url) is not None
-                else f"  - {item['title']} — {item['source']} — {item['published_at']} — {url}"
-                for url, item in usable_by_url.items()
-            ) or "No recent, linked, dated Market Drivers articles passed the evidence checks."
+            headline_rows = (
+                "\n".join(
+                    (
+                        f"  - [{sentiment_by_url.get(url):+.2f}] {item['title']} — {item['source']} — {item['published_at']} — {url}"
+                        if sentiment_by_url.get(url) is not None
+                        else f"  - {item['title']} — {item['source']} — {item['published_at']} — {url}"
+                    )
+                    for url, item in usable_by_url.items()
+                )
+                or "No recent, linked, dated Market Drivers articles passed the evidence checks."
+            )
             sentiment_text = f"""**India-relevant articles matched:** {news_sentiment.get('sentiment_article_count', 0)} (global headlines are listed separately in Market Drivers and are excluded from this India-only sentiment value)
 **Average sentiment:** {avg if avg is not None else 'NA'} (-1 very negative to +1 very positive)
 
@@ -800,8 +894,8 @@ Note: this is keyword-matched sentiment, not a dedicated RBI entity score — tr
         mtf_text = (
             "| Timeframe | Trend | EMA 20 | RSI 14 | Confidence* |\n"
             "|-----------|-------|--------|--------|-------------|\n"
-            + "\n".join(mtf_rows) +
-            "\n\n*Confidence is a real, deterministic score (RSI distance from neutral 50), not an estimate."
+            + "\n".join(mtf_rows)
+            + "\n\n*Confidence is a real, deterministic score (RSI distance from neutral 50), not an estimate."
         )
 
         if session_structure:
@@ -810,7 +904,11 @@ Note: this is keyword-matched sentiment, not a dedicated RBI entity score — tr
             # than today's own data — label the whole block clearly so
             # the model doesn't present it as today's session.
             reference_date = next(
-                (b.get("reference_date") for b in session_structure if b.get("reference_date")),
+                (
+                    b.get("reference_date")
+                    for b in session_structure
+                    if b.get("reference_date")
+                ),
                 None,
             )
             block_rows = []
@@ -820,7 +918,11 @@ Note: this is keyword-matched sentiment, not a dedicated RBI entity score — tr
                 elif b["status"] == "NO_DATA":
                     block_rows.append(f"| {b['window']} | No candle data | — | — |")
                 else:
-                    status_label = "Complete" if b["status"] in ("COMPLETE", "REFERENCE") else "In progress"
+                    status_label = (
+                        "Complete"
+                        if b["status"] in ("COMPLETE", "REFERENCE")
+                        else "In progress"
+                    )
                     block_rows.append(
                         f"| {b['window']} | {status_label} | {b['direction']} "
                         f"({b['move_pts']:+.1f} pts) | {b['range_pts']} pts |"
@@ -831,15 +933,14 @@ Note: this is keyword-matched sentiment, not a dedicated RBI entity score — tr
                     f"completed trading day ({reference_date}), shown for reference only. "
                     f"Do not present this as today's session.\n\n"
                     "| Window | Status | Direction | Range |\n"
-                    "|--------|--------|-----------|-------|\n"
-                    + "\n".join(block_rows)
+                    "|--------|--------|-----------|-------|\n" + "\n".join(block_rows)
                 )
             else:
                 session_structure_text = (
                     "| Window | Status | Direction | Range |\n"
                     "|--------|--------|-----------|-------|\n"
-                    + "\n".join(block_rows) +
-                    "\n\nThis is what ACTUALLY happened today in each window, not a prediction. "
+                    + "\n".join(block_rows)
+                    + "\n\nThis is what ACTUALLY happened today in each window, not a prediction. "
                     "'Not started yet' blocks are in the future — there is nothing real to report "
                     "for them; do not guess their bias."
                 )

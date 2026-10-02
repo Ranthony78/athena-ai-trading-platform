@@ -103,6 +103,7 @@ class BulkQuoteRequestSerializer(serializers.Serializer):
         max_length=50,
     )
 
+
 class OptionChainSummarySerializer(serializers.Serializer):
     """Serializer for chain-level analytics (PCR, max pain, ATM)."""
 

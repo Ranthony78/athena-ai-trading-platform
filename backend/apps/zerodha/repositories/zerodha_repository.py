@@ -56,10 +56,14 @@ class ZerodhaSessionRepository(BaseRepository[ZerodhaSession]):
     @classmethod
     def get_active_for_user(cls, user) -> Optional[ZerodhaSession]:
         """Return active session for a user."""
-        return cls.model.objects.filter(
-            user=user,
-            status="ACTIVE",
-        ).order_by("-login_at").first()
+        return (
+            cls.model.objects.filter(
+                user=user,
+                status="ACTIVE",
+            )
+            .order_by("-login_at")
+            .first()
+        )
 
     @classmethod
     def revoke_all_for_user(cls, user) -> int:

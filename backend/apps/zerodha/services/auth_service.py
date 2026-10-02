@@ -37,11 +37,7 @@ class ZerodhaAuthService:
         if not self.config.api_key:
             raise ValueError("Zerodha API key not configured.")
 
-        return (
-            f"{self.KITE_LOGIN_URL}"
-            f"?api_key={self.config.api_key}"
-            f"&v=3"
-        )
+        return f"{self.KITE_LOGIN_URL}" f"?api_key={self.config.api_key}" f"&v=3"
 
     def exchange_token(self, request_token: str) -> dict:
         """
@@ -59,17 +55,14 @@ class ZerodhaAuthService:
 
         try:
             import hashlib
+
             import httpx
 
             # Generate checksum
             checksum_input = (
-                self.config.api_key +
-                request_token +
-                self.config.api_secret
+                self.config.api_key + request_token + self.config.api_secret
             )
-            checksum = hashlib.sha256(
-                checksum_input.encode()
-            ).hexdigest()
+            checksum = hashlib.sha256(checksum_input.encode()).hexdigest()
 
             with httpx.Client(timeout=30.0) as client:
                 response = client.post(
@@ -92,11 +85,7 @@ class ZerodhaAuthService:
             access_token = session_data["access_token"]
 
             # Token expires at midnight IST
-            expires_at = (
-                timezone.now().replace(
-                    hour=23, minute=59, second=59
-                )
-            )
+            expires_at = timezone.now().replace(hour=23, minute=59, second=59)
 
             # Save config
             ZerodhaConfigRepository.save_access_token(
@@ -147,9 +136,7 @@ class ZerodhaAuthService:
             ZerodhaConfigRepository.revoke_token(self.config)
             ZerodhaSessionRepository.revoke_all_for_user(self.user)
 
-            logger.info(
-                f"ZerodhaAuthService: logout for {self.user.username}"
-            )
+            logger.info(f"ZerodhaAuthService: logout for {self.user.username}")
 
             return {"success": True, "message": "Logged out from Zerodha."}
 
@@ -166,19 +153,13 @@ class ZerodhaAuthService:
             "is_connected": config.is_connected,
             "is_token_valid": config.is_token_valid,
             "connected_at": (
-                config.connected_at.isoformat()
-                if config.connected_at else None
+                config.connected_at.isoformat() if config.connected_at else None
             ),
             "token_expires_at": (
-                config.token_expires_at.isoformat()
-                if config.token_expires_at else None
+                config.token_expires_at.isoformat() if config.token_expires_at else None
             ),
-            "zerodha_user_id": (
-                session.zerodha_user_id if session else None
-            ),
-            "zerodha_username": (
-                session.zerodha_username if session else None
-            ),
+            "zerodha_user_id": (session.zerodha_user_id if session else None),
+            "zerodha_username": (session.zerodha_username if session else None),
             "mcp_url": config.mcp_url,
         }
 

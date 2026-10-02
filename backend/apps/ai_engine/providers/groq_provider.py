@@ -2,7 +2,6 @@ import logging
 import time
 
 import httpx
-
 from django.conf import settings
 
 from .base_ai_provider import BaseAIProvider
@@ -12,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 class GroqAPIError(Exception):
     """Raised when the Groq API returns an error response."""
+
     pass
 
 
@@ -36,12 +36,12 @@ class GroqProvider(BaseAIProvider):
     DEFAULT_MODEL = "llama-3.3-70b-versatile"
 
     def __init__(self, api_key=None) -> None:
-        self.api_key = api_key if api_key is not None else getattr(settings, "GROQ_API_KEY", "")
+        self.api_key = (
+            api_key if api_key is not None else getattr(settings, "GROQ_API_KEY", "")
+        )
 
         if not self.api_key:
-            raise ValueError(
-                "GROQ_API_KEY not set in settings or environment."
-            )
+            raise ValueError("GROQ_API_KEY not set in settings or environment.")
 
     def complete(
         self,
@@ -100,7 +100,9 @@ class GroqProvider(BaseAIProvider):
             }
 
         except httpx.HTTPStatusError as e:
-            logger.error(f"Groq API HTTP error: {e.response.status_code} — {e.response.text}")
+            logger.error(
+                f"Groq API HTTP error: {e.response.status_code} — {e.response.text}"
+            )
 
             message = f"Groq API request failed with status {e.response.status_code}."
             try:

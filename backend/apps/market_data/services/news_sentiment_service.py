@@ -40,8 +40,16 @@ REQUEST_TIMEOUT_SECONDS = 8
 # only across India-relevant titles; global headlines remain separate evidence.
 MACRO_SEARCH_QUERY = '"RBI"|"Fed"|"NIFTY"|"crude"|"rupee"|"USD/INR"|"Nasdaq"|"Asian markets"|"earnings"|"Union Budget"|"S&P 500"|"Dow Jones"|"Brent"|"OPEC"'
 INDIA_SENTIMENT_TERMS = (
-    "india", "indian", "nifty", "banknifty", "sensex", "rbi", "rupee",
-    "usd/inr", "usd-inr", "national stock exchange",
+    "india",
+    "indian",
+    "nifty",
+    "banknifty",
+    "sensex",
+    "rbi",
+    "rupee",
+    "usd/inr",
+    "usd-inr",
+    "national stock exchange",
 )
 
 
@@ -95,20 +103,22 @@ class NewsSentimentService:
             # article can mention several entities at different
             # sentiment levels) rather than picking just the first.
             article_scores = [
-                e["sentiment_score"] for e in entities
+                e["sentiment_score"]
+                for e in entities
                 if e.get("sentiment_score") is not None
             ]
             avg_article_sentiment = (
-                sum(article_scores) / len(article_scores)
-                if article_scores else None
+                sum(article_scores) / len(article_scores) if article_scores else None
             )
-            headlines.append({
-                "title": article.get("title"),
-                "source": article.get("source"),
-                "published_at": article.get("published_at"),
-                "url": article.get("url"),
-                "sentiment": avg_article_sentiment,
-            })
+            headlines.append(
+                {
+                    "title": article.get("title"),
+                    "source": article.get("source"),
+                    "published_at": article.get("published_at"),
+                    "url": article.get("url"),
+                    "sentiment": avg_article_sentiment,
+                }
+            )
             # Global headlines populate separate driver cards. Only
             # India-relevant headlines contribute to India's sentiment value.
             title = str(article.get("title") or "").lower()
@@ -121,7 +131,8 @@ class NewsSentimentService:
             "article_count": len(articles),
             "avg_sentiment": (
                 round(sum(india_sentiment_scores) / len(india_sentiment_scores), 3)
-                if india_sentiment_scores else None
+                if india_sentiment_scores
+                else None
             ),
             "sentiment_article_count": india_article_count,
             "headlines": headlines,

@@ -2,12 +2,12 @@ import logging
 from datetime import datetime
 from decimal import Decimal
 
-from django.utils import timezone
 from django.db import transaction
+from django.utils import timezone
 
-from apps.market_data.repositories.instrument_repository import InstrumentRepository
-from apps.market_data.models import Instrument
 from apps.ai_engine.models import AnalysisSession
+from apps.market_data.models import Instrument
+from apps.market_data.repositories.instrument_repository import InstrumentRepository
 
 from ..models import PaperAccount, PaperOrder, PaperPosition
 from ..repositories.paper_repository import (
@@ -64,7 +64,10 @@ class OrderService:
         account, _ = PaperAccountRepository.get_or_create_for_user(user)
         account = PaperAccount.objects.select_for_update().get(pk=account.pk)
         if quantity <= 0 or transaction_type not in ("BUY", "SELL"):
-            return {"success": False, "message": "A positive quantity and BUY/SELL direction are required."}
+            return {
+                "success": False,
+                "message": "A positive quantity and BUY/SELL direction are required.",
+            }
 
         # Get instrument
         instrument = (
@@ -84,8 +87,13 @@ class OrderService:
             is_open=True,
         ).first()
         if current_position is not None:
-            position_direction = "BUY" if current_position.direction == "LONG" else "SELL"
-            if transaction_type != position_direction and quantity > current_position.quantity:
+            position_direction = (
+                "BUY" if current_position.direction == "LONG" else "SELL"
+            )
+            if (
+                transaction_type != position_direction
+                and quantity > current_position.quantity
+            ):
                 return {
                     "success": False,
                     "message": "This order is larger than the open position. Close it first, then place a separate order for any new exposure.",
@@ -99,7 +107,10 @@ class OrderService:
                 "success": False,
                 "message": "Paper option orders require an active NFO option contract.",
             }
-        if instrument_id is not None and getattr(self.simulator.provider, "data_source", "UNKNOWN") != "ZERODHA":
+        if (
+            instrument_id is not None
+            and getattr(self.simulator.provider, "data_source", "UNKNOWN") != "ZERODHA"
+        ):
             return {
                 "success": False,
                 "message": "Option paper trades require verified Zerodha quotes; mock or unknown provider prices are not used.",
@@ -125,17 +136,25 @@ class OrderService:
                 ai_signal = analysis_session.ai_signal
             except Exception:
                 ai_signal = None
-            volatility_setup = (analysis_session.parsed_output or {}).get("volatility_setup") or {}
+            volatility_setup = (analysis_session.parsed_output or {}).get(
+                "volatility_setup"
+            ) or {}
             pair_legs = volatility_setup.get("legs") or []
-            pair_instrument_ids = {
-                leg.get("instrument_id") for leg in pair_legs
-                if leg.get("instrument_id") is not None
-            } if volatility_setup.get("eligible") is True else set()
+            pair_instrument_ids = (
+                {
+                    leg.get("instrument_id")
+                    for leg in pair_legs
+                    if leg.get("instrument_id") is not None
+                }
+                if volatility_setup.get("eligible") is True
+                else set()
+            )
             pair_entry = (
                 instrument.id in pair_instrument_ids
                 and transaction_type == "BUY"
                 and tag == "AI_PAPER_VOLATILITY"
-                and (analysis_session.paper_evaluation or {}).get("status") == "REQUESTED"
+                and (analysis_session.paper_evaluation or {}).get("status")
+                == "REQUESTED"
                 and current_position is None
             )
             pair_full_close = (
@@ -152,10 +171,13 @@ class OrderService:
                 ai_signal
                 and ai_signal.option_instrument_id == instrument.id
                 and transaction_type == "BUY"
-                and (current_position is None or (
-                    current_position.direction == "LONG"
-                    and current_position.analysis_session_id == analysis_session.id
-                ))
+                and (
+                    current_position is None
+                    or (
+                        current_position.direction == "LONG"
+                        and current_position.analysis_session_id == analysis_session.id
+                    )
+                )
             )
             linked_full_close = (
                 ai_signal
@@ -175,21 +197,35 @@ class OrderService:
         # Simulate execution
         if order_type == "MARKET":
             execution = self.simulator.execute_market_order(
-                symbol=instrument.trading_symbol if instrument_id is not None else symbol,
+                symbol=(
+                    instrument.trading_symbol if instrument_id is not None else symbol
+                ),
                 quantity=quantity,
                 transaction_type=transaction_type,
             )
         else:
             execution = self.simulator.execute_limit_order(
-                symbol=instrument.trading_symbol if instrument_id is not None else symbol,
+                symbol=(
+                    instrument.trading_symbol if instrument_id is not None else symbol
+                ),
                 quantity=quantity,
                 transaction_type=transaction_type,
                 limit_price=Decimal(str(price)),
             )
 
-        increasing = current_position is None or transaction_type == ("BUY" if current_position.direction == "LONG" else "SELL")
-        if execution["success"] and increasing and execution["execution_price"] * quantity + execution["brokerage"] > account.balance - account.used_margin:
-            return {"success": False, "message": "Insufficient simulated available balance for this paper entry and its costs."}
+        increasing = current_position is None or transaction_type == (
+            "BUY" if current_position.direction == "LONG" else "SELL"
+        )
+        if (
+            execution["success"]
+            and increasing
+            and execution["execution_price"] * quantity + execution["brokerage"]
+            > account.balance - account.used_margin
+        ):
+            return {
+                "success": False,
+                "message": "Insufficient simulated available balance for this paper entry and its costs.",
+            }
 
         # Create order record
         order = PaperOrder.objects.create(
@@ -202,21 +238,18 @@ class OrderService:
             quantity=quantity,
             price=Decimal(str(price)),
             average_price=(
-                execution["execution_price"]
-                if execution["success"] else Decimal("0")
+                execution["execution_price"] if execution["success"] else Decimal("0")
             ),
             filled_quantity=(
-                execution["filled_quantity"]
-                if execution["success"] else 0
+                execution["filled_quantity"] if execution["success"] else 0
             ),
-            pending_quantity=(
-                0 if execution["success"] else quantity
+            pending_quantity=(0 if execution["success"] else quantity),
+            status=(
+                "COMPLETE"
+                if execution["success"]
+                else "REJECTED" if order_type == "MARKET" else "PENDING"
             ),
-            status="COMPLETE" if execution["success"] else "REJECTED" if order_type == "MARKET" else "PENDING",
-            execution_time=(
-                execution["timestamp"]
-                if execution["success"] else None
-            ),
+            execution_time=(execution["timestamp"] if execution["success"] else None),
             tag=tag,
         )
 

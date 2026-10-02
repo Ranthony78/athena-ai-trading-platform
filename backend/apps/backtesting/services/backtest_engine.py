@@ -6,8 +6,8 @@ import pandas as pd
 
 from apps.market_data.repositories.candle_repository import CandleRepository
 from apps.market_data.repositories.instrument_repository import InstrumentRepository
-from apps.strategies.strategies.base_strategy import BaseStrategy, SignalResult
 from apps.strategies.services.strategy_engine import StrategyEngine
+from apps.strategies.strategies.base_strategy import BaseStrategy, SignalResult
 
 from ..models import BacktestRun, BacktestTrade
 
@@ -56,8 +56,12 @@ class BacktestEngine:
                 from_time=self.run.from_date,
                 to_time=self.run.to_date,
             ).values(
-                "candle_time", "open",
-                "high", "low", "close", "volume",
+                "candle_time",
+                "open",
+                "high",
+                "low",
+                "close",
+                "volume",
             )
         )
 
@@ -75,9 +79,7 @@ class BacktestEngine:
         )
 
         # Get strategy implementation
-        strategy_class = StrategyEngine.STRATEGY_MAP.get(
-            self.strategy.strategy_type
-        )
+        strategy_class = StrategyEngine.STRATEGY_MAP.get(self.strategy.strategy_type)
 
         if not strategy_class:
             raise ValueError(
@@ -90,7 +92,7 @@ class BacktestEngine:
 
         # Walk forward through candles
         for i in range(min_candles, len(all_candles)):
-            window = all_candles[:i + 1]
+            window = all_candles[: i + 1]
             current_candle = all_candles[i]
 
             df = self._to_dataframe(window)
@@ -114,10 +116,12 @@ class BacktestEngine:
 
             # Update equity curve
             unrealized = self._get_unrealized_pnl(current_price)
-            self.equity_curve.append({
-                "time": str(current_time),
-                "capital": round(self.capital + unrealized, 2),
-            })
+            self.equity_curve.append(
+                {
+                    "time": str(current_time),
+                    "capital": round(self.capital + unrealized, 2),
+                }
+            )
 
         # Close any open position at end of data
         if self.current_position:
@@ -160,9 +164,7 @@ class BacktestEngine:
             current_direction = self.current_position["direction"]
 
             # Opposite signal — close and reverse
-            if (
-                current_direction == "LONG" and result.signal == "SELL"
-            ) or (
+            if (current_direction == "LONG" and result.signal == "SELL") or (
                 current_direction == "SHORT" and result.signal == "BUY"
             ):
                 self._close_position(

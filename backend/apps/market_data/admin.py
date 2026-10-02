@@ -19,9 +19,7 @@ class InstrumentAdmin(admin.ModelAdmin):
         "trading_symbol",
     )
 
-    list_filter = (
-        "exchange",
-    )
+    list_filter = ("exchange",)
 
 
 @admin.register(Quote)
@@ -45,6 +43,4 @@ class CandleAdmin(admin.ModelAdmin):
         "close",
     )
 
-    list_filter = (
-        "timeframe",
-    )
+    list_filter = ("timeframe",)

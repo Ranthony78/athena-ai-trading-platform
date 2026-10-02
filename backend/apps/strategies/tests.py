@@ -5,6 +5,7 @@ Strategies are read-only over the API: list/detail/signals still work,
 create/update/delete are gone, and the run endpoints answer 410 Gone.
 The strategy models and StrategyEngine stay in place for backtesting.
 """
+
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework import status
@@ -33,9 +34,7 @@ class StrategiesReadOnlyAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual([s["name"] for s in response.data["data"]], ["EMA 9/21"])
 
-        response = self.client.get(
-            reverse("strategy-detail", args=[self.strategy.pk])
-        )
+        response = self.client.get(reverse("strategy-detail", args=[self.strategy.pk]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["data"]["id"], self.strategy.pk)
 
@@ -44,7 +43,9 @@ class StrategiesReadOnlyAPITests(APITestCase):
         detail = reverse("strategy-detail", args=[self.strategy.pk])
 
         self.assertEqual(
-            self.client.post(reverse("strategy-list"), payload, format="json").status_code,
+            self.client.post(
+                reverse("strategy-list"), payload, format="json"
+            ).status_code,
             status.HTTP_405_METHOD_NOT_ALLOWED,
         )
         self.assertEqual(
@@ -74,11 +75,12 @@ class StrategiesReadOnlyAPITests(APITestCase):
     def test_retired_run_endpoint_never_executes_the_engine(self):
         from unittest.mock import patch
 
-        with patch(
-            "apps.strategies.services.strategy_engine.StrategyEngine.run"
-        ) as run, patch(
-            "apps.strategies.services.strategy_engine.StrategyEngine.run_all"
-        ) as run_all:
+        with (
+            patch("apps.strategies.services.strategy_engine.StrategyEngine.run") as run,
+            patch(
+                "apps.strategies.services.strategy_engine.StrategyEngine.run_all"
+            ) as run_all,
+        ):
             self.client.post(
                 reverse("strategy-run"),
                 {"strategy_id": self.strategy.pk, "symbol": "NIFTY"},

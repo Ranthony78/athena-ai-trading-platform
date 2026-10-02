@@ -1,11 +1,12 @@
 import logging
 from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
+
 from django.utils import timezone
 
-from apps.market_data.repositories.quote_repository import QuoteRepository
-from apps.market_data.repositories.instrument_repository import InstrumentRepository
 from apps.market_data.providers.provider_factory import ProviderFactory
+from apps.market_data.repositories.instrument_repository import InstrumentRepository
+from apps.market_data.repositories.quote_repository import QuoteRepository
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,9 @@ class BrokerSimulator:
         self.provider = ProviderFactory.get_provider(user=user)
         self.slippage_bps = Decimal("0")
 
-    def get_execution_price(self, symbol: str, order_type: str, transaction_type: str = None) -> Decimal:
+    def get_execution_price(
+        self, symbol: str, order_type: str, transaction_type: str = None
+    ) -> Decimal:
         """
         Get the price at which a paper order would execute.
         Option market orders execute at the ask for buys and bid for sells.
@@ -40,15 +43,23 @@ class BrokerSimulator:
                 if is_option:
                     quote_time = quote.get("timestamp")
                     if not quote_time or self._quote_is_stale(quote_time):
-                        logger.warning("Ignoring stale or undated option quote for paper order [%s]", symbol)
+                        logger.warning(
+                            "Ignoring stale or undated option quote for paper order [%s]",
+                            symbol,
+                        )
                         return Decimal("0")
                     try:
                         bid = Decimal(str(quote.get("bid")))
                         ask = Decimal(str(quote.get("ask")))
                     except (TypeError, ValueError, InvalidOperation):
                         return Decimal("0")
-                    if (not bid.is_finite() or not ask.is_finite() or bid <= 0
-                            or ask < bid or transaction_type not in ("BUY", "SELL")):
+                    if (
+                        not bid.is_finite()
+                        or not ask.is_finite()
+                        or bid <= 0
+                        or ask < bid
+                        or transaction_type not in ("BUY", "SELL")
+                    ):
                         return Decimal("0")
                     return ask if transaction_type == "BUY" else bid
                 if price > 0:
@@ -110,7 +121,15 @@ class BrokerSimulator:
                 "message": f"Could not get execution price for {symbol}",
             }
 
-        execution_price = (execution_price * (Decimal("1") + self.slippage_bps / Decimal("10000") * (1 if transaction_type == "BUY" else -1))).quantize(Decimal("0.01"))
+        execution_price = (
+            execution_price
+            * (
+                Decimal("1")
+                + self.slippage_bps
+                / Decimal("10000")
+                * (1 if transaction_type == "BUY" else -1)
+            )
+        ).quantize(Decimal("0.01"))
         return {
             "success": True,
             "execution_price": execution_price,
@@ -135,8 +154,8 @@ class BrokerSimulator:
         ltp = self.get_execution_price(symbol, "LIMIT", transaction_type)
 
         can_execute = ltp > 0 and (
-            (transaction_type == "BUY" and ltp <= limit_price) or
-            (transaction_type == "SELL" and ltp >= limit_price)
+            (transaction_type == "BUY" and ltp <= limit_price)
+            or (transaction_type == "SELL" and ltp >= limit_price)
         )
 
         if not can_execute:

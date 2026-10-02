@@ -60,14 +60,17 @@ class ReportService:
         # Profit factor
         gross_profit = sum(wins) if wins else 0
         gross_loss = abs(sum(losses)) if losses else 0
-        profit_factor = round(
-            gross_profit / gross_loss, 2
-        ) if gross_loss > 0 else 0
+        profit_factor = round(gross_profit / gross_loss, 2) if gross_loss > 0 else 0
 
         # Capital
-        final_capital = float(trades[-1].capital_after) if trades else float(run.initial_capital)
+        final_capital = (
+            float(trades[-1].capital_after) if trades else float(run.initial_capital)
+        )
         total_return_pct = round(
-            (final_capital - float(run.initial_capital)) / float(run.initial_capital) * 100, 2
+            (final_capital - float(run.initial_capital))
+            / float(run.initial_capital)
+            * 100,
+            2,
         )
 
         # Max drawdown
@@ -85,9 +88,7 @@ class ReportService:
         )
 
         # Risk/reward
-        risk_reward = round(
-            abs(avg_win / avg_loss), 2
-        ) if avg_loss != 0 else 0
+        risk_reward = round(abs(avg_win / avg_loss), 2) if avg_loss != 0 else 0
 
         # Consecutive wins/losses
         max_consec_wins, max_consec_losses = ReportService._consecutive_stats(pnls)

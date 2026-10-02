@@ -8,6 +8,7 @@ paper trading feature lives.
 Win/loss classification and partial-close accounting use realized net
 results. These tests protect the paper journal's accounting semantics.
 """
+
 from datetime import timedelta
 from decimal import Decimal
 from types import SimpleNamespace
@@ -19,43 +20,66 @@ from django.utils import timezone
 
 from apps.market_data.models import Instrument
 from apps.paper_trading.models import PaperAccount, PaperPosition, PaperTrade
-from apps.paper_trading.services.position_service import PositionService, BROKERAGE
 from apps.paper_trading.services.broker_simulator import BrokerSimulator
+from apps.paper_trading.services.position_service import BROKERAGE, PositionService
 
 User = get_user_model()
 
 
 class OptionPaperFillQuoteTests(SimpleTestCase):
-    @patch("apps.market_data.repositories.instrument_repository.InstrumentRepository.get_by_trading_symbol")
+    @patch(
+        "apps.market_data.repositories.instrument_repository.InstrumentRepository.get_by_trading_symbol"
+    )
     @patch("apps.market_data.providers.provider_factory.ProviderFactory.get_provider")
     def test_option_buys_use_ask_and_sells_use_bid(self, get_provider, get_instrument):
         provider = get_provider.return_value
         provider.get_quote.return_value = {
-            "timestamp": timezone.now().isoformat(), "ltp": 100,
-            "bid": 99, "ask": 101,
+            "timestamp": timezone.now().isoformat(),
+            "ltp": 100,
+            "bid": 99,
+            "ask": 101,
         }
         get_instrument.return_value = SimpleNamespace(option_type="CE")
         simulator = BrokerSimulator()
 
-        self.assertEqual(simulator.get_execution_price("NIFTYTESTCE", "MARKET", "BUY"), Decimal("101"))
-        self.assertEqual(simulator.get_execution_price("NIFTYTESTCE", "MARKET", "SELL"), Decimal("99"))
+        self.assertEqual(
+            simulator.get_execution_price("NIFTYTESTCE", "MARKET", "BUY"),
+            Decimal("101"),
+        )
+        self.assertEqual(
+            simulator.get_execution_price("NIFTYTESTCE", "MARKET", "SELL"),
+            Decimal("99"),
+        )
 
-    @patch("apps.market_data.repositories.instrument_repository.InstrumentRepository.get_by_trading_symbol")
+    @patch(
+        "apps.market_data.repositories.instrument_repository.InstrumentRepository.get_by_trading_symbol"
+    )
     @patch("apps.market_data.providers.provider_factory.ProviderFactory.get_provider")
-    def test_option_paper_fill_refuses_missing_or_stale_bid_ask(self, get_provider, get_instrument):
+    def test_option_paper_fill_refuses_missing_or_stale_bid_ask(
+        self, get_provider, get_instrument
+    ):
         provider = get_provider.return_value
         get_instrument.return_value = SimpleNamespace(option_type="PE")
         simulator = BrokerSimulator()
         provider.get_quote.return_value = {
-            "timestamp": timezone.now().isoformat(), "ltp": 100, "bid": 0, "ask": 101,
+            "timestamp": timezone.now().isoformat(),
+            "ltp": 100,
+            "bid": 0,
+            "ask": 101,
         }
-        self.assertEqual(simulator.get_execution_price("NIFTYTESTPE", "MARKET", "BUY"), Decimal("0"))
+        self.assertEqual(
+            simulator.get_execution_price("NIFTYTESTPE", "MARKET", "BUY"), Decimal("0")
+        )
 
         provider.get_quote.return_value = {
             "timestamp": (timezone.now() - timedelta(minutes=5)).isoformat(),
-            "ltp": 100, "bid": 99, "ask": 101,
+            "ltp": 100,
+            "bid": 99,
+            "ask": 101,
         }
-        self.assertEqual(simulator.get_execution_price("NIFTYTESTPE", "MARKET", "BUY"), Decimal("0"))
+        self.assertEqual(
+            simulator.get_execution_price("NIFTYTESTPE", "MARKET", "BUY"), Decimal("0")
+        )
 
 
 class PositionServiceTestCase(TestCase):
@@ -323,7 +347,9 @@ class PositionServiceTestCase(TestCase):
 
         self.account.refresh_from_db()
         self.assertEqual(self.account.balance, balance_after_open + Decimal("30.00"))
-        self.assertEqual(self.account.used_margin, margin_after_open - Decimal("500.00"))
+        self.assertEqual(
+            self.account.used_margin, margin_after_open - Decimal("500.00")
+        )
         self.assertEqual(self.account.total_pnl, Decimal("30.00"))
 
     # ------------------------------------------------------------------
@@ -377,6 +403,4 @@ class PositionServiceTestCase(TestCase):
         expected_balance = Decimal("1000000.00") + Decimal("80.00")
         self.assertEqual(self.account.balance, expected_balance)
         self.assertEqual(self.account.used_margin, Decimal("0.00"))
-        self.assertEqual(
-            self.account.available_balance, float(expected_balance)
-        )
+        self.assertEqual(self.account.available_balance, float(expected_balance))

@@ -69,9 +69,7 @@ class AlertService:
                 if self._check_alert(alert):
                     triggered += 1
             except Exception as e:
-                logger.error(
-                    f"AlertService: error checking alert {alert.id}: {e}"
-                )
+                logger.error(f"AlertService: error checking alert {alert.id}: {e}")
 
         return triggered
 
@@ -101,9 +99,8 @@ class AlertService:
                 triggered = True
             elif alert.alert_type == "PRICE_CROSS":
                 prev = float(alert.current_value)
-                triggered = (
-                    (prev < target <= current_price) or
-                    (prev > target >= current_price)
+                triggered = (prev < target <= current_price) or (
+                    prev > target >= current_price
                 )
 
             if triggered:
@@ -126,8 +123,8 @@ class AlertService:
         user = alert.user
         title = f"Alert: {alert.symbol} {alert.alert_type}"
         message = (
-            alert.message or
-            f"{alert.symbol} hit {alert.alert_type} target "
+            alert.message
+            or f"{alert.symbol} hit {alert.alert_type} target "
             f"₹{alert.target_value} | Current: ₹{current_price}"
         )
 

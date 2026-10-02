@@ -9,6 +9,7 @@ from .serializers import (
     StrategySignalSerializer,
 )
 
+
 class StrategyListAPIView(APIView):
     """
     GET  /api/strategies/          — list all strategies
@@ -20,6 +21,7 @@ class StrategyListAPIView(APIView):
         strategies = StrategyService.get_all()
         serializer = StrategySerializer(strategies, many=True)
         return ApiResponse.success(serializer.data)
+
 
 class StrategyDetailAPIView(APIView):
     """
@@ -33,6 +35,7 @@ class StrategyDetailAPIView(APIView):
         if not strategy:
             return ApiResponse.error(message="Strategy not found.")
         return ApiResponse.success(StrategySerializer(strategy).data)
+
 
 class StrategyRunAPIView(APIView):
     """

@@ -13,12 +13,12 @@ class SignalResult:
     Returned by every strategy's evaluate() method.
     """
 
-    signal: str                          # BUY | SELL | NEUTRAL
-    strength: str                        # STRONG | MODERATE | WEAK
-    price: float                         # price at signal
-    target: Optional[float] = None       # target price
-    stop_loss: Optional[float] = None    # stop loss price
-    notes: str = ""                      # human readable reason
+    signal: str  # BUY | SELL | NEUTRAL
+    strength: str  # STRONG | MODERATE | WEAK
+    price: float  # price at signal
+    target: Optional[float] = None  # target price
+    stop_loss: Optional[float] = None  # stop loss price
+    notes: str = ""  # human readable reason
     context: dict = field(default_factory=dict)  # indicator snapshot
     timestamp: datetime = field(default_factory=datetime.now)
 

@@ -163,11 +163,16 @@ class AnalysisSession(BaseModel):
     # to honest probability calibration too.
     forecast_horizon_minutes = models.PositiveSmallIntegerField(default=15)
     forecast_anchor_price = models.DecimalField(
-        max_digits=12, decimal_places=2, null=True, blank=True,
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
     )
     forecast_target_time = models.DateTimeField(null=True, blank=True, db_index=True)
     forecast_sideways_band_pct = models.DecimalField(
-        max_digits=5, decimal_places=3, default=0.050,
+        max_digits=5,
+        decimal_places=3,
+        default=0.050,
     )
     forecast_outcome_status = models.CharField(
         max_length=20,
@@ -182,14 +187,22 @@ class AnalysisSession(BaseModel):
     )
     forecast_actual_class = models.CharField(max_length=10, blank=True)
     forecast_outcome_price = models.DecimalField(
-        max_digits=12, decimal_places=2, null=True, blank=True,
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
     )
     forecast_resolved_at = models.DateTimeField(null=True, blank=True)
     forecast_brier_score = models.DecimalField(
-        max_digits=8, decimal_places=6, null=True, blank=True,
+        max_digits=8,
+        decimal_places=6,
+        null=True,
+        blank=True,
     )
     probability_method_version = models.CharField(
-        max_length=40, blank=True, default="",
+        max_length=40,
+        blank=True,
+        default="",
     )
 
     class Meta:

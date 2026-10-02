@@ -55,16 +55,21 @@ class PaperOrderRepository(BaseRepository[PaperOrder]):
     def get_today(cls, account: PaperAccount) -> QuerySet[PaperOrder]:
         """Return today's orders for an account."""
         today = timezone.now().date()
-        return cls.model.objects.filter(
-            account=account,
-            order_time__date=today,
-        ).select_related("instrument").order_by("-order_time")
+        return (
+            cls.model.objects.filter(
+                account=account,
+                order_time__date=today,
+            )
+            .select_related("instrument")
+            .order_by("-order_time")
+        )
 
     @classmethod
     def delete_all_for_account(cls, account) -> int:
         """Delete all orders for an account. Used by account reset."""
         deleted, _ = cls.model.objects.filter(account=account).delete()
         return deleted
+
 
 class PaperPositionRepository(BaseRepository[PaperPosition]):
 
@@ -100,6 +105,7 @@ class PaperPositionRepository(BaseRepository[PaperPosition]):
         deleted, _ = cls.model.objects.filter(account=account).delete()
         return deleted
 
+
 class PaperTradeRepository(BaseRepository[PaperTrade]):
 
     model = PaperTrade
@@ -111,18 +117,26 @@ class PaperTradeRepository(BaseRepository[PaperTrade]):
         limit: int = 50,
     ) -> QuerySet[PaperTrade]:
         """Return recent trades for an account."""
-        return cls.model.objects.filter(
-            account=account,
-        ).select_related("instrument").order_by("-exit_time")[:limit]
+        return (
+            cls.model.objects.filter(
+                account=account,
+            )
+            .select_related("instrument")
+            .order_by("-exit_time")[:limit]
+        )
 
     @classmethod
     def get_today(cls, account: PaperAccount) -> QuerySet[PaperTrade]:
         """Return today's completed trades."""
         today = timezone.now().date()
-        return cls.model.objects.filter(
-            account=account,
-            exit_time__date=today,
-        ).select_related("instrument").order_by("-exit_time")
+        return (
+            cls.model.objects.filter(
+                account=account,
+                exit_time__date=today,
+            )
+            .select_related("instrument")
+            .order_by("-exit_time")
+        )
 
     @classmethod
     def get_stats(cls, account: PaperAccount) -> dict:
@@ -142,9 +156,7 @@ class PaperTradeRepository(BaseRepository[PaperTrade]):
 
         wins = trades.filter(pnl__gt=0).count()
         losses = trades.filter(pnl__lte=0).count()
-        total_pnl = trades.aggregate(
-            total=Sum("net_pnl")
-        )["total"] or 0
+        total_pnl = trades.aggregate(total=Sum("net_pnl"))["total"] or 0
 
         return {
             "total": total,

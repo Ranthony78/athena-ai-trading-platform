@@ -38,6 +38,7 @@ class BacktestRunSerializer(serializers.ModelSerializer):
 
 class BacktestCreateSerializer(serializers.Serializer):
     """Request body for creating a backtest run."""
+
     strategy_id = serializers.IntegerField()
     symbol = serializers.CharField()
     timeframe = serializers.ChoiceField(
@@ -51,9 +52,7 @@ class BacktestCreateSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         if attrs["from_date"] >= attrs["to_date"]:
-            raise serializers.ValidationError(
-                "from_date must be before to_date."
-            )
+            raise serializers.ValidationError("from_date must be before to_date.")
         return attrs
 
 

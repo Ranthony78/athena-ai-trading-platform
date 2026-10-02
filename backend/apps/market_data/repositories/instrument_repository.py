@@ -1,7 +1,10 @@
 from typing import Optional
+
 from django.db import models
 from django.db.models import QuerySet
+
 from shared.repositories import BaseRepository
+
 from ..models import Instrument
 
 
@@ -39,12 +42,17 @@ class InstrumentRepository(BaseRepository[Instrument]):
         of derivative rows are ambiguous candidates for a plain match.
         """
         real_name = cls.INDEX_SYMBOL_ALIASES.get(symbol.upper(), symbol)
-        return cls.model.objects.filter(
-            models.Q(symbol__iexact=real_name) | models.Q(trading_symbol__iexact=real_name),
-            option_type="",
-        ).exclude(
-            instrument_type="FUT",
-        ).first()
+        return (
+            cls.model.objects.filter(
+                models.Q(symbol__iexact=real_name)
+                | models.Q(trading_symbol__iexact=real_name),
+                option_type="",
+            )
+            .exclude(
+                instrument_type="FUT",
+            )
+            .first()
+        )
 
     @classmethod
     def get_by_token(cls, token: int) -> Optional[Instrument]:
@@ -90,11 +98,15 @@ class InstrumentRepository(BaseRepository[Instrument]):
         the nearest, most relevant contracts first, not an arbitrary
         DB-order slice across every expiry NIFTY has.
         """
-        queryset = cls.model.objects.filter(
-            symbol__iexact=symbol,
-            exchange="NFO",
-            is_active=True,
-        ).exclude(option_type="").order_by("expiry", "strike")
+        queryset = (
+            cls.model.objects.filter(
+                symbol__iexact=symbol,
+                exchange="NFO",
+                is_active=True,
+            )
+            .exclude(option_type="")
+            .order_by("expiry", "strike")
+        )
 
         if option_type:
             queryset = queryset.filter(option_type__iexact=option_type)

@@ -38,13 +38,15 @@ class BollingerBands(BaseIndicator):
         bandwidth = (upper - lower) / middle * 100
         percent_b = (series - lower) / (upper - lower) * 100
 
-        return pd.DataFrame({
-            "upper": upper,
-            "middle": middle,
-            "lower": lower,
-            "bandwidth": bandwidth,
-            "percent_b": percent_b,
-        })
+        return pd.DataFrame(
+            {
+                "upper": upper,
+                "middle": middle,
+                "lower": lower,
+                "bandwidth": bandwidth,
+                "percent_b": percent_b,
+            }
+        )
 
     @classmethod
     def compute(
@@ -85,11 +87,14 @@ class ATR(BaseIndicator):
         close = data["close"]
         prev_close = close.shift(1)
 
-        tr = pd.concat([
-            high - low,
-            (high - prev_close).abs(),
-            (low - prev_close).abs(),
-        ], axis=1).max(axis=1)
+        tr = pd.concat(
+            [
+                high - low,
+                (high - prev_close).abs(),
+                (low - prev_close).abs(),
+            ],
+            axis=1,
+        ).max(axis=1)
 
         atr = tr.ewm(
             alpha=1 / self.period,

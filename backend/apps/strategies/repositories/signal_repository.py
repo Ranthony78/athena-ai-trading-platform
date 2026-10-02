@@ -1,9 +1,10 @@
 from typing import Optional
+
 from django.db.models import QuerySet
 from django.utils import timezone
 
-from shared.repositories import BaseRepository
 from apps.market_data.models import Instrument
+from shared.repositories import BaseRepository
 
 from ..models import Strategy, StrategySignal
 
@@ -29,9 +30,13 @@ class SignalRepository(BaseRepository[StrategySignal]):
         limit: int = 50,
     ) -> QuerySet[StrategySignal]:
         """Return recent signals for an instrument."""
-        return cls.model.objects.filter(
-            instrument=instrument,
-        ).select_related("strategy").order_by("-signal_time")[:limit]
+        return (
+            cls.model.objects.filter(
+                instrument=instrument,
+            )
+            .select_related("strategy")
+            .order_by("-signal_time")[:limit]
+        )
 
     @classmethod
     def get_by_strategy(
@@ -40,17 +45,25 @@ class SignalRepository(BaseRepository[StrategySignal]):
         limit: int = 50,
     ) -> QuerySet[StrategySignal]:
         """Return recent signals for a strategy."""
-        return cls.model.objects.filter(
-            strategy=strategy,
-        ).select_related("instrument").order_by("-signal_time")[:limit]
+        return (
+            cls.model.objects.filter(
+                strategy=strategy,
+            )
+            .select_related("instrument")
+            .order_by("-signal_time")[:limit]
+        )
 
     @classmethod
     def get_today(cls) -> QuerySet[StrategySignal]:
         """Return all signals generated today."""
         today = timezone.now().date()
-        return cls.model.objects.filter(
-            signal_time__date=today,
-        ).select_related("strategy", "instrument").order_by("-signal_time")
+        return (
+            cls.model.objects.filter(
+                signal_time__date=today,
+            )
+            .select_related("strategy", "instrument")
+            .order_by("-signal_time")
+        )
 
     @classmethod
     def expire_old_signals(cls) -> int:

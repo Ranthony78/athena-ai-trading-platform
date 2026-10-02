@@ -1,36 +1,30 @@
 from django.urls import path
 
-from .views import (
-    # Instruments
+from .views import (  # Instruments; Sprint 11 — Market Engine; Sprint 12 — Indicators; Step 6 — Outcome Tracking Stats; Step 8 — Analysis Report
+    AnalysisReportAPIView,
     BulkQuoteAPIView,
     ExpiryListAPIView,
     FuturesActivityAPIView,
     HistoricalDataAPIView,
     IndexListAPIView,
+    IndicatorAPIView,
+    IndicatorListAPIView,
     InstrumentDetailAPIView,
     InstrumentListAPIView,
     InstrumentSearchAPIView,
-    OptionChainAPIView,
-    OptionChainSummaryAPIView,
-    QuoteDetailAPIView,
-    QuoteListAPIView,
-    # Sprint 11 — Market Engine
     MarketEngineStatusAPIView,
     MarketReadAPIView,
     MarketSessionAPIView,
-    # Sprint 12 — Indicators
-    IndicatorAPIView,
-    IndicatorListAPIView,
-    # Step 6 — Outcome Tracking Stats
-    OutcomeStatsSummaryAPIView,
+    OptionChainAPIView,
+    OptionChainSummaryAPIView,
     OutcomeStatsByStrategyAPIView,
     OutcomeStatsBySymbolAPIView,
-    # Step 8 — Analysis Report
-    AnalysisReportAPIView,
+    OutcomeStatsSummaryAPIView,
+    QuoteDetailAPIView,
+    QuoteListAPIView,
 )
 
 urlpatterns = [
-
     # ------------------------------------------------------------------
     # Instruments
     # ------------------------------------------------------------------
@@ -49,7 +43,6 @@ urlpatterns = [
         InstrumentDetailAPIView.as_view(),
         name="instrument-detail",
     ),
-
     # ------------------------------------------------------------------
     # Indices
     # ------------------------------------------------------------------
@@ -58,7 +51,6 @@ urlpatterns = [
         IndexListAPIView.as_view(),
         name="index-list",
     ),
-
     # ------------------------------------------------------------------
     # Quotes
     # ------------------------------------------------------------------
@@ -77,7 +69,6 @@ urlpatterns = [
         QuoteDetailAPIView.as_view(),
         name="quote-detail",
     ),
-
     # ------------------------------------------------------------------
     # Historical Data
     # ------------------------------------------------------------------
@@ -86,13 +77,11 @@ urlpatterns = [
         HistoricalDataAPIView.as_view(),
         name="historical-data",
     ),
-
     path(
         "futures/<str:symbol>/activity/",
         FuturesActivityAPIView.as_view(),
         name="futures-activity",
     ),
-
     # ------------------------------------------------------------------
     # Expiry
     # ------------------------------------------------------------------
@@ -101,7 +90,6 @@ urlpatterns = [
         ExpiryListAPIView.as_view(),
         name="expiry-list",
     ),
-
     # ------------------------------------------------------------------
     # Option Chain
     # ------------------------------------------------------------------
@@ -110,23 +98,19 @@ urlpatterns = [
         OptionChainAPIView.as_view(),
         name="option-chain",
     ),
-
     path(
         "option-chain/<str:symbol>/summary/",
         OptionChainSummaryAPIView.as_view(),
         name="option-chain-summary",
     ),
-
     path(
         "read/<str:symbol>/",
         MarketReadAPIView.as_view(),
         name="market-read",
     ),
-
     # ------------------------------------------------------------------
     # Analysis Report
     # ------------------------------------------------------------------
-       
     path(
         "report/<str:symbol>/",
         AnalysisReportAPIView.as_view(),
@@ -145,7 +129,6 @@ urlpatterns = [
         MarketEngineStatusAPIView.as_view(),
         name="engine-status",
     ),
-
     # ------------------------------------------------------------------
     # Sprint 12 — Technical Indicators
     # ------------------------------------------------------------------
@@ -159,7 +142,6 @@ urlpatterns = [
         IndicatorAPIView.as_view(),
         name="indicator-calculate",
     ),
-
     # ------------------------------------------------------------------
     # Step 6 — Outcome Tracking Stats
     # ------------------------------------------------------------------

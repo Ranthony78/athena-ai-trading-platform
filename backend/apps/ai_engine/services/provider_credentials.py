@@ -1,4 +1,5 @@
 """Resolve and securely store personal AI provider credentials."""
+
 import base64
 import hashlib
 
@@ -6,7 +7,6 @@ from cryptography.fernet import Fernet, InvalidToken
 from django.conf import settings
 
 from ..models import AIProviderCredential
-
 
 PROVIDER_SETTINGS = {
     "gemini": ("Gemini", "GEMINI_API_KEY", "GEMINI_MODEL", "gemini-3.5-flash"),
@@ -46,7 +46,9 @@ class ProviderCredentialService:
     @classmethod
     def decrypt(cls, encrypted_api_key):
         try:
-            return cls._fernet().decrypt(encrypted_api_key.encode("ascii")).decode("utf-8")
+            return (
+                cls._fernet().decrypt(encrypted_api_key.encode("ascii")).decode("utf-8")
+            )
         except (InvalidToken, UnicodeDecodeError, ValueError) as exc:
             raise ProviderCredentialError(
                 "Saved AI credentials cannot be decrypted. Re-enter the provider key."
@@ -72,7 +74,11 @@ class ProviderCredentialService:
         personal = AIProviderCredential.objects.filter(user=user).first()
         if personal:
             name, _, model_setting, default_model = PROVIDER_SETTINGS[personal.provider]
-            model = getattr(settings, model_setting, default_model) if model_setting else default_model
+            model = (
+                getattr(settings, model_setting, default_model)
+                if model_setting
+                else default_model
+            )
             return {
                 "provider": personal.provider,
                 "provider_name": name,
@@ -97,7 +103,11 @@ class ProviderCredentialService:
         if credential:
             provider = credential.provider
             name, _, model_setting, default_model = PROVIDER_SETTINGS[provider]
-            model = getattr(settings, model_setting, default_model) if model_setting else default_model
+            model = (
+                getattr(settings, model_setting, default_model)
+                if model_setting
+                else default_model
+            )
             return {
                 "provider": provider,
                 "provider_name": name,
@@ -107,11 +117,17 @@ class ProviderCredentialService:
                 "configured": True,
             }
 
-        provider = str(getattr(settings, "AI_PROVIDER", "mock") or "mock").strip().lower()
+        provider = (
+            str(getattr(settings, "AI_PROVIDER", "mock") or "mock").strip().lower()
+        )
         name, key_setting, model_setting, default_model = PROVIDER_SETTINGS.get(
             provider, (provider.title(), None, None, "unknown")
         )
-        model = getattr(settings, model_setting, default_model) if model_setting else default_model
+        model = (
+            getattr(settings, model_setting, default_model)
+            if model_setting
+            else default_model
+        )
         api_key = getattr(settings, key_setting, "") if key_setting else ""
         return {
             "provider": provider,

@@ -6,7 +6,7 @@ from shared.models import BaseModel
 class Instrument(BaseModel):
     """
     Represents a tradeable instrument — equity, index, future, or option.
-    
+
     Key design decisions:
     - symbol: underlying name (NIFTY, BANKNIFTY, RELIANCE) — NOT unique
     - trading_symbol: Zerodha's unique identifier per contract — unique per exchange

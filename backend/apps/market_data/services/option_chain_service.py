@@ -25,6 +25,7 @@ service produces:
   a fabricated number — this matters more than it might seem, since
   a plausible-looking wrong Greek is worse than an honest gap.
 """
+
 import logging
 import math
 from datetime import date
@@ -34,8 +35,8 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_RISK_FREE_RATE = 0.06
 MIN_TIME_TO_EXPIRY_YEARS = 1 / (365 * 24)  # floor ~1 hour, avoids /0 at expiry
-IV_LOWER_BOUND = 0.001   # 0.1%
-IV_UPPER_BOUND = 5.0     # 500%
+IV_LOWER_BOUND = 0.001  # 0.1%
+IV_UPPER_BOUND = 5.0  # 500%
 IV_TOLERANCE = 1e-4
 IV_MAX_ITERATIONS = 100
 
@@ -71,13 +72,16 @@ class OptionChainService:
         (the raw provider chain mixes all expiries together, which
         isn't meaningful to show as one table — this filters to one).
         """
-        from ..services.market_service import MarketService
         from django.conf import settings
+
+        from ..services.market_service import MarketService
 
         market = MarketService(user=self.user)
 
         if settings.MARKET_PROVIDER == "mock":
-            self.status_message = "The mock provider does not supply option-chain quotes."
+            self.status_message = (
+                "The mock provider does not supply option-chain quotes."
+            )
             return []
 
         available_expiries = self._get_available_expiries(symbol)
@@ -85,7 +89,9 @@ class OptionChainService:
             str(available_expiries[0]) if available_expiries else None
         )
 
-        if not target_expiry or target_expiry not in [str(e) for e in available_expiries]:
+        if not target_expiry or target_expiry not in [
+            str(e) for e in available_expiries
+        ]:
             self.status_message = "No current NFO contracts found for this expiry. Refresh the instrument catalog."
             return []
 
@@ -99,8 +105,7 @@ class OptionChainService:
 
         if target_expiry:
             raw_chain = [
-                row for row in raw_chain
-                if str(row.get("expiry")) == str(target_expiry)
+                row for row in raw_chain if str(row.get("expiry")) == str(target_expiry)
             ]
 
         if not raw_chain:
@@ -135,9 +140,13 @@ class OptionChainService:
             str(available_expiries[0]) if available_expiries else None
         )
 
-        rows = self.get_chain(symbol, expiry=target_expiry, risk_free_rate=risk_free_rate)
+        rows = self.get_chain(
+            symbol, expiry=target_expiry, risk_free_rate=risk_free_rate
+        )
 
-        atm_strike = self._find_atm_strike(rows, spot_price) if rows and spot_price else None
+        atm_strike = (
+            self._find_atm_strike(rows, spot_price) if rows and spot_price else None
+        )
         pcr_oi, pcr_volume = self._calculate_pcr(rows)
         max_pain = self._calculate_max_pain(rows)
 
@@ -158,8 +167,8 @@ class OptionChainService:
 
     @staticmethod
     def _get_available_expiries(symbol: str) -> list[date]:
-        from ..repositories.instrument_repository import InstrumentRepository
         from ..engine.market_state import MarketState
+        from ..repositories.instrument_repository import InstrumentRepository
 
         expiries = (
             InstrumentRepository.get_options(symbol)
@@ -247,26 +256,23 @@ class OptionChainService:
     ) -> float:
         if volatility <= 0 or time_to_expiry <= 0:
             return (
-                max(spot - strike, 0) if option_type == "CE"
-                else max(strike - spot, 0)
+                max(spot - strike, 0) if option_type == "CE" else max(strike - spot, 0)
             )
 
         d1 = (
             math.log(spot / strike)
-            + (risk_free_rate + 0.5 * volatility ** 2) * time_to_expiry
+            + (risk_free_rate + 0.5 * volatility**2) * time_to_expiry
         ) / (volatility * math.sqrt(time_to_expiry))
         d2 = d1 - volatility * math.sqrt(time_to_expiry)
 
         if option_type == "CE":
-            return (
-                spot * self._norm_cdf(d1)
-                - strike * math.exp(-risk_free_rate * time_to_expiry) * self._norm_cdf(d2)
-            )
+            return spot * self._norm_cdf(d1) - strike * math.exp(
+                -risk_free_rate * time_to_expiry
+            ) * self._norm_cdf(d2)
         else:
-            return (
-                strike * math.exp(-risk_free_rate * time_to_expiry) * self._norm_cdf(-d2)
-                - spot * self._norm_cdf(-d1)
-            )
+            return strike * math.exp(-risk_free_rate * time_to_expiry) * self._norm_cdf(
+                -d2
+            ) - spot * self._norm_cdf(-d1)
 
     def _black_scholes_greeks(
         self,
@@ -279,7 +285,7 @@ class OptionChainService:
     ) -> dict:
         d1 = (
             math.log(spot / strike)
-            + (risk_free_rate + 0.5 * volatility ** 2) * time_to_expiry
+            + (risk_free_rate + 0.5 * volatility**2) * time_to_expiry
         ) / (volatility * math.sqrt(time_to_expiry))
         d2 = d1 - volatility * math.sqrt(time_to_expiry)
 
@@ -292,13 +298,19 @@ class OptionChainService:
             delta = self._norm_cdf(d1)
             theta = (
                 -(spot * pdf_d1 * volatility) / (2 * math.sqrt(time_to_expiry))
-                - risk_free_rate * strike * math.exp(-risk_free_rate * time_to_expiry) * self._norm_cdf(d2)
+                - risk_free_rate
+                * strike
+                * math.exp(-risk_free_rate * time_to_expiry)
+                * self._norm_cdf(d2)
             ) / 365
         else:
             delta = self._norm_cdf(d1) - 1
             theta = (
                 -(spot * pdf_d1 * volatility) / (2 * math.sqrt(time_to_expiry))
-                + risk_free_rate * strike * math.exp(-risk_free_rate * time_to_expiry) * self._norm_cdf(-d2)
+                + risk_free_rate
+                * strike
+                * math.exp(-risk_free_rate * time_to_expiry)
+                * self._norm_cdf(-d2)
             ) / 365
 
         return {"delta": delta, "gamma": gamma, "theta": theta, "vega": vega}
@@ -315,15 +327,18 @@ class OptionChainService:
         """Solve for IV via bisection. Returns None if it can't converge
         (e.g. price below intrinsic value — a bad/stale quote)."""
         intrinsic = (
-            max(spot - strike, 0) if option_type == "CE"
-            else max(strike - spot, 0)
+            max(spot - strike, 0) if option_type == "CE" else max(strike - spot, 0)
         )
         if option_price < intrinsic:
             return None
 
         low, high = IV_LOWER_BOUND, IV_UPPER_BOUND
-        price_at_low = self._bs_price(spot, strike, time_to_expiry, risk_free_rate, low, option_type)
-        price_at_high = self._bs_price(spot, strike, time_to_expiry, risk_free_rate, high, option_type)
+        price_at_low = self._bs_price(
+            spot, strike, time_to_expiry, risk_free_rate, low, option_type
+        )
+        price_at_high = self._bs_price(
+            spot, strike, time_to_expiry, risk_free_rate, high, option_type
+        )
 
         if not (price_at_low <= option_price <= price_at_high):
             return None
@@ -331,7 +346,9 @@ class OptionChainService:
         mid = low
         for _ in range(IV_MAX_ITERATIONS):
             mid = (low + high) / 2
-            price = self._bs_price(spot, strike, time_to_expiry, risk_free_rate, mid, option_type)
+            price = self._bs_price(
+                spot, strike, time_to_expiry, risk_free_rate, mid, option_type
+            )
 
             if abs(price - option_price) < IV_TOLERANCE:
                 return mid
@@ -365,7 +382,9 @@ class OptionChainService:
         total_put_vol = sum(r.get("volume", 0) or 0 for r in puts)
 
         pcr_oi = round(total_put_oi / total_call_oi, 2) if total_call_oi else None
-        pcr_volume = round(total_put_vol / total_call_vol, 2) if total_call_vol else None
+        pcr_volume = (
+            round(total_put_vol / total_call_vol, 2) if total_call_vol else None
+        )
 
         return pcr_oi, pcr_volume
 
@@ -380,16 +399,22 @@ class OptionChainService:
         if not strikes:
             return None
 
-        call_oi = {r["strike"]: r.get("oi", 0) or 0 for r in rows if r.get("option_type") == "CE"}
-        put_oi = {r["strike"]: r.get("oi", 0) or 0 for r in rows if r.get("option_type") == "PE"}
+        call_oi = {
+            r["strike"]: r.get("oi", 0) or 0
+            for r in rows
+            if r.get("option_type") == "CE"
+        }
+        put_oi = {
+            r["strike"]: r.get("oi", 0) or 0
+            for r in rows
+            if r.get("option_type") == "PE"
+        }
 
         best_strike = None
         best_payout = None
 
         for settle in strikes:
-            payout = sum(
-                call_oi.get(k, 0) * max(settle - k, 0) for k in strikes
-            ) + sum(
+            payout = sum(call_oi.get(k, 0) * max(settle - k, 0) for k in strikes) + sum(
                 put_oi.get(k, 0) * max(k - settle, 0) for k in strikes
             )
             if best_payout is None or payout < best_payout:

@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime
 
+import pandas as pd
 from django.utils import timezone
 
 from apps.market_data.repositories.candle_repository import CandleRepository
@@ -13,8 +14,6 @@ from ..strategies.ema_crossover import EMACrossoverStrategy
 from ..strategies.orb_strategy import ORBStrategy
 from ..strategies.rsi_strategy import RSIStrategy
 from ..strategies.vwap_strategy import VWAPStrategy
-
-import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -93,9 +92,7 @@ class StrategyEngine:
 
         # Build DataFrame
         candle_list = list(
-            candles.values(
-                "candle_time", "open", "high", "low", "close", "volume"
-            )
+            candles.values("candle_time", "open", "high", "low", "close", "volume")
         )
         candle_list.reverse()
 
@@ -168,18 +165,20 @@ class StrategyEngine:
                     user=user,
                 )
                 if result:
-                    results[symbol].append({
-                        "strategy": strategy.name,
-                        "strategy_type": strategy.strategy_type,
-                        "signal": result.signal,
-                        "strength": result.strength,
-                        "price": result.price,
-                        "target": result.target,
-                        "stop_loss": result.stop_loss,
-                        "notes": result.notes,
-                        "context": result.context,
-                        "timestamp": result.timestamp.isoformat(),
-                    })
+                    results[symbol].append(
+                        {
+                            "strategy": strategy.name,
+                            "strategy_type": strategy.strategy_type,
+                            "signal": result.signal,
+                            "strength": result.strength,
+                            "price": result.price,
+                            "target": result.target,
+                            "stop_loss": result.stop_loss,
+                            "notes": result.notes,
+                            "context": result.context,
+                            "timestamp": result.timestamp.isoformat(),
+                        }
+                    )
 
         return results
 
@@ -204,6 +203,7 @@ class StrategyEngine:
             from apps.market_data.services.strike_selection_service import (
                 StrikeSelectionService,
             )
+
             option_data = StrikeSelectionService.select_for_signal(
                 symbol=instrument.symbol,
                 direction=result.signal,
@@ -230,6 +230,7 @@ class StrategyEngine:
 
         if option_data:
             from apps.market_data.models import Instrument
+
             signal_kwargs["option_instrument"] = Instrument.objects.filter(
                 id=option_data["instrument_id"]
             ).first()

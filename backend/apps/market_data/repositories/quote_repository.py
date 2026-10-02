@@ -24,16 +24,24 @@ class QuoteRepository(BaseRepository[Quote]):
     @classmethod
     def get_by_symbol(cls, symbol: str) -> Optional[Quote]:
         """Return quote by instrument symbol."""
-        return cls.model.objects.filter(
-            instrument__symbol__iexact=symbol,
-        ).select_related("instrument").first()
+        return (
+            cls.model.objects.filter(
+                instrument__symbol__iexact=symbol,
+            )
+            .select_related("instrument")
+            .first()
+        )
 
     @classmethod
     def get_by_token(cls, token: int) -> Optional[Quote]:
         """Return quote by instrument token."""
-        return cls.model.objects.filter(
-            instrument__instrument_token=token,
-        ).select_related("instrument").first()
+        return (
+            cls.model.objects.filter(
+                instrument__instrument_token=token,
+            )
+            .select_related("instrument")
+            .first()
+        )
 
     @classmethod
     def get_by_symbols(cls, symbols: list[str]) -> QuerySet[Quote]:

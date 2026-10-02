@@ -17,11 +17,13 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
-            "--username", required=True,
+            "--username",
+            required=True,
             help="Athena username with an active Zerodha session",
         )
         parser.add_argument(
-            "--dry-run", action="store_true",
+            "--dry-run",
+            action="store_true",
             help="Fetch and validate contracts without writing them",
         )
 
@@ -68,8 +70,14 @@ class Command(BaseCommand):
         total = sum(len(items) for items in selected_by_exchange.values())
         if options["dry_run"]:
             for exchange, selected in selected_by_exchange.items():
-                self.stdout.write(f"{exchange}: validated {len(selected)} futures (dry run; no writes).")
-            self.stdout.write(self.style.SUCCESS(f"Driver futures catalog validated: {total} (dry run)."))
+                self.stdout.write(
+                    f"{exchange}: validated {len(selected)} futures (dry run; no writes)."
+                )
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"Driver futures catalog validated: {total} (dry run)."
+                )
+            )
             return
 
         # Fetch and parse both exchanges before writing either one, so a
@@ -77,11 +85,19 @@ class Command(BaseCommand):
         with transaction.atomic():
             for exchange, selected in selected_by_exchange.items():
                 if not selected:
-                    self.stdout.write(self.style.WARNING(f"{exchange}: no matching active futures were returned."))
+                    self.stdout.write(
+                        self.style.WARNING(
+                            f"{exchange}: no matching active futures were returned."
+                        )
+                    )
                     continue
                 for parsed in selected:
                     token = parsed.pop("instrument_token")
-                    InstrumentRepository.upsert_from_import(token=token, defaults=parsed)
+                    InstrumentRepository.upsert_from_import(
+                        token=token, defaults=parsed
+                    )
                 self.stdout.write(f"{exchange}: refreshed {len(selected)} futures.")
 
-        self.stdout.write(self.style.SUCCESS(f"Driver futures catalog processed: {total}."))
+        self.stdout.write(
+            self.style.SUCCESS(f"Driver futures catalog processed: {total}.")
+        )

@@ -64,6 +64,7 @@ class PaperOrderSerializer(serializers.ModelSerializer):
 
 class PlaceOrderSerializer(serializers.Serializer):
     """Request body for placing a paper order."""
+
     symbol = serializers.CharField()
     transaction_type = serializers.ChoiceField(choices=["BUY", "SELL"])
     quantity = serializers.IntegerField(min_value=1)

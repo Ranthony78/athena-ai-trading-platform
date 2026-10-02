@@ -1,4 +1,5 @@
 """Moonshot Kimi provider, available when a user selects Kimi explicitly."""
+
 import logging
 import time
 
@@ -19,7 +20,9 @@ class KimiProvider(BaseAIProvider):
     DEFAULT_MODEL = "kimi-k3"
 
     def __init__(self, api_key=None) -> None:
-        self.api_key = api_key if api_key is not None else getattr(settings, "KIMI_API_KEY", "")
+        self.api_key = (
+            api_key if api_key is not None else getattr(settings, "KIMI_API_KEY", "")
+        )
         self.default_model = getattr(settings, "KIMI_MODEL", self.DEFAULT_MODEL)
         if not self.api_key:
             raise ValueError("KIMI_API_KEY is not configured on the backend.")
@@ -32,7 +35,9 @@ class KimiProvider(BaseAIProvider):
         max_tokens: int = 2000,
         temperature: float = 0.3,
     ) -> dict:
-        effective_model = model if model and model.startswith("kimi-") else self.default_model
+        effective_model = (
+            model if model and model.startswith("kimi-") else self.default_model
+        )
         payload = {
             "model": effective_model,
             "max_completion_tokens": max_tokens,
@@ -75,10 +80,16 @@ class KimiProvider(BaseAIProvider):
             raise KimiAPIError(message) from exc
         except httpx.TimeoutException as exc:
             logger.warning("Kimi API request timed out.")
-            raise KimiAPIError("Kimi did not respond before the request timed out.") from exc
+            raise KimiAPIError(
+                "Kimi did not respond before the request timed out."
+            ) from exc
         except httpx.RequestError as exc:
             logger.warning("Kimi API could not be reached (%s).", type(exc).__name__)
-            raise KimiAPIError("Kimi could not be reached. Check backend network access and retry.") from exc
+            raise KimiAPIError(
+                "Kimi could not be reached. Check backend network access and retry."
+            ) from exc
         except (KeyError, IndexError, TypeError, ValueError) as exc:
             logger.warning("Kimi returned an unreadable completion response.")
-            raise KimiAPIError("Kimi returned an unreadable analysis response.") from exc
+            raise KimiAPIError(
+                "Kimi returned an unreadable analysis response."
+            ) from exc

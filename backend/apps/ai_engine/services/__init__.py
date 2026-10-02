@@ -1,5 +1,5 @@
-from .analysis_service import AnalysisService
 from .ai_service import AIService
+from .analysis_service import AnalysisService
 from .prompt_service import PromptService
 
 __all__ = [

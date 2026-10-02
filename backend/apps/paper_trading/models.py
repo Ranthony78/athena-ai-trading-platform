@@ -1,6 +1,7 @@
 from decimal import Decimal
-from django.db import models
+
 from django.contrib.auth import get_user_model
+from django.db import models
 
 from apps.market_data.models import Instrument
 from shared.models import BaseModel
@@ -76,9 +77,7 @@ class PaperAccount(BaseModel):
         """Return total return as percentage."""
         if self.initial_balance == 0:
             return 0.0
-        return round(
-            float(self.total_pnl) / float(self.initial_balance) * 100, 2
-        )
+        return round(float(self.total_pnl) / float(self.initial_balance) * 100, 2)
 
 
 class PaperOrder(BaseModel):
@@ -302,9 +301,7 @@ class PaperPosition(BaseModel):
         """PnL as percentage of invested value."""
         if self.invested_value == 0:
             return 0.0
-        return round(
-            float(self.unrealized_pnl) / self.invested_value * 100, 2
-        )
+        return round(float(self.unrealized_pnl) / self.invested_value * 100, 2)
 
 
 class PaperTrade(BaseModel):

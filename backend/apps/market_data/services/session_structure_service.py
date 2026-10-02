@@ -19,7 +19,8 @@ future hasn't happened, so there's nothing real to report.
 """
 
 import logging
-from datetime import datetime, time as dtime
+from datetime import datetime
+from datetime import time as dtime
 from typing import Optional
 from zoneinfo import ZoneInfo
 
@@ -42,10 +43,12 @@ class SessionStructureService:
     """
 
     @classmethod
-    def get_today_structure(cls, symbol: str, timeframe: str = "5m") -> Optional[list[dict]]:
+    def get_today_structure(
+        cls, symbol: str, timeframe: str = "5m"
+    ) -> Optional[list[dict]]:
         try:
-            from ..repositories.instrument_repository import InstrumentRepository
             from ..repositories.candle_repository import CandleRepository
+            from ..repositories.instrument_repository import InstrumentRepository
 
             instrument = InstrumentRepository.get_by_symbol(symbol)
             if not instrument:
@@ -62,9 +65,9 @@ class SessionStructureService:
                     instrument=instrument,
                     timeframe=timeframe,
                     candle_time__date=today,
-                ).order_by("candle_time").values(
-                    "candle_time", "open", "high", "low", "close"
                 )
+                .order_by("candle_time")
+                .values("candle_time", "open", "high", "low", "close")
             )
 
             if not candles:
@@ -101,21 +104,26 @@ class SessionStructureService:
 
                 if now_ist < block_start_dt:
                     # Block hasn't started yet — nothing real to report.
-                    blocks.append({
-                        "window": f"{start_str}-{end_str}",
-                        "status": "NOT_STARTED",
-                    })
+                    blocks.append(
+                        {
+                            "window": f"{start_str}-{end_str}",
+                            "status": "NOT_STARTED",
+                        }
+                    )
                     continue
 
                 block_candles = [
-                    c for c in candles
+                    c
+                    for c in candles
                     if start_t <= c["candle_time"].astimezone(IST).time() < end_t
                 ]
                 if not block_candles:
-                    blocks.append({
-                        "window": f"{start_str}-{end_str}",
-                        "status": "NO_DATA",
-                    })
+                    blocks.append(
+                        {
+                            "window": f"{start_str}-{end_str}",
+                            "status": "NO_DATA",
+                        }
+                    )
                     continue
 
                 open_price = float(block_candles[0]["open"])
@@ -125,23 +133,27 @@ class SessionStructureService:
                 range_pts = round(high - low, 2)
                 move_pts = round(close_price - open_price, 2)
 
-                status = "COMPLETE" if now_ist >= datetime.combine(
-                    today, end_t, tzinfo=IST
-                ) else "IN_PROGRESS"
+                status = (
+                    "COMPLETE"
+                    if now_ist >= datetime.combine(today, end_t, tzinfo=IST)
+                    else "IN_PROGRESS"
+                )
 
-                blocks.append({
-                    "window": f"{start_str}-{end_str}",
-                    "status": status,
-                    "open": open_price,
-                    "high": high,
-                    "low": low,
-                    "close": close_price,
-                    "range_pts": range_pts,
-                    "move_pts": move_pts,
-                    "direction": (
-                        "Up" if move_pts > 0 else "Down" if move_pts < 0 else "Flat"
-                    ),
-                })
+                blocks.append(
+                    {
+                        "window": f"{start_str}-{end_str}",
+                        "status": status,
+                        "open": open_price,
+                        "high": high,
+                        "low": low,
+                        "close": close_price,
+                        "range_pts": range_pts,
+                        "move_pts": move_pts,
+                        "direction": (
+                            "Up" if move_pts > 0 else "Down" if move_pts < 0 else "Flat"
+                        ),
+                    }
+                )
 
             return blocks
         except Exception as e:
@@ -149,7 +161,9 @@ class SessionStructureService:
             return None
 
     @classmethod
-    def _most_recent_trading_day_structure(cls, instrument, timeframe: str) -> Optional[list[dict]]:
+    def _most_recent_trading_day_structure(
+        cls, instrument, timeframe: str
+    ) -> Optional[list[dict]]:
         """
         Finds the most recent date with real candles for this instrument
         and computes the same time-block breakdown for that day. Used as
@@ -177,9 +191,9 @@ class SessionStructureService:
                 instrument=instrument,
                 timeframe=timeframe,
                 candle_time__date=target_date,
-            ).order_by("candle_time").values(
-                "candle_time", "open", "high", "low", "close"
             )
+            .order_by("candle_time")
+            .values("candle_time", "open", "high", "low", "close")
         )
         if not candles:
             return None
@@ -190,15 +204,18 @@ class SessionStructureService:
             end_t = dtime.fromisoformat(end_str)
 
             block_candles = [
-                c for c in candles
+                c
+                for c in candles
                 if start_t <= c["candle_time"].astimezone(IST).time() < end_t
             ]
             if not block_candles:
-                blocks.append({
-                    "window": f"{start_str}-{end_str}",
-                    "status": "NO_DATA",
-                    "reference_date": target_date.isoformat(),
-                })
+                blocks.append(
+                    {
+                        "window": f"{start_str}-{end_str}",
+                        "status": "NO_DATA",
+                        "reference_date": target_date.isoformat(),
+                    }
+                )
                 continue
 
             open_price = float(block_candles[0]["open"])
@@ -207,19 +224,23 @@ class SessionStructureService:
             low = min(float(c["low"]) for c in block_candles)
             move_pts = round(close_price - open_price, 2)
 
-            blocks.append({
-                "window": f"{start_str}-{end_str}",
-                "status": "REFERENCE",  # distinct from COMPLETE — signals
-                                         # "this is a past day, not today"
-                                         # to the caller/frontend
-                "reference_date": target_date.isoformat(),
-                "open": open_price,
-                "high": high,
-                "low": low,
-                "close": close_price,
-                "range_pts": round(high - low, 2),
-                "move_pts": move_pts,
-                "direction": "Up" if move_pts > 0 else "Down" if move_pts < 0 else "Flat",
-            })
+            blocks.append(
+                {
+                    "window": f"{start_str}-{end_str}",
+                    "status": "REFERENCE",  # distinct from COMPLETE — signals
+                    # "this is a past day, not today"
+                    # to the caller/frontend
+                    "reference_date": target_date.isoformat(),
+                    "open": open_price,
+                    "high": high,
+                    "low": low,
+                    "close": close_price,
+                    "range_pts": round(high - low, 2),
+                    "move_pts": move_pts,
+                    "direction": (
+                        "Up" if move_pts > 0 else "Down" if move_pts < 0 else "Flat"
+                    ),
+                }
+            )
 
         return blocks

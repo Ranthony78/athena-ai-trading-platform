@@ -1,6 +1,9 @@
 from typing import Optional
+
 from django.db.models import QuerySet
+
 from shared.repositories import BaseRepository
+
 from ..models import Candle, Instrument
 
 
@@ -66,10 +69,14 @@ class CandleRepository(BaseRepository[Candle]):
         timeframe: str,
     ) -> Optional[Candle]:
         """Return the most recent candle for an instrument + timeframe."""
-        return cls.model.objects.filter(
-            instrument=instrument,
-            timeframe=timeframe,
-        ).order_by("-candle_time").first()
+        return (
+            cls.model.objects.filter(
+                instrument=instrument,
+                timeframe=timeframe,
+            )
+            .order_by("-candle_time")
+            .first()
+        )
 
     @classmethod
     def get_range(
@@ -119,7 +126,9 @@ class CandleRepository(BaseRepository[Candle]):
                 unique_fields=["instrument", "timeframe", "candle_time"],
             )
         else:
-            cls.model.objects.bulk_create(objects, batch_size=500, ignore_conflicts=True)
+            cls.model.objects.bulk_create(
+                objects, batch_size=500, ignore_conflicts=True
+            )
 
     @classmethod
     def delete_by_instrument(

@@ -1,6 +1,8 @@
 import time
+
 from django.core.management.base import BaseCommand
 from django.db import close_old_connections
+
 from apps.ai_engine.services.learning_worker_service import LearningWorkerService
 
 
@@ -23,4 +25,3 @@ class Command(BaseCommand):
             if options["once"]:
                 return
             time.sleep(max(30, options["interval"]))
-

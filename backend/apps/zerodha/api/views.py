@@ -33,8 +33,7 @@ from .serializers import (
 logger = logging.getLogger(__name__)
 
 TOKEN_EXPIRED_MESSAGE = (
-    "Your Zerodha session has expired. Please reconnect via "
-    "/api/zerodha/login-url/."
+    "Your Zerodha session has expired. Please reconnect via " "/api/zerodha/login-url/."
 )
 
 
@@ -136,18 +135,14 @@ class ZerodhaTokenExchangeAPIView(APIView):
             )
         try:
             service = ZerodhaAuthService(request.user)
-            result = service.exchange_token(
-                serializer.validated_data["request_token"]
-            )
+            result = service.exchange_token(serializer.validated_data["request_token"])
             return ApiResponse.success(
                 data=result,
                 message="Zerodha login successful.",
             )
         except Exception as e:
             logger.error(f"ZerodhaTokenExchangeAPIView error: {e}")
-            return ApiResponse.error(
-                message=f"Token exchange failed: {str(e)}"
-            )
+            return ApiResponse.error(message=f"Token exchange failed: {str(e)}")
 
 
 class ZerodhaLogoutAPIView(APIView):
@@ -248,6 +243,7 @@ class ZerodhaOrderListAPIView(APIView):
             )
 
         from apps.market_data.engine.market_state import MarketState
+
         if not MarketState.session_info()["is_live"]:
             return ApiResponse.error(
                 message="Live orders can only be submitted during regular market hours.",

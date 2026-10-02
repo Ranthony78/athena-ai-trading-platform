@@ -1,4 +1,5 @@
 import logging
+
 from django.utils import timezone
 
 from apps.ai_engine.providers.ai_provider_factory import AIProviderFactory
@@ -63,10 +64,7 @@ Keep your review concise and actionable — maximum 300 words.
         """Build the review prompt from journal entry data."""
 
         trade_notes = entry.trade_notes.all()
-        mistakes = [
-            t.mistake_type for t in trade_notes
-            if t.mistake_type != "NONE"
-        ]
+        mistakes = [t.mistake_type for t in trade_notes if t.mistake_type != "NONE"]
 
         return f"""
 ## Journal Entry Review Request

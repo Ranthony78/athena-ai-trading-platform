@@ -26,9 +26,7 @@ class PortfolioService:
         stats = PaperTradeRepository.get_stats(account)
 
         # Calculate total unrealized PnL
-        total_unrealized = sum(
-            float(p.unrealized_pnl) for p in positions
-        )
+        total_unrealized = sum(float(p.unrealized_pnl) for p in positions)
 
         return {
             "account": {

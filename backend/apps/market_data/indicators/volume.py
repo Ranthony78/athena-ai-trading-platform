@@ -51,9 +51,7 @@ class OBV(BaseIndicator):
         close = data["close"]
         volume = data["volume"]
 
-        direction = close.diff().apply(
-            lambda x: 1 if x > 0 else (-1 if x < 0 else 0)
-        )
+        direction = close.diff().apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
 
         obv = (volume * direction).cumsum()
         return obv

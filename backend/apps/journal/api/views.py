@@ -287,6 +287,7 @@ class LessonReinforceAPIView(APIView):
     def post(self, request, pk: int):
         try:
             from ..repositories.journal_repository import LessonRepository
+
             lesson = LessonRepository.get_by_id(pk)
 
             if not lesson or lesson.user != request.user:
