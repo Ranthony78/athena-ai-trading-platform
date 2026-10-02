@@ -4,7 +4,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView
 from rest_framework.filters import SearchFilter
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenRefreshView
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
@@ -16,6 +18,7 @@ from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 
 from .serializers import LoginSerializer, ManagedUserSerializer, PasswordResetConfirmSerializer, RegistrationSerializer, UserSerializer
+from .token_utils import revoke_user_tokens
 
 User = get_user_model()
 
@@ -33,6 +36,8 @@ def auth_response(user, message, response_status=status.HTTP_200_OK):
 
 class LoginAPIView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth"
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -45,6 +50,8 @@ class LoginAPIView(APIView):
 
 class RegistrationAPIView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "register"
 
     def post(self, request):
         serializer = RegistrationSerializer(data=request.data)
@@ -55,6 +62,8 @@ class RegistrationAPIView(APIView):
 
 class GoogleLoginAPIView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth"
 
     def post(self, request):
         client_id = getattr(settings, "GOOGLE_OAUTH_CLIENT_ID", "")
@@ -99,8 +108,15 @@ class GoogleLoginAPIView(APIView):
             if not user.is_active:
                 return Response({"success": False, "message": "This account is inactive."}, status=status.HTTP_403_FORBIDDEN)
             if not user.is_email_verified:
+                # Registration does not verify email, so whoever created this
+                # account may not own the address. Google has just proven the
+                # real owner, so discard any password and sessions held by
+                # the registrant before handing the account over; otherwise
+                # they keep access to an account the owner now uses.
+                user.set_unusable_password()
                 user.is_email_verified = True
-                user.save(update_fields=["is_email_verified"])
+                user.save(update_fields=["password", "is_email_verified"])
+                revoke_user_tokens(user)
 
         return auth_response(user, "Google sign-in successful.")
 
@@ -175,6 +191,8 @@ class ManagedUserPasswordResetAPIView(APIView):
 
 class PasswordResetConfirmAPIView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth"
 
     def post(self, request):
         serializer = PasswordResetConfirmSerializer(data=request.data)
@@ -196,7 +214,17 @@ class PasswordResetConfirmAPIView(APIView):
 
         user.set_password(serializer.validated_data["new_password"])
         user.save(update_fields=["password"])
+        # A reset is often a response to a compromised account: make sure any
+        # existing session cannot be renewed with the old credentials.
+        revoke_user_tokens(user)
         return Response({"success": True, "message": "Password updated. You can now sign in."}, status=status.HTTP_200_OK)
+
+
+class ThrottledTokenRefreshView(TokenRefreshView):
+    """POST /api/accounts/token/refresh/ — rotates the refresh token."""
+
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "refresh"
 
 
 class ProfileAPIView(APIView):

@@ -107,10 +107,11 @@ stage" this file previously described.
   exposure-limit engine exists yet, despite being a stated core
   requirement in `01-ATHENA_APPLICATION_CONTEXT.md` §19.
 - **Test coverage** — `paper_trading`, `backtesting`, `strategies`
-  (read-only API / 410 stubs), `ai_engine` and `market_data` (targeted
-  regression tests, not full coverage), and `zerodha`'s live-trading gate
-  have real tests. `accounts`,
-  `dashboard`, `journal`, `knowledge`, and `notifications`
+  (read-only API / 410 stubs), `accounts` (registration, login, Google
+  sign-in, refresh, user management, password reset, throttling, production
+  secret-key guard), `ai_engine` and `market_data` (targeted regression
+  tests, not full coverage), and `zerodha`'s live-trading gate
+  have real tests. `dashboard`, `journal`, `knowledge`, and `notifications`
   still have the default Django test stub only, despite
   several of them containing trading-relevant calculations.
 - **Frontend functional verification** — the React app is fully

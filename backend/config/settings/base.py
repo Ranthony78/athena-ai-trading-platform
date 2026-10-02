@@ -155,6 +155,15 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_PAGINATION_CLASS": "shared.pagination.AthenaPagination",
     "PAGE_SIZE": 20,
+    # Only views that opt in with throttle_scope are throttled (see
+    # apps/accounts/views.py). Counters live in Django's cache, which is
+    # per-process by default, so with N workers the effective limit is up to
+    # N x the rate; point CACHES at Redis if that matters.
+    "DEFAULT_THROTTLE_RATES": {
+        "auth": "10/min",       # login, Google sign-in, password-reset confirm
+        "register": "10/hour",  # account creation
+        "refresh": "60/min",    # token refresh
+    },
 }
 
 # -----------------------------------------------------
@@ -162,7 +171,7 @@ REST_FRAMEWORK = {
 # -----------------------------------------------------
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=300),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
