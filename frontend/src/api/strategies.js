@@ -1,26 +1,14 @@
 import api from "./axios";
 
+// Strategies are read-only from the UI: create/update/delete and the
+// rule-based run endpoints were retired in favour of the AI Workspace
+// (the backend answers /strategies/run/ and /run-all/ with 410 Gone).
 export const strategiesAPI = {
     getStrategies: () =>
         api.get("/strategies/"),
 
-    createStrategy: (data) =>
-        api.post("/strategies/", data),
-
     getStrategy: (id) =>
         api.get(`/strategies/${id}/`),
-
-    updateStrategy: (id, data) =>
-        api.put(`/strategies/${id}/`, data),
-
-    deleteStrategy: (id) =>
-        api.delete(`/strategies/${id}/`),
-
-    runStrategy: (data) =>
-        api.post("/strategies/run/", data),
-
-    runAll: (symbols) =>
-        api.post("/strategies/run-all/", { symbols }),
 
     getSignals: (params) =>
         api.get("/strategies/signals/", { params }),
