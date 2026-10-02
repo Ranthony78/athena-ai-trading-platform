@@ -65,12 +65,6 @@ class ForecastOutcomeService:
                 "UP" if move_pct > band else "DOWN" if move_pct < -band else "SIDEWAYS"
             )
 
-            probability = (session.parsed_output or {}).get("probability") or {}
-            probability_by_class = {
-                "UP": probability.get("upside_pct"),
-                "DOWN": probability.get("downside_pct"),
-                "SIDEWAYS": probability.get("sideways_pct"),
-            }
             from .learning_service import LearningService
 
             probabilities = LearningService._probability(session)

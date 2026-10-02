@@ -15,7 +15,6 @@ not attempted here until that's confirmed to exist.
 """
 
 from datetime import timedelta
-from decimal import Decimal
 from statistics import median
 from zoneinfo import ZoneInfo
 

@@ -1,9 +1,7 @@
 import logging
-from datetime import datetime
 from decimal import Decimal
 
 from django.db import transaction
-from django.utils import timezone
 
 from apps.ai_engine.models import AnalysisSession
 from apps.market_data.models import Instrument

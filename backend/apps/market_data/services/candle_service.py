@@ -2,7 +2,7 @@ from typing import Optional
 
 from django.db.models import QuerySet
 
-from ..models import Candle, Instrument
+from ..models import Candle
 from ..providers.provider_factory import ProviderFactory
 from ..repositories.candle_repository import CandleRepository
 from ..repositories.instrument_repository import InstrumentRepository

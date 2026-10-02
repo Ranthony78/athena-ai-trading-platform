@@ -27,7 +27,6 @@ from .serializers import (
     TokenExchangeSerializer,
     ZerodhaConfigSerializer,
     ZerodhaConfigUpdateSerializer,
-    ZerodhaSessionSerializer,
 )
 
 logger = logging.getLogger(__name__)

@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime
 from decimal import ROUND_HALF_UP, Decimal
 
 from django.utils import timezone

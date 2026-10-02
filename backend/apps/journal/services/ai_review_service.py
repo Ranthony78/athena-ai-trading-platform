@@ -5,7 +5,6 @@ from django.utils import timezone
 from apps.ai_engine.providers.ai_provider_factory import AIProviderFactory
 
 from ..models import JournalEntry
-from ..repositories.journal_repository import JournalEntryRepository
 
 logger = logging.getLogger(__name__)
 

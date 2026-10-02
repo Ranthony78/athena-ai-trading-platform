@@ -19,7 +19,7 @@ from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
 
 from apps.market_data.models import Instrument
-from apps.paper_trading.models import PaperAccount, PaperPosition, PaperTrade
+from apps.paper_trading.models import PaperAccount, PaperTrade
 from apps.paper_trading.services.broker_simulator import BrokerSimulator
 from apps.paper_trading.services.position_service import BROKERAGE, PositionService
 

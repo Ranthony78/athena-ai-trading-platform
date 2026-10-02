@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime
 
 import pandas as pd
 from django.utils import timezone
@@ -8,7 +7,6 @@ from apps.market_data.repositories.candle_repository import CandleRepository
 from apps.market_data.repositories.instrument_repository import InstrumentRepository
 
 from ..models import Strategy, StrategySignal
-from ..repositories.signal_repository import SignalRepository
 from ..strategies.base_strategy import BaseStrategy, SignalResult
 from ..strategies.ema_crossover import EMACrossoverStrategy
 from ..strategies.orb_strategy import ORBStrategy

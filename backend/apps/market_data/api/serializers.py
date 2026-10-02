@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from ..models import Candle, Instrument, Quote
+from ..models import Candle, Instrument
 
 
 class InstrumentSerializer(serializers.ModelSerializer):

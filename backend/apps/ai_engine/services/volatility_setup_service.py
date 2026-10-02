@@ -5,7 +5,6 @@ AI signal, historical probabilities, or authorize a live order.
 """
 
 import math
-from datetime import timedelta
 
 from django.conf import settings
 from django.utils import timezone

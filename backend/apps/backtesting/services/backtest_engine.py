@@ -5,11 +5,10 @@ from typing import Optional
 import pandas as pd
 
 from apps.market_data.repositories.candle_repository import CandleRepository
-from apps.market_data.repositories.instrument_repository import InstrumentRepository
 from apps.strategies.services.strategy_engine import StrategyEngine
 from apps.strategies.strategies.base_strategy import BaseStrategy, SignalResult
 
-from ..models import BacktestRun, BacktestTrade
+from ..models import BacktestRun
 
 logger = logging.getLogger(__name__)
 

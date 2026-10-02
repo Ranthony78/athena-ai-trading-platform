@@ -1,5 +1,3 @@
-from typing import Optional
-
 from django.db.models import QuerySet
 from django.utils import timezone
 

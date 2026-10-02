@@ -43,8 +43,6 @@ def sync_intraday_candles():
     """
     from datetime import date
 
-    from django.contrib.auth import get_user_model
-
     from apps.zerodha.repositories.zerodha_repository import ZerodhaConfigRepository
 
     from .engine.market_state import MarketState

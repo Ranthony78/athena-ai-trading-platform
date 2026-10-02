@@ -1,14 +1,11 @@
 import logging
 from decimal import Decimal
 
-from django.utils import timezone
-
 from apps.market_data.providers.provider_factory import ProviderFactory
 
-from ..models import Alert, Notification
+from ..models import Alert
 from ..repositories.notification_repository import (
     AlertRepository,
-    NotificationRepository,
 )
 from .notification_service import NotificationService
 

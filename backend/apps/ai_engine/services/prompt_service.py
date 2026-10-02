@@ -164,7 +164,7 @@ Rules:
 - Numeric probabilities come only from Athena's horizon-matched historical outcome calculation. Never invent, adjust, or substitute full-session rates for them.
 - High event risk means NO_SETUP only when a supplied verified source establishes high risk; unavailable event coverage stays unknown.
 - Follow the CURRENT OUTPUT CONTRACT in the system message and the exact JSON schema in the user message.
-"""
+"""  # noqa: W291 - trailing space is part of the stored prompt text
 
     # ------------------------------------------------------------------
     # Market Analysis Prompt
