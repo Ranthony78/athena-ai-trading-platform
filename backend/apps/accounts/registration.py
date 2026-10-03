@@ -65,3 +65,32 @@ def notify_staff_of_pending_user(user) -> None:
         )
     except Exception:  # never block sign-up on email trouble
         logger.warning("Could not notify staff about a pending account.", exc_info=True)
+
+
+def notify_user_of_activation(user) -> None:
+    """
+    Tell a user their account is now active (approved, or switched back on).
+
+    Best effort only, like the staff notification: the status change is
+    already saved, so a mail problem must not undo it or fail the request.
+    No password or token is ever included; the user signs in as usual.
+    """
+    if not user.email:
+        return
+    try:
+        sign_in_url = f"{settings.FRONTEND_URL.rstrip('/')}/login"
+        name = user.first_name or user.username
+        send_mail(
+            subject="Your Athena account is active",
+            message=(
+                f"Hi {name},\n\n"
+                "An administrator has activated your Athena account. "
+                "You can sign in now:\n\n"
+                f"{sign_in_url}\n"
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
+    except Exception:  # never fail the status change on email trouble
+        logger.warning("Could not notify a user about activation.", exc_info=True)

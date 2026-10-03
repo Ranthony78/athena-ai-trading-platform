@@ -1,3 +1,5 @@
+from zoneinfo import available_timezones
+
 from django.contrib.auth.backends import AllowAllUsersModelBackend
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
@@ -79,6 +81,36 @@ class UserSerializer(serializers.ModelSerializer):
             "is_staff",
         ]
         read_only_fields = fields
+
+
+class ProfileUpdateSerializer(serializers.ModelSerializer):
+    """
+    What a user may change about themselves. Anything not listed here
+    (username, email, staff/superuser flags, active state, password) is
+    ignored, so it cannot be changed through this endpoint.
+
+    Email is deliberately not editable: accounts are linked to Google sign-in
+    by email, and an unverified change would reopen account takeover.
+    """
+
+    phone = serializers.RegexField(
+        r"^[0-9+()\-\s]*$",
+        max_length=20,
+        required=False,
+        allow_blank=True,
+        error_messages={"invalid": "Use digits, spaces and + ( ) - only."},
+    )
+
+    class Meta:
+        model = User
+        fields = ["first_name", "last_name", "phone", "timezone"]
+
+    def validate_timezone(self, value):
+        if value not in available_timezones():
+            raise serializers.ValidationError(
+                "Choose a valid timezone, for example Asia/Kolkata."
+            )
+        return value
 
 
 class ManagedUserSerializer(serializers.ModelSerializer):

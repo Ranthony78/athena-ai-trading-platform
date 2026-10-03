@@ -22,5 +22,8 @@ export const authAPI = {
 
     profile: () => api.get("/accounts/profile/"),
 
+    // Only first_name, last_name, phone and timezone can be changed.
+    updateProfile: (values) => api.patch("/accounts/profile/", values),
+
     refreshToken: (refresh) => api.post("/accounts/token/refresh/", { refresh }),
 };

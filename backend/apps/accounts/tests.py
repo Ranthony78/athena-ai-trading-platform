@@ -782,3 +782,190 @@ class RegistrationModeSettingTests(SimpleTestCase):
             result = self.load_settings(mode)
             self.assertNotEqual(result.returncode, 0, mode)
             self.assertIn("REGISTRATION_MODE", result.stderr)
+
+
+@FAST_HASHER
+@MAIL_SETTINGS
+class ActivationEmailTests(AuthAPITestCase):
+    """Users are told when staff activate their account (no password is ever sent)."""
+
+    def setUp(self):
+        super().setUp()
+        self.admin = User.objects.create_user(
+            "admin", "admin@example.com", STRONG_PASSWORD, is_staff=True
+        )
+        self.client.force_authenticate(self.admin)
+
+    def make_user(self, username="pia", email="pia@example.com", **extra):
+        return User.objects.create_user(username, email, STRONG_PASSWORD, **extra)
+
+    def set_active(self, user, value):
+        return self.client.patch(
+            f"/api/accounts/users/{user.pk}/status/",
+            {"is_active": value},
+            format="json",
+        )
+
+    def test_approving_a_pending_user_emails_them_a_sign_in_link(self):
+        pending = self.make_user(is_active=False)
+
+        response = self.set_active(pending, True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.to, ["pia@example.com"])
+        self.assertIn("https://athena.example/login", message.body)
+        self.assertNotIn(STRONG_PASSWORD, message.body)
+        self.assertNotIn("token", message.body.lower())
+
+    def test_no_email_when_the_account_was_already_active(self):
+        active = self.make_user()
+
+        self.assertEqual(self.set_active(active, True).status_code, 200)
+
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_no_email_when_deactivating(self):
+        active = self.make_user()
+
+        self.assertEqual(self.set_active(active, False).status_code, 200)
+
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_switching_a_deactivated_account_back_on_also_emails(self):
+        user = self.make_user(is_active=False)
+        User.objects.filter(pk=user.pk).update(last_login="2026-01-01T00:00:00Z")
+
+        self.set_active(user, True)
+
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_a_user_without_an_email_is_activated_quietly(self):
+        user = self.make_user(email="", is_active=False)
+
+        response = self.set_active(user, True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_a_mail_failure_does_not_undo_the_activation(self):
+        pending = self.make_user(is_active=False)
+
+        with patch(
+            "apps.accounts.registration.send_mail", side_effect=OSError("smtp down")
+        ):
+            response = self.set_active(pending, True)
+
+        self.assertEqual(response.status_code, 200)
+        pending.refresh_from_db()
+        self.assertTrue(pending.is_active)
+
+
+@FAST_HASHER
+class ProfileTests(AuthAPITestCase):
+    """Users can edit their own name, phone and timezone, and nothing else."""
+
+    def setUp(self):
+        super().setUp()
+        self.user = User.objects.create_user(
+            "pat",
+            "pat@example.com",
+            STRONG_PASSWORD,
+            first_name="Pat",
+            last_name="Old",
+        )
+        self.other = User.objects.create_user("sam", "sam@example.com", STRONG_PASSWORD)
+        self.client.force_authenticate(self.user)
+
+    def patch(self, payload):
+        return self.client.patch("/api/accounts/profile/", payload, format="json")
+
+    def test_profile_can_be_read(self):
+        response = self.client.get("/api/accounts/profile/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["user"]["username"], "pat")
+
+    def test_name_phone_and_timezone_can_be_updated(self):
+        response = self.patch(
+            {
+                "first_name": "Patricia",
+                "last_name": "New",
+                "phone": "+91 98765-43210",
+                "timezone": "Asia/Dubai",
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data["success"])
+        self.user.refresh_from_db()
+        self.assertEqual(
+            (
+                self.user.first_name,
+                self.user.last_name,
+                self.user.phone,
+                self.user.timezone,
+            ),
+            ("Patricia", "New", "+91 98765-43210", "Asia/Dubai"),
+        )
+        self.assertEqual(response.data["user"]["first_name"], "Patricia")
+
+    def test_a_partial_update_leaves_other_fields_alone(self):
+        self.patch({"phone": "12345"})
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.first_name, "Pat")
+        self.assertEqual(self.user.phone, "12345")
+
+    def test_identity_and_privilege_fields_cannot_be_changed(self):
+        original_hash = self.user.password
+
+        response = self.patch(
+            {
+                "username": "hijacked",
+                "email": "victim@example.com",
+                "is_staff": True,
+                "is_superuser": True,
+                "is_active": False,
+                "is_email_verified": True,
+                "password": "Overwritten!12345",
+                "first_name": "Still Allowed",
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.username, "pat")
+        self.assertEqual(self.user.email, "pat@example.com")
+        self.assertFalse(self.user.is_staff)
+        self.assertFalse(self.user.is_superuser)
+        self.assertTrue(self.user.is_active)
+        self.assertFalse(self.user.is_email_verified)
+        self.assertEqual(self.user.password, original_hash)
+        self.assertEqual(self.user.first_name, "Still Allowed")
+
+    def test_invalid_values_are_rejected_without_changing_anything(self):
+        for payload in (
+            {"timezone": "Mars/Olympus"},
+            {"phone": "call me maybe"},
+            {"phone": "1" * 21},
+            {"first_name": "x" * 151},
+        ):
+            response = self.patch(payload)
+            self.assertEqual(response.status_code, 400, payload)
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.timezone, "Asia/Kolkata")
+        self.assertEqual(self.user.phone, "")
+
+    def test_it_only_ever_edits_the_signed_in_user(self):
+        self.patch({"first_name": "Mine"})
+
+        self.other.refresh_from_db()
+        self.assertEqual(self.other.first_name, "")
+
+    def test_requires_authentication(self):
+        self.client.force_authenticate(None)
+
+        self.assertIn(self.patch({"first_name": "x"}).status_code, (401, 403))

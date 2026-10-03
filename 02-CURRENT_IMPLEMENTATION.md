@@ -27,7 +27,7 @@ level of direct source verification, not assumption.
 
 | Module | Capability | Status | Notes |
 |---|---|---|---|
-| accounts | JWT auth: login, logout, profile, refresh, Swagger Bearer, protected API access; registration, Google sign-in, user management, admin-initiated password reset | ✅ IMPLEMENTED | Sign-up policy is set by `REGISTRATION_MODE`: **`approval`** (default; accounts are created inactive and a staff member approves them in User Management, staff are emailed), `open` (sign in immediately) or `closed` (no new accounts; existing users, including Google users, can still sign in). The same rule covers first-time Google sign-in. An unknown value stops the app at startup. Login/Google/reset/register/refresh are rate limited. Covered by `accounts/tests.py` (53 tests) |
+| accounts | JWT auth: login, logout, profile, refresh, Swagger Bearer, protected API access; registration, Google sign-in, user management, admin-initiated password reset | ✅ IMPLEMENTED | Sign-up policy is set by `REGISTRATION_MODE`: **`approval`** (default; accounts are created inactive and a staff member approves them in User Management, staff are emailed), `open` (sign in immediately) or `closed` (no new accounts; existing users, including Google users, can still sign in). The same rule covers first-time Google sign-in. An unknown value stops the app at startup. Login/Google/reset/register/refresh are rate limited. When staff activate an account the user is emailed a sign-in link (best effort; no password or token). Signed-in users can edit their own name, phone and timezone (`PATCH /api/accounts/profile/`); username, email and privilege flags cannot be changed there. Covered by `accounts/tests.py` (66 tests) |
 | platform | CORS | ✅ IMPLEMENTED | Browsers may call the API only from `CORS_ALLOWED_ORIGINS` (comma-separated; dev default is the local Vite origins, production default is none). Credentialed cross-origin requests are off because the frontend authenticates with a JWT header. A wildcard or scheme-less origin fails `manage.py check`. Covered by `config/tests.py` |
 | dashboard | Protected dashboard API returning authenticated info + module status | ✅ IMPLEMENTED (basic) | Still a simple status/orchestration endpoint, not a real aggregation of other modules' data |
 | market_data | Instrument / Quote / Candle models, serializers, API, services, providers, Django Admin | ✅ IMPLEMENTED | |
@@ -41,7 +41,7 @@ level of direct source verification, not assumption.
 | journal | Trade journaling | ✅ IMPLEMENTED | Entries, trade notes, lessons/rules, AI review service |
 | knowledge | Long-term reference/lesson store | ✅ IMPLEMENTED | Articles, book notes, trading rules, prompt library, search. Articles are private to their owner: reading, summarizing, editing or deleting by slug works only for the author, and another user's slug behaves exactly like a missing one (and never bumps their view count). Covered by `knowledge/tests.py` |
 | notifications | Email/Telegram/in-app alerts | ✅ IMPLEMENTED | Preferences, price/strategy/AI-signal alerts. WhatsApp from the original vision doc is not implemented |
-| **zerodha** | Zerodha Kite Connect integration — config/session models, token exchange, MCP-backed service layer, live order placement | ✅ IMPLEMENTED | **Not part of the original 10-app list documented below — this is an 11th app that exists in the repo and needs to stay in this list going forward.** Live order placement is hard-gated behind `LIVE_TRADING_ENABLED` — see dedicated section below. Has test coverage for that gate only (3 tests); the rest of the app's services (`KiteService`, `ZerodhaAuthService`, MCP layer) have no test coverage yet |
+| **zerodha** | Zerodha Kite Connect integration — config/session models, token exchange, MCP-backed service layer, live order placement | ✅ IMPLEMENTED | **Not part of the original 10-app list documented below — this is an 11th app that exists in the repo and needs to stay in this list going forward.** Live order placement is hard-gated behind `LIVE_TRADING_ENABLED` — see dedicated section below. Has test coverage for that gate and for the `LIVE_TRADING_ENABLED` setting only (8 tests); the rest of the app's services (`KiteService`, `ZerodhaAuthService`, MCP layer) have no test coverage yet |
 | frontend (React) | Login, dashboard, charts, option chain, AI analysis, strategies, paper trading, backtesting, journal, knowledge, notifications, Zerodha, settings | 🟡 PARTIAL | Fully scaffolded — a page, components, a store, and an API client exist per module (`frontend/src/pages/*`, `store/`, `api/`) — but functional correctness against the live backend has not been independently verified as part of any audit to date |
 | Live market data / streaming | WebSocket feeds, market depth | 🟡 PARTIAL | `channels`, `daphne`, `channels-redis` are installed and `CHANNEL_LAYERS` is configured in settings, but `config/asgi.py` still only exposes the plain Django ASGI app (`get_asgi_application()`) — there is no `ProtocolTypeRouter`, `routing.py`, or `consumers.py` anywhere in the repo. No WebSocket endpoint is actually reachable, despite the frontend's `useWebSocket.js` expecting one at `ws://.../ws/market/quotes/` |
 | Options analysis | OI, PCR, IV, Greeks, ATM/ITM/OTM strikes | ✅ IMPLEMENTED | `option_chain_service.py` computes real Black-Scholes Greeks (delta/gamma/theta/vega) and implied volatility — not placeholder zeros |
@@ -66,17 +66,19 @@ order.
   This controls which market-data provider `market_data/providers/provider_factory.py`
   uses — it does **not** by itself gate order placement.
 - **`LIVE_TRADING_ENABLED`** (`config/settings/base.py`) defaults to
-  `False`, read from the `LIVE_TRADING_ENABLED` environment variable.
-  `production.py` sets it to `True`. This is the actual gate.
+  `False`, read from the `LIVE_TRADING_ENABLED` environment variable (only
+  the exact value `True` turns it on). `production.py` no longer forces it
+  on, so production is also off until the server's environment sets it.
+  `development.py` always forces it off. This is the actual gate.
 - `ZerodhaOrderListAPIView.post()` checks `settings.LIVE_TRADING_ENABLED`
   directly and unconditionally, before touching the serializer or
   `KiteService`, returning `403 Forbidden` if it's not explicitly `True` —
   **independent of what `MARKET_PROVIDER` resolves to**. This means even a
   misconfigured environment that has `MARKET_PROVIDER="zerodha"` cannot
   place a live order unless `LIVE_TRADING_ENABLED` is also explicitly on.
-- To enable live trading anywhere outside of `production.py`, set
-  `LIVE_TRADING_ENABLED=True` in `.env` explicitly — there is no other way
-  to turn it on.
+- To enable live trading in production, set `LIVE_TRADING_ENABLED=True` in
+  the server's environment explicitly — there is no other way to turn it
+  on. (`development.py` ignores the variable and always keeps it off.)
 - Covered by `apps/zerodha/tests.py` (`LiveTradingGateTestCase`): gate
   blocks when disabled, gate allows when enabled, and the existing
   401-on-expired-token behavior is unaffected by the gate.
