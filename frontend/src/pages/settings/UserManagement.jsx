@@ -16,14 +16,23 @@ function getErrorMessage(error) {
 
 export default function UserManagement() {
     const [search, setSearch] = useState("");
+    const [status, setStatus] = useState("");
     const [page, setPage] = useState(1);
     const [resetNotice, setResetNotice] = useState("");
     const queryClient = useQueryClient();
     const usersQuery = useQuery({
-        queryKey: ["managed-users", search, page],
-        queryFn: () => authAPI.getUsers({ search, page }),
+        queryKey: ["managed-users", search, status, page],
+        queryFn: () => authAPI.getUsers({ search, page, ...(status ? { status } : {}) }),
         retry: false,
     });
+    // Sign-ups waiting for approval, whatever filter is showing.
+    const pendingQuery = useQuery({
+        queryKey: ["managed-users", "pending-count"],
+        queryFn: () => authAPI.getUsers({ status: "pending" }),
+        select: (response) => response.data.count,
+        retry: false,
+    });
+    const pendingCount = pendingQuery.data || 0;
     const statusMutation = useMutation({
         mutationFn: ({ id, isActive }) => authAPI.setUserActive(id, isActive),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ["managed-users"] }),
@@ -57,6 +66,15 @@ export default function UserManagement() {
                     }
                 />
             )}
+            {pendingCount > 0 && status !== "pending" && (
+                <Alert
+                    type="warning"
+                    title="Accounts waiting for approval"
+                    message={`${pendingCount} ${
+                        pendingCount === 1 ? "account is" : "accounts are"
+                    } waiting for you to approve ${pendingCount === 1 ? "it" : "them"}. Choose "Awaiting approval" in the filter to review.`}
+                />
+            )}
             {passwordResetMutation.error && (
                 <Alert type="error" message={getErrorMessage(passwordResetMutation.error)} />
             )}
@@ -75,6 +93,20 @@ export default function UserManagement() {
                             {count} registered {count === 1 ? "user" : "users"}
                         </p>
                     </div>
+                    <select
+                        value={status}
+                        onChange={(event) => {
+                            setStatus(event.target.value);
+                            setPage(1);
+                        }}
+                        aria-label="Filter accounts"
+                        className="h-10 rounded-lg border border-dark-700 bg-dark-900 px-3 text-sm text-dark-100 outline-none focus:border-primary-500"
+                    >
+                        <option value="">All accounts</option>
+                        <option value="pending">Awaiting approval</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
                     <label className="relative block w-full sm:max-w-xs">
                         <Search
                             className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-dark-500"
@@ -144,13 +176,21 @@ export default function UserManagement() {
                                                 </span>
                                             </td>
                                             <td className="px-3 py-4">
-                                                <Badge
-                                                    variant={
-                                                        managedUser.is_active ? "green" : "red"
-                                                    }
-                                                >
-                                                    {managedUser.is_active ? "Active" : "Inactive"}
-                                                </Badge>
+                                                {managedUser.is_pending ? (
+                                                    <Badge variant="yellow">
+                                                        Awaiting approval
+                                                    </Badge>
+                                                ) : (
+                                                    <Badge
+                                                        variant={
+                                                            managedUser.is_active ? "green" : "red"
+                                                        }
+                                                    >
+                                                        {managedUser.is_active
+                                                            ? "Active"
+                                                            : "Inactive"}
+                                                    </Badge>
+                                                )}
                                             </td>
                                             <td className="px-3 py-4 text-xs text-dark-400">
                                                 {formatDate(managedUser.last_login)}
@@ -214,7 +254,9 @@ export default function UserManagement() {
                                                     >
                                                         {managedUser.is_active
                                                             ? "Deactivate"
-                                                            : "Activate"}
+                                                            : managedUser.is_pending
+                                                              ? "Approve"
+                                                              : "Activate"}
                                                     </Button>
                                                 </div>
                                             </td>

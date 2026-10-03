@@ -5,6 +5,8 @@ export const authAPI = {
 
     register: (details) => api.post("/accounts/register/", details),
 
+    getRegistrationMode: () => api.get("/accounts/registration/"),
+
     googleLogin: (credential) => api.post("/accounts/google/", { credential }),
 
     getUsers: (params) => api.get("/accounts/users/", { params }),

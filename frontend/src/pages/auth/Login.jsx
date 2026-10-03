@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { ArrowRight, Eye, EyeOff, LockKeyhole, ShieldCheck, UserRound, Mail } from "lucide-react";
 import { AuthLayout } from "../../components/layout";
 import { Alert, Button } from "../../components/common";
-import { useGoogleLogin, useLogin, useRegister } from "../../hooks/useAuth";
+import { useGoogleLogin, useLogin, useRegister, useRegistrationMode } from "../../hooks/useAuth";
 
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
@@ -36,6 +36,14 @@ export default function Login() {
     const googleMutation = useGoogleLogin();
     const googleSignIn = googleMutation.mutate;
     const activeMutation = isSignup ? registerMutation : loginMutation;
+    const registrationMode = useRegistrationMode().data;
+    const isClosed = registrationMode === "closed";
+    const needsApproval = registrationMode === "approval";
+    // Set when a sign-up (password or first Google sign-in) was accepted but
+    // an administrator still has to approve it.
+    const pendingMessage = [registerMutation.data, googleMutation.data]
+        .map((response) => response?.data)
+        .find((data) => data?.pending_approval)?.message;
 
     useEffect(() => {
         if (!googleClientId || !googleButton.current) return undefined;
@@ -82,6 +90,39 @@ export default function Login() {
     const setField = (event) =>
         setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
 
+    // No form to show: either the request is waiting for approval, or nobody
+    // can register right now.
+    if (pendingMessage || (isSignup && isClosed)) {
+        return (
+            <AuthLayout>
+                <div className="mb-8">
+                    <p className="auth-eyebrow mb-3 text-[11px] font-bold uppercase tracking-[0.2em]">
+                        {pendingMessage ? "Request received" : "Registration closed"}
+                    </p>
+                    <h2 className="font-serif text-4xl font-medium tracking-tight text-dark-50">
+                        {pendingMessage ? "Almost there." : "Sign-up is closed."}
+                    </h2>
+                </div>
+                <div className="mb-6">
+                    {pendingMessage ? (
+                        <Alert type="success" message={pendingMessage} />
+                    ) : (
+                        <Alert
+                            type="warning"
+                            message="Registration is closed. Ask an administrator to create an account for you."
+                        />
+                    )}
+                </div>
+                <Link
+                    to="/login"
+                    className="auth-accent-text text-sm font-semibold hover:underline"
+                >
+                    Back to sign in
+                </Link>
+            </AuthLayout>
+        );
+    }
+
     return (
         <AuthLayout>
             <div className="mb-8">
@@ -98,6 +139,14 @@ export default function Login() {
                 </p>
             </div>
 
+            {isSignup && needsApproval && (
+                <div className="mb-5">
+                    <Alert
+                        type="info"
+                        message="New accounts need administrator approval before you can sign in."
+                    />
+                </div>
+            )}
             {activeMutation.error && (
                 <div className="mb-5">
                     <Alert type="error" message={errorMessage(activeMutation.error)} />
@@ -276,15 +325,17 @@ export default function Login() {
                 </Button>
             </form>
 
-            <p className="mt-6 text-center text-sm text-dark-500">
-                {isSignup ? "Already have an account? " : "New to Athena? "}
-                <Link
-                    to={isSignup ? "/login" : "/signup"}
-                    className="auth-accent-text font-semibold hover:underline"
-                >
-                    {isSignup ? "Sign in" : "Create an account"}
-                </Link>
-            </p>
+            {!isClosed && (
+                <p className="mt-6 text-center text-sm text-dark-500">
+                    {isSignup ? "Already have an account? " : "New to Athena? "}
+                    <Link
+                        to={isSignup ? "/login" : "/signup"}
+                        className="auth-accent-text font-semibold hover:underline"
+                    >
+                        {isSignup ? "Sign in" : "Create an account"}
+                    </Link>
+                </p>
+            )}
             <div className="mt-5 flex items-center justify-center gap-2 text-xs text-dark-500">
                 <ShieldCheck className="auth-accent-text h-4 w-4" aria-hidden="true" />
                 Secure access to your Athena account
