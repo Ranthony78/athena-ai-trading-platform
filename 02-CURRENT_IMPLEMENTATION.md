@@ -27,7 +27,7 @@ level of direct source verification, not assumption.
 
 | Module | Capability | Status | Notes |
 |---|---|---|---|
-| accounts | JWT auth: login, logout, profile, refresh, Swagger Bearer, protected API access | ✅ IMPLEMENTED | |
+| accounts | JWT auth: login, logout, profile, refresh, Swagger Bearer, protected API access; registration, Google sign-in, user management, admin-initiated password reset | ✅ IMPLEMENTED | Sign-up policy is set by `REGISTRATION_MODE`: **`approval`** (default; accounts are created inactive and a staff member approves them in User Management, staff are emailed), `open` (sign in immediately) or `closed` (no new accounts; existing users, including Google users, can still sign in). The same rule covers first-time Google sign-in. An unknown value stops the app at startup. Login/Google/reset/register/refresh are rate limited. Covered by `accounts/tests.py` (53 tests) |
 | dashboard | Protected dashboard API returning authenticated info + module status | ✅ IMPLEMENTED (basic) | Still a simple status/orchestration endpoint, not a real aggregation of other modules' data |
 | market_data | Instrument / Quote / Candle models, serializers, API, services, providers, Django Admin | ✅ IMPLEMENTED | |
 | market_data | Repository layer: `base_repository.py`, `instrument_repository.py`, `quote_repository.py`, `candle_repository.py`, `market_repository.py` | ✅ IMPLEMENTED | Previously flagged as "next up" — this is built and in use |
