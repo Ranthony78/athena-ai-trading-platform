@@ -15,6 +15,15 @@ if SECRET_KEY == "change-me" or len(SECRET_KEY) < 32:
         "characters in production."
     )
 
+# Production starts with no cross-origin access: the local dev origins that
+# base.py allows by default must not carry over. List the real frontend origin
+# in CORS_ALLOWED_ORIGINS if it is served from a different origin than the API.
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
+]
+
 # Production is the one place allowed to flip these on by default; an
 # explicit LIVE_TRADING_ENABLED=True in the environment can also do so
 # from any settings module — see base.py.

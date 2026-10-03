@@ -227,9 +227,21 @@ SPECTACULAR_SETTINGS = {
 # CORS
 # -----------------------------------------------------
 
-CORS_ALLOW_ALL_ORIGINS = True
+# Only these origins may call the API from a browser. The frontend sends its
+# JWT in the Authorization header and never relies on cross-origin cookies, so
+# credentialed CORS is switched off. In development the Vite proxy makes API
+# calls same-origin anyway; the defaults below just allow the dev server.
+# Set CORS_ALLOWED_ORIGINS (comma-separated, with scheme, e.g.
+# https://app.example.com) for any other frontend origin.
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
+    ).split(",")
+    if origin.strip()
+]
 
-CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_CREDENTIALS = False
 
 # -----------------------------------------------------
 # Password Validation
