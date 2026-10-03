@@ -106,13 +106,13 @@ class ArticleDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, slug: str):
-        article = KnowledgeService.get_article(slug)
+        article = KnowledgeService.get_article(request.user, slug)
         if not article:
             return ApiResponse.error(message="Article not found.")
         return ApiResponse.success(ArticleDetailSerializer(article).data)
 
     def put(self, request, slug: str):
-        article = KnowledgeService.get_article(slug)
+        article = KnowledgeService.get_article(request.user, slug)
         if not article or article.user != request.user:
             return ApiResponse.error(message="Article not found.")
 
@@ -137,7 +137,7 @@ class ArticleDetailAPIView(APIView):
             return ApiResponse.error(message="Failed to update article.")
 
     def delete(self, request, slug: str):
-        article = KnowledgeService.get_article(slug)
+        article = KnowledgeService.get_article(request.user, slug)
         if not article or article.user != request.user:
             return ApiResponse.error(message="Article not found.")
         KnowledgeService.delete_article(article)
@@ -153,7 +153,7 @@ class ArticleSummarizeAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, slug: str):
-        article = KnowledgeService.get_article(slug)
+        article = KnowledgeService.get_article(request.user, slug)
         if not article:
             return ApiResponse.error(message="Article not found.")
 

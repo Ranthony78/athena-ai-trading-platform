@@ -78,9 +78,22 @@ class ArticleRepository(BaseRepository[Article]):
 
     @classmethod
     def get_by_slug(cls, slug: str) -> Optional[Article]:
-        """Return article by slug."""
+        """Return article by slug, whoever owns it. Not for request handling."""
         return (
             cls.model.objects.filter(
+                slug=slug,
+                is_active=True,
+            )
+            .prefetch_related("tags")
+            .first()
+        )
+
+    @classmethod
+    def get_by_slug_for_user(cls, user, slug: str) -> Optional[Article]:
+        """Return the article only if `user` owns it (slugs are globally unique)."""
+        return (
+            cls.model.objects.filter(
+                user=user,
                 slug=slug,
                 is_active=True,
             )

@@ -59,9 +59,15 @@ class KnowledgeService:
         return ArticleRepository.get_by_user(user, limit)
 
     @staticmethod
-    def get_article(slug: str) -> Optional[Article]:
-        """Return article by slug and increment view count."""
-        article = ArticleRepository.get_by_slug(slug)
+    def get_article(user, slug: str) -> Optional[Article]:
+        """
+        Return the user's own article by slug and count the view.
+
+        Someone else's article is treated exactly like a missing one, so a slug
+        reveals nothing about other users' content and cannot inflate their
+        view counters.
+        """
+        article = ArticleRepository.get_by_slug_for_user(user, slug)
         if article:
             ArticleRepository.increment_views(article)
         return article
