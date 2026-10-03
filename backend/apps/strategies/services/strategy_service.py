@@ -46,15 +46,16 @@ class StrategyService:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def get_active_signals() -> QuerySet[StrategySignal]:
-        return SignalRepository.get_active_signals()
+    def get_active_signals(user) -> QuerySet[StrategySignal]:
+        return SignalRepository.get_active_signals(user)
 
     @staticmethod
-    def get_today_signals() -> QuerySet[StrategySignal]:
-        return SignalRepository.get_today()
+    def get_today_signals(user) -> QuerySet[StrategySignal]:
+        return SignalRepository.get_today(user)
 
     @staticmethod
     def get_signals_for_instrument(
+        user,
         symbol: str,
         limit: int = 50,
     ) -> QuerySet[StrategySignal]:
@@ -65,7 +66,7 @@ class StrategyService:
         instrument = InstrumentRepository.get_by_symbol(symbol)
         if not instrument:
             return StrategySignal.objects.none()
-        return SignalRepository.get_by_instrument(instrument, limit)
+        return SignalRepository.get_by_instrument(user, instrument, limit)
 
     # ------------------------------------------------------------------
     # Engine
