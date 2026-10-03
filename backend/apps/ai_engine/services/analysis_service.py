@@ -1,9 +1,8 @@
-import logging
-import math
 import hashlib
 import json
-from datetime import timedelta
-from datetime import datetime
+import logging
+import math
+from datetime import datetime, timedelta
 
 from django.utils import timezone
 
@@ -120,9 +119,12 @@ class AnalysisService:
             system_prompt = config["system_prompt"]
             model = config["model"]
             max_tokens = config["max_tokens"]
-            prompt_hash = hashlib.sha256(json.dumps(
-                [system_prompt, user_prompt], ensure_ascii=False,
-            ).encode("utf-8")).hexdigest()
+            prompt_hash = hashlib.sha256(
+                json.dumps(
+                    [system_prompt, user_prompt],
+                    ensure_ascii=False,
+                ).encode("utf-8")
+            ).hexdigest()
             if session:
                 session.market_context = _sanitize_for_json(market_context)
                 session.prompt_used = user_prompt
@@ -132,7 +134,9 @@ class AnalysisService:
                 session.provider_used = self.ai_service.provider_name
                 session.model_used = model
                 session.template = template
-                session.paper_evaluation = {"status": "REQUESTED" if paper_evaluate else "OFF"}
+                session.paper_evaluation = {
+                    "status": "REQUESTED" if paper_evaluate else "OFF"
+                }
                 session.save()
 
             # Call AI
@@ -159,17 +163,27 @@ class AnalysisService:
             # A separate, deterministic long-straddle gate. This is an
             # experimental paper candidate and never changes the AI signal.
             from .volatility_setup_service import VolatilitySetupService
+
             try:
                 parsed["volatility_setup"] = VolatilitySetupService.build_candidate(
-                    parsed=parsed, context=market_context, user=self.user,
+                    parsed=parsed,
+                    context=market_context,
+                    user=self.user,
                 )
             except Exception as exc:
-                logger.warning("Volatility setup evaluation unavailable (%s)", type(exc).__name__)
+                logger.warning(
+                    "Volatility setup evaluation unavailable (%s)", type(exc).__name__
+                )
                 parsed["volatility_setup"] = {
                     "version": VolatilitySetupService.VERSION,
-                    "eligible": False, "status": "NOT_ELIGIBLE", "paper_only": True,
-                    "experimental": True, "legs": [],
-                    "reasons": ["The deterministic volatility gate could not verify all required evidence."],
+                    "eligible": False,
+                    "status": "NOT_ELIGIBLE",
+                    "paper_only": True,
+                    "experimental": True,
+                    "legs": [],
+                    "reasons": [
+                        "The deterministic volatility gate could not verify all required evidence."
+                    ],
                 }
 
             signal_type = parsed.get("signal", "NO_SETUP")
@@ -184,6 +198,7 @@ class AnalysisService:
                     from apps.market_data.services.strike_selection_service import (
                         StrikeSelectionService,
                     )
+
                     suggested_contract = StrikeSelectionService.select_for_signal(
                         symbol=instrument.symbol,
                         direction=signal_type,
@@ -191,7 +206,9 @@ class AnalysisService:
                         moneyness=parsed.get("option_moneyness", "ATM"),
                     )
                 except Exception as e:
-                    logger.error(f"AnalysisService strike selection error [{symbol}]: {e}")
+                    logger.error(
+                        f"AnalysisService strike selection error [{symbol}]: {e}"
+                    )
 
             # Update session
             if persist and session:
@@ -207,12 +224,14 @@ class AnalysisService:
                 session.duration_ms = result["duration_ms"]
                 session.probability_method_version = (
                     "horizon-base-rate-v1"
-                    if market_context.get("intraday_probability_base_rate") else ""
+                    if market_context.get("intraday_probability_base_rate")
+                    else ""
                 )
                 session.forecast_sideways_band_pct = (
-                    (market_context.get("intraday_probability_base_rate") or {}).get(
-                        "sideways_band_pct", 0.05,
-                    )
+                    market_context.get("intraday_probability_base_rate") or {}
+                ).get(
+                    "sideways_band_pct",
+                    0.05,
                 )
                 self._prepare_forecast(session, market_context)
                 session.save()
@@ -227,11 +246,17 @@ class AnalysisService:
                     )
                 if paper_evaluate:
                     from .paper_evaluation_service import PaperEvaluationService
+
                     try:
                         PaperEvaluationService.start(session.id)
                     except Exception as exc:
-                        logger.warning("Paper evaluation unavailable (%s)", type(exc).__name__)
-                        session.paper_evaluation = {"status": "SKIPPED", "reason": "Paper evaluator unavailable; the analysis is still saved."}
+                        logger.warning(
+                            "Paper evaluation unavailable (%s)", type(exc).__name__
+                        )
+                        session.paper_evaluation = {
+                            "status": "SKIPPED",
+                            "reason": "Paper evaluator unavailable; the analysis is still saved.",
+                        }
                         session.save(update_fields=["paper_evaluation"])
                     session.refresh_from_db()
 
@@ -255,7 +280,9 @@ class AnalysisService:
                 "missing_information": parsed.get("missing_information"),
                 "market_drivers": market_context.get("market_drivers"),
                 "prior_outcomes": market_context.get("prior_outcomes"),
-                "paper_evaluation": session.paper_evaluation if session else {"status": "OFF"},
+                "paper_evaluation": (
+                    session.paper_evaluation if session else {"status": "OFF"}
+                ),
                 "target": parsed.get("target"),
                 "stop_loss": parsed.get("stop_loss"),
                 "key_levels": parsed.get("key_levels", {}),
@@ -265,7 +292,9 @@ class AnalysisService:
                 "option_comparison": parsed.get("option_comparison"),
                 "price_expectation": parsed.get("price_expectation"),
                 "session_structure": market_context.get("session_structure"),
-                "rule_evidence": _sanitize_for_json(market_context.get("rule_evidence")),
+                "rule_evidence": _sanitize_for_json(
+                    market_context.get("rule_evidence")
+                ),
                 "system_prompt": system_prompt,
                 "user_prompt": user_prompt,
                 "provider_call_made": provider_call_made,
@@ -280,10 +309,13 @@ class AnalysisService:
                 "template_source": config.get("template_source"),
                 "template_name": config.get("template_name"),
                 "prompt_hash": prompt_hash,
-                "generated_at": (market_context.get("rule_evidence") or {}).get("as_of"),
+                "generated_at": (market_context.get("rule_evidence") or {}).get(
+                    "as_of"
+                ),
                 "forecast_tracking": self._forecast_tracking_payload(session),
                 "forecast_calibration": self._get_probability_calibration(
-                    symbol, forecast_horizon_minutes,
+                    symbol,
+                    forecast_horizon_minutes,
                 ),
                 "paper_trade_learning": self._get_paper_trade_report(symbol),
             }
@@ -296,7 +328,10 @@ class AnalysisService:
                 session.error_message = str(e)
                 session.provider_used = self.ai_service.provider_name
                 if session.paper_evaluation.get("status") == "REQUESTED":
-                    session.paper_evaluation = {"status": "SKIPPED", "reason": "Analysis failed; no paper entry."}
+                    session.paper_evaluation = {
+                        "status": "SKIPPED",
+                        "reason": "Analysis failed; no paper entry.",
+                    }
                 session.save()
 
             return {
@@ -307,10 +342,14 @@ class AnalysisService:
                 "system_prompt": system_prompt,
                 "user_prompt": user_prompt,
                 "provider_call_made": provider_call_made,
-                "rule_evidence": _sanitize_for_json(market_context.get("rule_evidence")),
+                "rule_evidence": _sanitize_for_json(
+                    market_context.get("rule_evidence")
+                ),
                 "market_drivers": market_context.get("market_drivers"),
                 "prior_outcomes": market_context.get("prior_outcomes"),
-                "parameters": (market_context.get("rule_evidence") or {}).get("parameters")
+                "parameters": (market_context.get("rule_evidence") or {}).get(
+                    "parameters"
+                )
                 or RuleEvidenceService.parameters(),
                 "provider": self.ai_service.provider_name,
                 "model": config.get("model"),
@@ -318,7 +357,9 @@ class AnalysisService:
                 "template_name": config.get("template_name"),
                 "prompt_version": config.get("prompt_version"),
                 "prompt_hash": prompt_hash,
-                "generated_at": (market_context.get("rule_evidence") or {}).get("as_of"),
+                "generated_at": (market_context.get("rule_evidence") or {}).get(
+                    "as_of"
+                ),
                 "timeframe": timeframe,
                 "analysis_mode": analysis_mode,
                 "forecast_horizon_minutes": forecast_horizon_minutes,
@@ -367,6 +408,7 @@ class AnalysisService:
 
         if suggested_contract:
             from apps.market_data.models import Instrument
+
             signal_kwargs["option_instrument"] = Instrument.objects.filter(
                 id=suggested_contract["instrument_id"]
             ).first()
@@ -381,17 +423,32 @@ class AnalysisService:
         return {
             "status": session.forecast_outcome_status,
             "horizon_minutes": session.forecast_horizon_minutes,
-            "target_time": session.forecast_target_time.isoformat()
-            if session.forecast_target_time else None,
-            "anchor_price": float(session.forecast_anchor_price)
-            if session.forecast_anchor_price is not None else None,
+            "target_time": (
+                session.forecast_target_time.isoformat()
+                if session.forecast_target_time
+                else None
+            ),
+            "anchor_price": (
+                float(session.forecast_anchor_price)
+                if session.forecast_anchor_price is not None
+                else None
+            ),
             "actual_class": session.forecast_actual_class or None,
-            "outcome_price": float(session.forecast_outcome_price)
-            if session.forecast_outcome_price is not None else None,
-            "resolved_at": session.forecast_resolved_at.isoformat()
-            if session.forecast_resolved_at else None,
-            "brier_score": float(session.forecast_brier_score)
-            if session.forecast_brier_score is not None else None,
+            "outcome_price": (
+                float(session.forecast_outcome_price)
+                if session.forecast_outcome_price is not None
+                else None
+            ),
+            "resolved_at": (
+                session.forecast_resolved_at.isoformat()
+                if session.forecast_resolved_at
+                else None
+            ),
+            "brier_score": (
+                float(session.forecast_brier_score)
+                if session.forecast_brier_score is not None
+                else None
+            ),
             "method_version": session.probability_method_version or None,
         }
 
@@ -405,7 +462,9 @@ class AnalysisService:
                 horizon_minutes=horizon_minutes,
             )
         except Exception as e:
-            logger.warning(f"Probability calibration report unavailable [{symbol}]: {e}")
+            logger.warning(
+                f"Probability calibration report unavailable [{symbol}]: {e}"
+            )
             return {"sample_size": 0, "note": "Calibration summary unavailable."}
 
     def _get_paper_trade_report(self, symbol):
@@ -440,6 +499,7 @@ class AnalysisService:
         if user is not None:
             return AnalysisSessionRepository.get_by_id_for_user(session_id, user)
         return AnalysisSessionRepository.get_by_id(session_id)
+
     @staticmethod
     def _prepare_forecast(session, context):
         """Track No Trade too; a numerical probability is optional for outcomes."""
@@ -451,13 +511,22 @@ class AnalysisService:
         quote = context.get("quote") or {}
         try:
             anchor = float(quote.get("ltp"))
-            stamp = datetime.fromisoformat(str(quote.get("timestamp")).replace("Z", "+00:00"))
+            stamp = datetime.fromisoformat(
+                str(quote.get("timestamp")).replace("Z", "+00:00")
+            )
             if timezone.is_naive(stamp):
                 stamp = timezone.make_aware(stamp)
             local = timezone.localtime(stamp)
             target = stamp + timedelta(minutes=session.forecast_horizon_minutes)
             close = local.replace(hour=15, minute=30, second=0, microsecond=0)
-            if (context.get("session") or {}).get("is_live") and context.get("quote_source") == "ZERODHA" and math.isfinite(anchor) and anchor > 0 and timedelta(0) <= timezone.now()-stamp <= timedelta(minutes=2) and timezone.now() < target <= close:
+            if (
+                (context.get("session") or {}).get("is_live")
+                and context.get("quote_source") == "ZERODHA"
+                and math.isfinite(anchor)
+                and anchor > 0
+                and timedelta(0) <= timezone.now() - stamp <= timedelta(minutes=2)
+                and timezone.now() < target <= close
+            ):
                 session.forecast_anchor_price = anchor
                 session.forecast_target_time = target
                 session.forecast_outcome_status = "PENDING"

@@ -50,7 +50,9 @@ class IVRealizedVolatilityService:
     """
 
     @classmethod
-    def get_iv_vs_realized(cls, symbol: str, current_atm_iv: Optional[float]) -> Optional[dict]:
+    def get_iv_vs_realized(
+        cls, symbol: str, current_atm_iv: Optional[float]
+    ) -> Optional[dict]:
         if current_atm_iv is None:
             return None
 
@@ -69,7 +71,7 @@ class IVRealizedVolatilityService:
                     windows_out[label] = None
                     continue
 
-                recent = closes[-(window + 1):]
+                recent = closes[-(window + 1) :]
                 log_returns = [
                     math.log(recent[i] / recent[i - 1])
                     for i in range(1, len(recent))
@@ -80,13 +82,19 @@ class IVRealizedVolatilityService:
                     continue
 
                 mean_ret = sum(log_returns) / len(log_returns)
-                variance = sum((r - mean_ret) ** 2 for r in log_returns) / (len(log_returns) - 1)
+                variance = sum((r - mean_ret) ** 2 for r in log_returns) / (
+                    len(log_returns) - 1
+                )
                 daily_std = math.sqrt(variance)
                 annualized_rv_pct = round(daily_std * math.sqrt(252) * 100, 2)
 
                 windows_out[label] = {
                     "realized_vol_pct": annualized_rv_pct,
-                    "iv_hv_ratio": round(current_atm_iv / annualized_rv_pct, 2) if annualized_rv_pct else None,
+                    "iv_hv_ratio": (
+                        round(current_atm_iv / annualized_rv_pct, 2)
+                        if annualized_rv_pct
+                        else None
+                    ),
                 }
 
             primary = windows_out.get("20d")

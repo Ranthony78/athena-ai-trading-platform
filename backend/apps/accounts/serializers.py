@@ -16,9 +16,7 @@ class LoginSerializer(serializers.Serializer):
         )
 
         if not user:
-            raise serializers.ValidationError(
-                "Invalid username or password."
-            )
+            raise serializers.ValidationError("Invalid username or password.")
 
         attrs["user"] = user
         return attrs
@@ -30,17 +28,28 @@ class RegistrationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["username", "email", "first_name", "last_name", "password", "password_confirm"]
+        fields = [
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "password",
+            "password_confirm",
+        ]
 
     def validate_email(self, value):
         email = value.strip().lower()
         if User.objects.filter(email__iexact=email).exists():
-            raise serializers.ValidationError("An account with this email already exists.")
+            raise serializers.ValidationError(
+                "An account with this email already exists."
+            )
         return email
 
     def validate(self, attrs):
         if attrs["password"] != attrs.pop("password_confirm"):
-            raise serializers.ValidationError({"password_confirm": "Passwords do not match."})
+            raise serializers.ValidationError(
+                {"password_confirm": "Passwords do not match."}
+            )
         return attrs
 
     def create(self, validated_data):
@@ -67,17 +76,31 @@ class UserSerializer(serializers.ModelSerializer):
 class ManagedUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "username", "email", "first_name", "last_name", "is_active", "is_staff", "date_joined", "last_login"]
+        fields = [
+            "id",
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "is_active",
+            "is_staff",
+            "date_joined",
+            "last_login",
+        ]
         read_only_fields = fields
 
 
 class PasswordResetConfirmSerializer(serializers.Serializer):
     uid = serializers.CharField()
     token = serializers.CharField()
-    new_password = serializers.CharField(write_only=True, validators=[validate_password])
+    new_password = serializers.CharField(
+        write_only=True, validators=[validate_password]
+    )
     password_confirm = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
         if attrs["new_password"] != attrs.pop("password_confirm"):
-            raise serializers.ValidationError({"password_confirm": "Passwords do not match."})
+            raise serializers.ValidationError(
+                {"password_confirm": "Passwords do not match."}
+            )
         return attrs

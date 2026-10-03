@@ -57,6 +57,4 @@ class BacktestResultAdmin(admin.ModelAdmin):
         "sharpe_ratio",
         "profit_factor",
     )
-    readonly_fields = (
-        "equity_curve",
-    )
+    readonly_fields = ("equity_curve",)

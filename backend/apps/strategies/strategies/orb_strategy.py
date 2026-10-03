@@ -32,7 +32,7 @@ class ORBStrategy(BaseStrategy):
             return self.neutral(price, notes="Insufficient candles.")
 
         # Opening range
-        orb_df = df.iloc[:self.orb_candles]
+        orb_df = df.iloc[: self.orb_candles]
         orb_high = float(orb_df["high"].max())
         orb_low = float(orb_df["low"].min())
         orb_range = orb_high - orb_low
@@ -58,8 +58,7 @@ class ORBStrategy(BaseStrategy):
                 target=target,
                 stop_loss=stop_loss,
                 notes=(
-                    f"ORB breakout above {orb_high:.2f}. "
-                    f"Range: {orb_range:.2f}"
+                    f"ORB breakout above {orb_high:.2f}. " f"Range: {orb_range:.2f}"
                 ),
                 context=context,
             )
@@ -76,18 +75,14 @@ class ORBStrategy(BaseStrategy):
                 target=target,
                 stop_loss=stop_loss,
                 notes=(
-                    f"ORB breakdown below {orb_low:.2f}. "
-                    f"Range: {orb_range:.2f}"
+                    f"ORB breakdown below {orb_low:.2f}. " f"Range: {orb_range:.2f}"
                 ),
                 context=context,
             )
 
         return self.neutral(
             price=price,
-            notes=(
-                f"Within ORB range. "
-                f"High: {orb_high:.2f} | Low: {orb_low:.2f}"
-            ),
+            notes=(f"Within ORB range. " f"High: {orb_high:.2f} | Low: {orb_low:.2f}"),
             context=context,
         )
 

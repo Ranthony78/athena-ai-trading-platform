@@ -2,7 +2,6 @@ from typing import Generic, Optional, Type, TypeVar
 
 from django.db.models import Model, QuerySet
 
-
 T = TypeVar("T", bound=Model)
 
 

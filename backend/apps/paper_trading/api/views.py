@@ -92,7 +92,9 @@ class OrderListAPIView(APIView):
                 product=serializer.validated_data["product"],
                 tag=serializer.validated_data["tag"],
                 instrument_id=serializer.validated_data.get("instrument_id"),
-                analysis_session_id=serializer.validated_data.get("analysis_session_id"),
+                analysis_session_id=serializer.validated_data.get(
+                    "analysis_session_id"
+                ),
             )
 
             if result["success"]:

@@ -1,6 +1,5 @@
 import logging
 import time
-from datetime import datetime
 
 from django.utils import timezone
 
@@ -27,9 +26,7 @@ class BacktestService:
     @staticmethod
     def create_run(user, data: dict) -> BacktestRun:
         """Create a new backtest run configuration."""
-        instrument = InstrumentRepository.get_by_symbol(
-            data["symbol"].upper()
-        )
+        instrument = InstrumentRepository.get_by_symbol(data["symbol"].upper())
         if not instrument:
             raise ValueError(f"Instrument not found: {data['symbol']}")
 

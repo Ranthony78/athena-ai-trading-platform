@@ -1,7 +1,8 @@
-from pathlib import Path
-from dotenv import load_dotenv
-from datetime import timedelta
 import os
+from datetime import timedelta
+from pathlib import Path
+
+from dotenv import load_dotenv
 
 # -----------------------------------------------------
 # Paths
@@ -160,9 +161,9 @@ REST_FRAMEWORK = {
     # per-process by default, so with N workers the effective limit is up to
     # N x the rate; point CACHES at Redis if that matters.
     "DEFAULT_THROTTLE_RATES": {
-        "auth": "10/min",       # login, Google sign-in, password-reset confirm
+        "auth": "10/min",  # login, Google sign-in, password-reset confirm
         "register": "10/hour",  # account creation
-        "refresh": "60/min",    # token refresh
+        "refresh": "60/min",  # token refresh
     },
 }
 
@@ -188,13 +189,11 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
-
     "SECURITY": [
         {
             "Bearer": [],
         }
     ],
-
     "SECURITY_SCHEMES": {
         "Bearer": {
             "TYPE": "http",
@@ -292,9 +291,7 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [
-                os.getenv("REDIS_URL", "redis://127.0.0.1:6379")
-            ],
+            "hosts": [os.getenv("REDIS_URL", "redis://127.0.0.1:6379")],
         },
     },
 }
@@ -304,7 +301,9 @@ CHANNEL_LAYERS = {
 # AI Engine
 # -----------------------------------------------------
 
-AI_PROVIDER = os.getenv("AI_PROVIDER", "gemini").strip().lower()  # mock | claude | gemini | groq
+AI_PROVIDER = (
+    os.getenv("AI_PROVIDER", "gemini").strip().lower()
+)  # mock | claude | gemini | groq
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
@@ -346,7 +345,9 @@ CELERY_BEAT_SCHEDULE = {
 # Notifications
 # -----------------------------------------------------
 
-EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+EMAIL_BACKEND = os.getenv(
+    "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
+)
 EMAIL_HOST = os.getenv("EMAIL_HOST", "")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
 EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "False") == "True"

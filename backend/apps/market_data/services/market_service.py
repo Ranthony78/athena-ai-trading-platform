@@ -1,6 +1,5 @@
 from ..providers.provider_factory import ProviderFactory
 from ..repositories.instrument_repository import InstrumentRepository
-from ..repositories.market_repository import MarketRepository
 
 
 class MarketService:

@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime
 
 from .base_provider import BaseMarketProvider
 
@@ -35,6 +34,7 @@ class ZerodhaProvider(BaseMarketProvider):
                     "Set MARKET_PROVIDER='mock' for system-level calls."
                 )
             from apps.zerodha.services.mcp_service import ZerodhaKiteMCPService
+
             self._service = ZerodhaKiteMCPService(self.user)
         return self._service
 
@@ -52,15 +52,15 @@ class ZerodhaProvider(BaseMarketProvider):
         from apps.market_data.repositories.instrument_repository import (
             InstrumentRepository,
         )
+
         # Callers may pass an index alias (NIFTY) or a concrete derivative
         # trading symbol (for example an option contract). The regular
         # symbol lookup intentionally excludes derivatives because their
         # underlying symbol is shared by many contracts, so try the exact
         # trading-symbol lookup second.
-        instrument = (
-            InstrumentRepository.get_by_symbol(symbol)
-            or InstrumentRepository.get_by_trading_symbol(symbol)
-        )
+        instrument = InstrumentRepository.get_by_symbol(
+            symbol
+        ) or InstrumentRepository.get_by_trading_symbol(symbol)
         if not instrument:
             raise ValueError(f"Instrument not found: {symbol}")
         return f"{instrument.exchange}:{instrument.trading_symbol}"
@@ -82,14 +82,11 @@ class ZerodhaProvider(BaseMarketProvider):
             # Map each short symbol to its real exchange:tradingsymbol,
             # so responses (keyed by exchange_symbol) can be matched
             # back to the original short symbols the caller asked for.
-            symbol_map = {
-                s: self._resolve_exchange_symbol(s) for s in symbols
-            }
+            symbol_map = {s: self._resolve_exchange_symbol(s) for s in symbols}
             service = self._get_service()
             raw = service.get_quotes(list(symbol_map.values()))
             return [
-                self._normalize_quote(s, raw.get(symbol_map[s], {}))
-                for s in symbols
+                self._normalize_quote(s, raw.get(symbol_map[s], {})) for s in symbols
             ]
         except Exception as e:
             logger.error(f"ZerodhaProvider get_quotes error: {e}")
@@ -107,6 +104,7 @@ class ZerodhaProvider(BaseMarketProvider):
             from apps.market_data.repositories.instrument_repository import (
                 InstrumentRepository,
             )
+
             instrument = InstrumentRepository.get_by_symbol(symbol)
             if not instrument:
                 raise ValueError(f"Instrument not found: {symbol}")
@@ -120,9 +118,7 @@ class ZerodhaProvider(BaseMarketProvider):
             )
             return self._normalize_candles(raw)
         except Exception as e:
-            logger.error(
-                f"ZerodhaProvider get_historical_data error [{symbol}]: {e}"
-            )
+            logger.error(f"ZerodhaProvider get_historical_data error [{symbol}]: {e}")
             raise
 
     def get_option_chain(self, symbol: str, expiry=None) -> list[dict]:
@@ -138,6 +134,7 @@ class ZerodhaProvider(BaseMarketProvider):
             from apps.market_data.repositories.instrument_repository import (
                 InstrumentRepository,
             )
+
             options = list(InstrumentRepository.get_options(symbol, expiry=expiry))
             exchange_symbols = [f"{o.exchange}:{o.trading_symbol}" for o in options]
 
@@ -148,7 +145,9 @@ class ZerodhaProvider(BaseMarketProvider):
             quotes = {}
             # Preserve full expiry coverage without an oversized request.
             for offset in range(0, len(exchange_symbols), 200):
-                quotes.update(service.get_quotes(exchange_symbols[offset:offset + 200]))
+                quotes.update(
+                    service.get_quotes(exchange_symbols[offset : offset + 200])
+                )
 
             chain = []
             for opt in options:
@@ -157,29 +156,34 @@ class ZerodhaProvider(BaseMarketProvider):
                 # A missing quote is not a zero-priced option.
                 if not quote or quote.get("last_price") is None:
                     continue
-                chain.append({
-                    "strike": float(opt.strike or 0),
-                    "option_type": opt.option_type,
-                    "trading_symbol": opt.trading_symbol,
-                    "lot_size": opt.lot_size,
-                    "expiry": str(opt.expiry),
-                    "quote_timestamp": quote.get("timestamp") or quote.get("last_trade_time"),
-                    "ltp": quote.get("last_price", 0),
-                    "best_bid": (quote.get("depth", {}).get("buy") or [{}])[0].get("price"),
-                    "best_ask": (quote.get("depth", {}).get("sell") or [{}])[0].get("price"),
-                    "oi": quote.get("oi", 0),
-                    "volume": quote.get("volume", 0),
-                    "iv": 0,
-                    "delta": 0,
-                    "theta": 0,
-                })
+                chain.append(
+                    {
+                        "strike": float(opt.strike or 0),
+                        "option_type": opt.option_type,
+                        "trading_symbol": opt.trading_symbol,
+                        "lot_size": opt.lot_size,
+                        "expiry": str(opt.expiry),
+                        "quote_timestamp": quote.get("timestamp")
+                        or quote.get("last_trade_time"),
+                        "ltp": quote.get("last_price", 0),
+                        "best_bid": (quote.get("depth", {}).get("buy") or [{}])[0].get(
+                            "price"
+                        ),
+                        "best_ask": (quote.get("depth", {}).get("sell") or [{}])[0].get(
+                            "price"
+                        ),
+                        "oi": quote.get("oi", 0),
+                        "volume": quote.get("volume", 0),
+                        "iv": 0,
+                        "delta": 0,
+                        "theta": 0,
+                    }
+                )
 
             return sorted(chain, key=lambda x: x["strike"])
 
         except Exception as e:
-            logger.error(
-                f"ZerodhaProvider get_option_chain error [{symbol}]: {e}"
-            )
+            logger.error(f"ZerodhaProvider get_option_chain error [{symbol}]: {e}")
             raise
 
     # ------------------------------------------------------------------
@@ -239,14 +243,16 @@ class ZerodhaProvider(BaseMarketProvider):
         """Normalize Zerodha historical candles to standard format."""
         candles = []
         for c in raw:
-            candles.append({
-                "candle_time": c[0] if isinstance(c, list) else c.get("date"),
-                "open": c[1] if isinstance(c, list) else c.get("open"),
-                "high": c[2] if isinstance(c, list) else c.get("high"),
-                "low": c[3] if isinstance(c, list) else c.get("low"),
-                "close": c[4] if isinstance(c, list) else c.get("close"),
-                "volume": c[5] if isinstance(c, list) else c.get("volume", 0),
-            })
+            candles.append(
+                {
+                    "candle_time": c[0] if isinstance(c, list) else c.get("date"),
+                    "open": c[1] if isinstance(c, list) else c.get("open"),
+                    "high": c[2] if isinstance(c, list) else c.get("high"),
+                    "low": c[3] if isinstance(c, list) else c.get("low"),
+                    "close": c[4] if isinstance(c, list) else c.get("close"),
+                    "volume": c[5] if isinstance(c, list) else c.get("volume", 0),
+                }
+            )
         return candles
 
     @staticmethod

@@ -41,11 +41,20 @@ jobs:
         working-directory: .
         run: pip install -r requirements.txt
 
-      # Real errors only (syntax errors, undefined names). The full flake8 /
-      # black / isort rules in .pre-commit-config.yaml are not enforced yet:
-      # the existing code base has far too many style findings.
-      - name: Lint (errors only)
-        run: python -m flake8 --select=E9,F63,F7,F82 --exclude=migrations,__pycache__ .
+      # Tool versions are pinned in requirements.txt (and .pre-commit-config.yaml)
+      # so CI and local formatting always agree. Config: pyproject.toml, .flake8.
+      # These run from the repository root so those config files are found.
+      - name: Format check (black)
+        working-directory: .
+        run: python -m black --check --diff backend
+
+      - name: Import order (isort)
+        working-directory: .
+        run: python -m isort --check-only --diff backend
+
+      - name: Lint (flake8)
+        working-directory: .
+        run: python -m flake8 backend
 
       - name: Django system check
         run: python manage.py check

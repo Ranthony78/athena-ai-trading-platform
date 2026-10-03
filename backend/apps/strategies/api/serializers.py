@@ -73,12 +73,14 @@ class StrategySignalSerializer(serializers.ModelSerializer):
 
 class RunStrategySerializer(serializers.Serializer):
     """Request body for running a strategy."""
+
     symbol = serializers.CharField()
     strategy_id = serializers.IntegerField()
 
 
 class RunAllSerializer(serializers.Serializer):
     """Request body for running all strategies."""
+
     symbols = serializers.ListField(
         child=serializers.CharField(),
         min_length=1,

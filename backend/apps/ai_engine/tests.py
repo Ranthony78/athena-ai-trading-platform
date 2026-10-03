@@ -4,28 +4,31 @@ from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 import httpx
-from django.test import TestCase, SimpleTestCase
-from django.test import override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APIRequestFactory, force_authenticate
 
-from apps.ai_engine.models import AnalysisSession
-from apps.ai_engine.providers.gemini_provider import GeminiProvider
-from apps.ai_engine.services.confidence_calibration_service import ConfidenceCalibrationService
-from apps.ai_engine.services.forecast_outcome_service import ForecastOutcomeService
-from apps.ai_engine.services.output_validator import OutputValidator
 from apps.ai_engine.api.serializers import AnalysisRequestSerializer
 from apps.ai_engine.api.views import AnalysisSessionListAPIView
+from apps.ai_engine.models import AnalysisSession
+from apps.ai_engine.providers.gemini_provider import GeminiProvider
+from apps.ai_engine.services.confidence_calibration_service import (
+    ConfidenceCalibrationService,
+)
+from apps.ai_engine.services.forecast_outcome_service import ForecastOutcomeService
+from apps.ai_engine.services.output_validator import OutputValidator
 from apps.market_data.models import Candle, Instrument
 
 
 class HistoricalProbabilityValidationTests(SimpleTestCase):
     def test_model_percentages_are_cleared_when_empirical_base_is_unavailable(self):
-        parsed = {"probability": {
-            "upside_pct": 81,
-            "downside_pct": 9,
-            "sideways_pct": 10,
-        }}
+        parsed = {
+            "probability": {
+                "upside_pct": 81,
+                "downside_pct": 9,
+                "sideways_pct": 10,
+            }
+        }
 
         warning = OutputValidator._enforce_historical_probability(parsed, {})
 
@@ -36,17 +39,19 @@ class HistoricalProbabilityValidationTests(SimpleTestCase):
 
     def test_empirical_base_replaces_ai_estimate_and_malformed_estimate_is_safe(self):
         parsed = {"probability": {"upside_pct": "not-a-number"}}
-        context = {"intraday_probability_base_rate": {
-            "upside_pct": 50,
-            "downside_pct": 30,
-            "sideways_pct": 20,
-            "sample_size": 40,
-            "timeframe": "15m",
-            "horizon_minutes": 15,
-            "time_of_day_tolerance_minutes": 30,
-            "sideways_band_pct": 0.05,
-            "low_confidence": True,
-        }}
+        context = {
+            "intraday_probability_base_rate": {
+                "upside_pct": 50,
+                "downside_pct": 30,
+                "sideways_pct": 20,
+                "sample_size": 40,
+                "timeframe": "15m",
+                "horizon_minutes": 15,
+                "time_of_day_tolerance_minutes": 30,
+                "sideways_band_pct": 0.05,
+                "low_confidence": True,
+            }
+        }
 
         warning = OutputValidator._enforce_historical_probability(parsed, context)
 
@@ -62,7 +67,11 @@ class NextSessionAnalysisTests(SimpleTestCase):
             "signal": "BUY",
             "market_view": "BULLISH",
             "no_trade_reason": "",
-            "scenarios": {"bullish": "Break above supplied resistance", "bearish": "", "sideways": ""},
+            "scenarios": {
+                "bullish": "Break above supplied resistance",
+                "bearish": "",
+                "sideways": "",
+            },
             "confidence": 62,
         }
 
@@ -75,10 +84,17 @@ class NextSessionAnalysisTests(SimpleTestCase):
         self.assertEqual(result["signal"], "NO_SETUP")
         self.assertIn("Next-session outlook", result["no_trade_reason"])
         self.assertEqual(result["market_view"], "BULLISH")
-        self.assertEqual(result["scenarios"]["bullish"], "Break above supplied resistance")
+        self.assertEqual(
+            result["scenarios"]["bullish"], "Break above supplied resistance"
+        )
 
-    @patch("apps.paper_trading.services.broker_simulator.BrokerSimulator._quote_is_stale", return_value=False)
-    def test_closed_live_request_does_not_leak_ai_next_session_scenarios(self, _is_stale):
+    @patch(
+        "apps.paper_trading.services.broker_simulator.BrokerSimulator._quote_is_stale",
+        return_value=False,
+    )
+    def test_closed_live_request_does_not_leak_ai_next_session_scenarios(
+        self, _is_stale
+    ):
         parsed = {
             "signal": "BUY",
             "market_view": "BULLISH",
@@ -104,17 +120,28 @@ class NextSessionAnalysisTests(SimpleTestCase):
         self.assertEqual(result["signal"], "NO_SETUP")
         self.assertEqual(result["market_view"], "UNCERTAIN")
         self.assertEqual(result["confidence"], 0)
-        self.assertTrue(all("select NEXT_SESSION" in value for value in result["scenarios"].values()))
+        self.assertTrue(
+            all(
+                "select NEXT_SESSION" in value for value in result["scenarios"].values()
+            )
+        )
         self.assertIsNone(result["target"])
         self.assertIsNone(result["stop_loss"])
-        self.assertTrue(any("use NEXT_SESSION explicitly" in item for item in result["missing_information"]))
+        self.assertTrue(
+            any(
+                "use NEXT_SESSION explicitly" in item
+                for item in result["missing_information"]
+            )
+        )
 
     def test_next_session_cannot_enable_paper_evaluation(self):
-        serializer = AnalysisRequestSerializer(data={
-            "symbol": "NIFTY",
-            "analysis_mode": "NEXT_SESSION",
-            "paper_evaluate": True,
-        })
+        serializer = AnalysisRequestSerializer(
+            data={
+                "symbol": "NIFTY",
+                "analysis_mode": "NEXT_SESSION",
+                "paper_evaluate": True,
+            }
+        )
 
         self.assertFalse(serializer.is_valid())
         self.assertIn("paper_evaluate", serializer.errors)
@@ -125,7 +152,10 @@ class AnalysisHistoryClearAPITests(TestCase):
     def test_clear_history_is_scoped_to_authenticated_user(self, filter_sessions):
         queryset = filter_sessions.return_value
         queryset.count.return_value = 2
-        queryset.delete.return_value = (5, {"ai_engine.AnalysisSession": 2, "ai_engine.AISignal": 3})
+        queryset.delete.return_value = (
+            5,
+            {"ai_engine.AnalysisSession": 2, "ai_engine.AISignal": 3},
+        )
         user = type("AuthenticatedUser", (), {"is_authenticated": True, "id": 812})()
         request = APIRequestFactory().delete("/api/ai/sessions/")
         force_authenticate(request, user=user)
@@ -148,10 +178,14 @@ class GeminiProviderTests(SimpleTestCase):
                 "candidates": [{"content": {"parts": [{"text": "market analysis"}]}}],
                 "usageMetadata": {"totalTokenCount": 23},
             },
-            request=httpx.Request("POST", "https://generativelanguage.googleapis.com/test"),
+            request=httpx.Request(
+                "POST", "https://generativelanguage.googleapis.com/test"
+            ),
         )
 
-        result = GeminiProvider().complete("system", "evidence", model="claude-sonnet-4-6")
+        result = GeminiProvider().complete(
+            "system", "evidence", model="claude-sonnet-4-6"
+        )
 
         call = mock_post.call_args
         # The configured Gemini model is used, not the Claude name from the template,
@@ -165,18 +199,24 @@ class GeminiProviderTests(SimpleTestCase):
     @override_settings(GEMINI_API_KEY="test-key", GEMINI_MODEL="gemini-3.8-flash")
     @patch("apps.ai_engine.providers.gemini_provider.time.sleep")
     @patch("apps.ai_engine.providers.gemini_provider.httpx.post")
-    def test_service_unavailable_is_retried_with_backoff_and_safe_error(self, mock_post, mock_sleep):
+    def test_service_unavailable_is_retried_with_backoff_and_safe_error(
+        self, mock_post, mock_sleep
+    ):
         mock_post.return_value = httpx.Response(
             503,
             json={"error": {"message": "provider busy"}},
-            request=httpx.Request("POST", "https://generativelanguage.googleapis.com/test"),
+            request=httpx.Request(
+                "POST", "https://generativelanguage.googleapis.com/test"
+            ),
         )
 
         with self.assertRaisesRegex(Exception, "temporarily unavailable") as ctx:
             GeminiProvider().complete("system", "evidence")
 
         # Initial attempt plus every configured retry, sleeping between them only.
-        self.assertEqual(mock_post.call_count, GeminiProvider.MAX_UNAVAILABLE_RETRIES + 1)
+        self.assertEqual(
+            mock_post.call_count, GeminiProvider.MAX_UNAVAILABLE_RETRIES + 1
+        )
         self.assertEqual(mock_sleep.call_count, GeminiProvider.MAX_UNAVAILABLE_RETRIES)
         # Raw provider text must not leak into the user-facing error.
         self.assertNotIn("provider busy", str(ctx.exception))
@@ -188,7 +228,9 @@ class GeminiProviderTests(SimpleTestCase):
         mock_post.return_value = httpx.Response(
             400,
             json={"error": {"message": "bad request"}},
-            request=httpx.Request("POST", "https://generativelanguage.googleapis.com/test"),
+            request=httpx.Request(
+                "POST", "https://generativelanguage.googleapis.com/test"
+            ),
         )
 
         with self.assertRaisesRegex(Exception, "HTTP 400"):
@@ -217,11 +259,13 @@ class ForecastOutcomeTests(TestCase):
             session_type="MARKET_ANALYSIS",
             status="COMPLETE",
             timeframe="15m",
-            parsed_output={"probability": {
-                "upside_pct": 50,
-                "downside_pct": 30,
-                "sideways_pct": 20,
-            }},
+            parsed_output={
+                "probability": {
+                    "upside_pct": 50,
+                    "downside_pct": 30,
+                    "sideways_pct": 20,
+                }
+            },
             forecast_horizon_minutes=15,
             forecast_anchor_price=Decimal("100.00"),
             forecast_target_time=target,
@@ -265,11 +309,13 @@ class ForecastOutcomeTests(TestCase):
             session_type="MARKET_ANALYSIS",
             status="COMPLETE",
             timeframe="15m",
-            parsed_output={"probability": {
-                "upside_pct": 50,
-                "downside_pct": 30,
-                "sideways_pct": 20,
-            }},
+            parsed_output={
+                "probability": {
+                    "upside_pct": 50,
+                    "downside_pct": 30,
+                    "sideways_pct": 20,
+                }
+            },
             forecast_horizon_minutes=15,
             forecast_anchor_price=Decimal("100.00"),
             forecast_target_time=now - timedelta(minutes=15),
@@ -334,12 +380,17 @@ class IntradayBaseRateTests(TestCase):
             )
 
             result = HistoricalDistributionService.intraday_direction_base_rate(
-                "NIFTY", "15m", 15,
+                "NIFTY",
+                "15m",
+                15,
             )
 
         self.assertEqual(result["sample_size"], 35)
         self.assertEqual(result["outcome_candle_timeframe"], "1m")
-        self.assertEqual(result["latest_sample_date"], (fixed_now.date() - timedelta(days=1)).isoformat())
+        self.assertEqual(
+            result["latest_sample_date"],
+            (fixed_now.date() - timedelta(days=1)).isoformat(),
+        )
         self.assertEqual(result["upside_pct"], 100.0)
         self.assertEqual(result["downside_pct"], 0.0)
         self.assertEqual(result["sideways_pct"], 0.0)

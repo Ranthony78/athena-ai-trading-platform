@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from ..models import Candle, Instrument, Quote
+from ..models import Candle, Instrument
 
 
 class InstrumentSerializer(serializers.ModelSerializer):
@@ -102,6 +102,7 @@ class BulkQuoteRequestSerializer(serializers.Serializer):
         min_length=1,
         max_length=50,
     )
+
 
 class OptionChainSummarySerializer(serializers.Serializer):
     """Serializer for chain-level analytics (PCR, max pain, ATM)."""

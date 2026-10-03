@@ -1,7 +1,8 @@
+import os
+
 from django.core.exceptions import ImproperlyConfigured
 
 from .base import *
-import os
 
 DEBUG = False
 
@@ -23,4 +24,6 @@ LIVE_TRADING_ENABLED = True
 # Production password reset links require a real email service. Configure its
 # host and credentials through environment variables; never fall back to the
 # development console backend in production.
-EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
+EMAIL_BACKEND = os.getenv(
+    "EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend"
+)

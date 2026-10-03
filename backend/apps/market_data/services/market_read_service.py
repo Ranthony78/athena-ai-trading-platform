@@ -15,8 +15,8 @@ class MarketReadService:
 
     @classmethod
     def get_snapshot(cls, symbol: str, user=None) -> dict:
-        from ..indicators.indicator_service import IndicatorService
         from ..engine.market_state import MarketState
+        from ..indicators.indicator_service import IndicatorService
         from ..repositories.candle_repository import CandleRepository
         from ..repositories.instrument_repository import InstrumentRepository
         from .historical_distribution_service import HistoricalDistributionService
@@ -46,38 +46,48 @@ class MarketReadService:
                 exclude_date=session_date,
             )
 
-        indicators = cls._safe(
-            "indicators",
-            IndicatorService.calculate,
-            symbol=symbol,
-            timeframe="15m",
-            indicators=["PIVOT", "CPR", "EMA_20", "RSI_14"],
-            limit=100,
-        ) or {}
+        indicators = (
+            cls._safe(
+                "indicators",
+                IndicatorService.calculate,
+                symbol=symbol,
+                timeframe="15m",
+                indicators=["PIVOT", "CPR", "EMA_20", "RSI_14"],
+                limit=100,
+            )
+            or {}
+        )
 
         instrument = InstrumentRepository.get_by_symbol(symbol)
         latest_candle = (
-            CandleRepository.get_latest(instrument, "15m")
-            if instrument else None
+            CandleRepository.get_latest(instrument, "15m") if instrument else None
         )
         last_candle_time = (
             latest_candle.candle_time.isoformat()
-            if latest_candle and latest_candle.candle_time else None
+            if latest_candle and latest_candle.candle_time
+            else None
         )
         last_daily_candle_time = cls._previous_daily_candle_time(
-            instrument, CandleRepository, session_date,
+            instrument,
+            CandleRepository,
+            session_date,
         )
-        age_minutes = cls._age_minutes(latest_candle.candle_time) if latest_candle else None
+        age_minutes = (
+            cls._age_minutes(latest_candle.candle_time) if latest_candle else None
+        )
         freshness_limit = 30 if (session or {}).get("session") == "LIVE" else 72 * 60
         intraday_is_stale = age_minutes is None or age_minutes > freshness_limit
         session_vwap, vwap_candle_count, session_candle_count = cls._session_vwap(
-            instrument, CandleRepository,
+            instrument,
+            CandleRepository,
         )
 
         spot = cls._number((quote or {}).get("ltp"))
         today_open = cls._number((quote or {}).get("open"))
         previous_close = cls._number((quote or {}).get("close"))
-        range_stats = history if isinstance(history, dict) and not history.get("error") else None
+        range_stats = (
+            history if isinstance(history, dict) and not history.get("error") else None
+        )
         range_points = (range_stats or {}).get("upside_from_open_points", {})
         down_points = (range_stats or {}).get("downside_from_open_points", {})
         median_up = cls._number(range_points.get("median"))
@@ -107,38 +117,58 @@ class MarketReadService:
             else:
                 range_unavailable_reason = "Stored daily candles do not contain enough valid sessions to calculate the historical range reference."
 
-        pivot = cls._latest_values((indicators or {}).get("PIVOT")) if not intraday_is_stale else {}
-        cpr = cls._latest_values((indicators or {}).get("CPR")) if not intraday_is_stale else {}
-        levels = cls._levels(pivot, cpr, spot) if not intraday_is_stale else {
-            "support": None,
-            "resistance": None,
-            "cpr": {},
-            "pivot": {},
-            "available": False,
-            "unavailable_reason": "Withheld because the latest stored 15-minute candle is stale.",
-        }
+        pivot = (
+            cls._latest_values((indicators or {}).get("PIVOT"))
+            if not intraday_is_stale
+            else {}
+        )
+        cpr = (
+            cls._latest_values((indicators or {}).get("CPR"))
+            if not intraday_is_stale
+            else {}
+        )
+        levels = (
+            cls._levels(pivot, cpr, spot)
+            if not intraday_is_stale
+            else {
+                "support": None,
+                "resistance": None,
+                "cpr": {},
+                "pivot": {},
+                "available": False,
+                "unavailable_reason": "Withheld because the latest stored 15-minute candle is stale.",
+            }
+        )
         if not levels.get("available") and not levels.get("unavailable_reason"):
-            levels["unavailable_reason"] = "Stored 15-minute candles did not produce usable pivot or CPR values."
+            levels["unavailable_reason"] = (
+                "Stored 15-minute candles did not produce usable pivot or CPR values."
+            )
 
         if intraday_is_stale:
-            vwap_unavailable_reason = "Withheld because the latest stored 15-minute candle is stale."
+            vwap_unavailable_reason = (
+                "Withheld because the latest stored 15-minute candle is stale."
+            )
             ema_unavailable_reason = vwap_unavailable_reason
             rsi_unavailable_reason = vwap_unavailable_reason
         else:
             vwap_unavailable_reason = (
                 "No current-session 15-minute candles are stored."
                 if not session_candle_count
-                else f"Stored {symbol} index candles have no positive volume, so a volume-weighted price cannot be calculated."
-                if not vwap_candle_count
-                else None
+                else (
+                    f"Stored {symbol} index candles have no positive volume, so a volume-weighted price cannot be calculated."
+                    if not vwap_candle_count
+                    else None
+                )
             )
             ema_unavailable_reason = (
                 "Not enough valid 15-minute closing prices are available to calculate EMA 20."
-                if cls._last_value((indicators or {}).get("EMA_20")) is None else None
+                if cls._last_value((indicators or {}).get("EMA_20")) is None
+                else None
             )
             rsi_unavailable_reason = (
                 "Not enough valid 15-minute price changes are available to calculate RSI 14."
-                if cls._last_value((indicators or {}).get("RSI_14")) is None else None
+                if cls._last_value((indicators or {}).get("RSI_14")) is None
+                else None
             )
 
         return {
@@ -153,12 +183,18 @@ class MarketReadService:
                 "gap_bucket": gap_bucket,
                 "timestamp": (quote or {}).get("timestamp"),
             },
-            "probability": cls._probability(probability, gap_bucket, last_daily_candle_time),
+            "probability": cls._probability(
+                probability, gap_bucket, last_daily_candle_time
+            ),
             "range_guide": range_guide,
             "range_history": {
                 "sample_size": (range_stats or history or {}).get("sample_size"),
-                "median_points": cls._number((range_stats or {}).get("range_points", {}).get("median")),
-                "p95_points": cls._number((range_stats or {}).get("range_points", {}).get("p95")),
+                "median_points": cls._number(
+                    (range_stats or {}).get("range_points", {}).get("median")
+                ),
+                "p95_points": cls._number(
+                    (range_stats or {}).get("range_points", {}).get("p95")
+                ),
                 "available": range_stats is not None,
                 "unavailable_reason": range_unavailable_reason,
             },
@@ -166,11 +202,21 @@ class MarketReadService:
             "indicators": {
                 "vwap": session_vwap if not intraday_is_stale else None,
                 "vwap_candle_count": vwap_candle_count if not intraday_is_stale else 0,
-                "vwap_session_candle_count": session_candle_count if not intraday_is_stale else 0,
+                "vwap_session_candle_count": (
+                    session_candle_count if not intraday_is_stale else 0
+                ),
                 "vwap_unavailable_reason": vwap_unavailable_reason,
-                "ema_20": cls._last_value((indicators or {}).get("EMA_20")) if not intraday_is_stale else None,
+                "ema_20": (
+                    cls._last_value((indicators or {}).get("EMA_20"))
+                    if not intraday_is_stale
+                    else None
+                ),
                 "ema_20_unavailable_reason": ema_unavailable_reason,
-                "rsi_14": cls._last_value((indicators or {}).get("RSI_14")) if not intraday_is_stale else None,
+                "rsi_14": (
+                    cls._last_value((indicators or {}).get("RSI_14"))
+                    if not intraday_is_stale
+                    else None
+                ),
                 "rsi_14_unavailable_reason": rsi_unavailable_reason,
             },
             "freshness": {
@@ -232,7 +278,15 @@ class MarketReadService:
         if gap_pct is None or gap_pct == 0:
             return None
         magnitude = abs(gap_pct)
-        size = "normal" if magnitude <= 0.3 else "mild" if magnitude <= 0.8 else "large" if magnitude <= 1.5 else "extreme"
+        size = (
+            "normal"
+            if magnitude <= 0.3
+            else (
+                "mild"
+                if magnitude <= 0.8
+                else "large" if magnitude <= 1.5 else "extreme"
+            )
+        )
         return f"gap_{'up' if gap_pct > 0 else 'down'}_{size}"
 
     @classmethod
@@ -278,7 +332,9 @@ class MarketReadService:
         from ..engine.market_state import MarketState
 
         now = MarketState.now_ist()
-        start = datetime.combine(now.date(), time(9, 15), tzinfo=ZoneInfo("Asia/Kolkata"))
+        start = datetime.combine(
+            now.date(), time(9, 15), tzinfo=ZoneInfo("Asia/Kolkata")
+        )
         candles = repository.get_range(
             instrument=instrument,
             timeframe="15m",
@@ -294,12 +350,22 @@ class MarketReadService:
             high = cls._number(candle.get("high"))
             low = cls._number(candle.get("low"))
             close = cls._number(candle.get("close"))
-            if volume is None or volume <= 0 or high is None or low is None or close is None:
+            if (
+                volume is None
+                or volume <= 0
+                or high is None
+                or low is None
+                or close is None
+            ):
                 continue
             weighted_total += ((high + low + close) / 3) * volume
             volume_total += volume
             count += 1
-        return (round(weighted_total / volume_total, 2) if volume_total else None), count, session_candle_count
+        return (
+            (round(weighted_total / volume_total, 2) if volume_total else None),
+            count,
+            session_candle_count,
+        )
 
     @staticmethod
     def _previous_daily_candle_time(instrument, repository, session_date):
@@ -336,23 +402,44 @@ class MarketReadService:
             for key in keys:
                 value = cls._number(values.get(key))
                 if value is not None:
-                    candidates.append({"name": key.upper(), "value": round(value, 2), "method": source})
+                    candidates.append(
+                        {
+                            "name": key.upper(),
+                            "value": round(value, 2),
+                            "method": source,
+                        }
+                    )
 
-        supports = [level for level in candidates if spot is not None and level["value"] < spot]
-        resistances = [level for level in candidates if spot is not None and level["value"] > spot]
+        supports = [
+            level for level in candidates if spot is not None and level["value"] < spot
+        ]
+        resistances = [
+            level for level in candidates if spot is not None and level["value"] > spot
+        ]
         return {
-            "support": max(supports, key=lambda level: level["value"]) if supports else None,
-            "resistance": min(resistances, key=lambda level: level["value"]) if resistances else None,
+            "support": (
+                max(supports, key=lambda level: level["value"]) if supports else None
+            ),
+            "resistance": (
+                min(resistances, key=lambda level: level["value"])
+                if resistances
+                else None
+            ),
             "cpr": cpr,
             "pivot": pivot,
             "available": bool(candidates),
-            "unavailable_reason": None if candidates else "Stored 15-minute candles did not produce usable pivot or CPR values.",
+            "unavailable_reason": (
+                None
+                if candidates
+                else "Stored 15-minute candles did not produce usable pivot or CPR values."
+            ),
         }
 
     @staticmethod
     def _safe_session():
         try:
             from ..engine.market_state import MarketState
+
             return MarketState.session_info()
         except Exception:
             return None
@@ -366,6 +453,7 @@ class MarketReadService:
         try:
             from django.conf import settings
             from django.core.cache import cache
+
             from ..engine.market_state import MarketState
             from ..repositories.candle_repository import CandleRepository
             from ..repositories.instrument_repository import InstrumentRepository
@@ -380,16 +468,25 @@ class MarketReadService:
 
             now = MarketState.now_ist()
             expected_minute = now.minute - (now.minute % 15)
-            expected_bucket = now.replace(minute=expected_minute, second=0, microsecond=0)
+            expected_bucket = now.replace(
+                minute=expected_minute, second=0, microsecond=0
+            )
             latest = CandleRepository.get_latest(instrument, "15m")
             if latest and latest.candle_time:
-                latest_local = timezone.localtime(latest.candle_time, ZoneInfo("Asia/Kolkata"))
-                if latest_local.date() == session_date and latest_local >= expected_bucket:
+                latest_local = timezone.localtime(
+                    latest.candle_time, ZoneInfo("Asia/Kolkata")
+                )
+                if (
+                    latest_local.date() == session_date
+                    and latest_local >= expected_bucket
+                ):
                     return
 
             # The Market Read endpoint polls frequently. Limit provider
             # backfills to once a minute per symbol and market session.
-            refresh_key = f"market-read-candle-refresh:{symbol}:{session_date.isoformat()}"
+            refresh_key = (
+                f"market-read-candle-refresh:{symbol}:{session_date.isoformat()}"
+            )
             if not cache.add(refresh_key, True, timeout=60):
                 return
 
@@ -400,4 +497,6 @@ class MarketReadService:
                 to_date=str(session_date),
             )
         except Exception as error:
-            logger.warning("Live 15-minute candle refresh failed for %s: %s", symbol, error)
+            logger.warning(
+                "Live 15-minute candle refresh failed for %s: %s", symbol, error
+            )

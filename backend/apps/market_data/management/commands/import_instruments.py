@@ -73,13 +73,17 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options) -> None:
         csv_file = options["file"]
-        exchange_filter = options.get("exchange", "").upper() if options.get("exchange") else None
+        exchange_filter = (
+            options.get("exchange", "").upper() if options.get("exchange") else None
+        )
         deactivate_first = options.get("deactivate_first", False)
         dry_run = options.get("dry_run", False)
         batch_size = options.get("batch_size", 500)
 
         if dry_run:
-            self.stdout.write(self.style.WARNING("DRY RUN — no changes will be written to DB."))
+            self.stdout.write(
+                self.style.WARNING("DRY RUN — no changes will be written to DB.")
+            )
 
         if exchange_filter and exchange_filter not in self.SUPPORTED_EXCHANGES:
             self.stderr.write(
@@ -117,7 +121,9 @@ class Command(BaseCommand):
         # ------------------------------------------------------------------
         if exchange_filter:
             rows = [r for r in rows if r.get("exchange", "").upper() == exchange_filter]
-            self.stdout.write(f"Rows after exchange filter ({exchange_filter}): {len(rows)}")
+            self.stdout.write(
+                f"Rows after exchange filter ({exchange_filter}): {len(rows)}"
+            )
 
         # ------------------------------------------------------------------
         # Step 4 — Process in batches
@@ -127,7 +133,7 @@ class Command(BaseCommand):
         skipped = 0
         errors = 0
 
-        batches = [rows[i:i + batch_size] for i in range(0, len(rows), batch_size)]
+        batches = [rows[i : i + batch_size] for i in range(0, len(rows), batch_size)]
         total_batches = len(batches)
 
         self.stdout.write(f"Processing {len(rows)} rows in {total_batches} batches...")
@@ -135,9 +141,11 @@ class Command(BaseCommand):
         for batch_num, batch in enumerate(batches, start=1):
             self.stdout.write(f"  Batch {batch_num}/{total_batches}...", ending="\r")
 
-            batch_imported, batch_updated, batch_skipped, batch_errors = self._process_batch(
-                batch=batch,
-                dry_run=dry_run,
+            batch_imported, batch_updated, batch_skipped, batch_errors = (
+                self._process_batch(
+                    batch=batch,
+                    dry_run=dry_run,
+                )
             )
 
             imported += batch_imported
@@ -151,18 +159,22 @@ class Command(BaseCommand):
         elapsed = time.time() - start_time
 
         self.stdout.write("")
-        self.stdout.write(self.style.SUCCESS(
-            f"\n{'[DRY RUN] ' if dry_run else ''}Import complete in {elapsed:.1f}s\n"
-            f"  Created : {imported}\n"
-            f"  Updated : {updated}\n"
-            f"  Skipped : {skipped}\n"
-            f"  Errors  : {errors}\n"
-            f"  Total   : {imported + updated + skipped}"
-        ))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"\n{'[DRY RUN] ' if dry_run else ''}Import complete in {elapsed:.1f}s\n"
+                f"  Created : {imported}\n"
+                f"  Updated : {updated}\n"
+                f"  Skipped : {skipped}\n"
+                f"  Errors  : {errors}\n"
+                f"  Total   : {imported + updated + skipped}"
+            )
+        )
 
         if errors > 0:
             self.stdout.write(
-                self.style.WARNING(f"  {errors} rows had errors — check logs for details.")
+                self.style.WARNING(
+                    f"  {errors} rows had errors — check logs for details."
+                )
             )
 
     # ------------------------------------------------------------------

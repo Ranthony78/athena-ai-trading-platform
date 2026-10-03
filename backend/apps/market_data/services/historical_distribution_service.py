@@ -15,11 +15,8 @@ not attempted here until that's confirmed to exist.
 """
 
 from datetime import timedelta
-from decimal import Decimal
 from statistics import median
 from zoneinfo import ZoneInfo
-
-from django.utils import timezone
 
 from django.utils import timezone
 
@@ -54,8 +51,12 @@ class HistoricalDistributionService:
         candles = list(reversed(list(qs)))
         if exclude_date:
             candles = [
-                candle for candle in candles
-                if timezone.localtime(candle.candle_time, ZoneInfo("Asia/Kolkata")).date() != exclude_date
+                candle
+                for candle in candles
+                if timezone.localtime(
+                    candle.candle_time, ZoneInfo("Asia/Kolkata")
+                ).date()
+                != exclude_date
             ]
         return candles
 
@@ -71,8 +72,14 @@ class HistoricalDistributionService:
             return cls._insufficient_data(symbol, "gap_stats", len(candles))
 
         buckets = {
-            "gap_up_normal": 0, "gap_up_mild": 0, "gap_up_large": 0, "gap_up_extreme": 0,
-            "gap_down_normal": 0, "gap_down_mild": 0, "gap_down_large": 0, "gap_down_extreme": 0,
+            "gap_up_normal": 0,
+            "gap_up_mild": 0,
+            "gap_up_large": 0,
+            "gap_up_extreme": 0,
+            "gap_down_normal": 0,
+            "gap_down_mild": 0,
+            "gap_down_large": 0,
+            "gap_down_extreme": 0,
         }
         total = 0
 
@@ -159,7 +166,9 @@ class HistoricalDistributionService:
         }
 
     @classmethod
-    def close_direction_given_gap(cls, symbol: str, gap_bucket: str, exclude_date=None) -> dict:
+    def close_direction_given_gap(
+        cls, symbol: str, gap_bucket: str, exclude_date=None
+    ) -> dict:
         """
         Real conditional statistic: for historical days that opened with
         the SAME gap classification as today (e.g. "gap_down_mild"), what
@@ -178,7 +187,9 @@ class HistoricalDistributionService:
         """
         candles = cls._daily_candles(symbol, exclude_date=exclude_date)
         if len(candles) < 2:
-            return cls._insufficient_data(symbol, "close_direction_given_gap", len(candles))
+            return cls._insufficient_data(
+                symbol, "close_direction_given_gap", len(candles)
+            )
 
         FLAT_THRESHOLD_PCT = 0.15
         up = down = flat = 0
@@ -217,10 +228,12 @@ class HistoricalDistributionService:
 
         total = up + down + flat
         if total < 10:  # lower bar than MIN_SAMPLE_SIZE — this slices
-                         # the data 8 ways, so 30+ per bucket is unrealistic
-                         # at 5 years of history; 10 is the honest floor
-                         # below which this is flagged low-confidence.
-            return cls._insufficient_data(symbol, f"close_direction_given_gap[{gap_bucket}]", total)
+            # the data 8 ways, so 30+ per bucket is unrealistic
+            # at 5 years of history; 10 is the honest floor
+            # below which this is flagged low-confidence.
+            return cls._insufficient_data(
+                symbol, f"close_direction_given_gap[{gap_bucket}]", total
+            )
 
         return {
             "symbol": symbol,
@@ -235,8 +248,12 @@ class HistoricalDistributionService:
 
     @classmethod
     def intraday_direction_base_rate(
-        cls, symbol: str, timeframe: str, horizon_minutes: int,
-        reference_minute: int = None, include_completed_today: bool = False,
+        cls,
+        symbol: str,
+        timeframe: str,
+        horizon_minutes: int,
+        reference_minute: int = None,
+        include_completed_today: bool = False,
     ) -> dict:
         """Return an empirical three-way outcome distribution for this horizon.
 
@@ -254,11 +271,17 @@ class HistoricalDistributionService:
         # Score the same one-minute close that the outcome tracker later
         # uses. Coarser bars cannot support a shorter forecast horizon, and
         # silently substituting their close would make calibration misleading.
-        if timeframe not in {"1m", "3m", "5m", "15m", "30m", "1h"} or horizon_minutes <= 0:
+        if (
+            timeframe not in {"1m", "3m", "5m", "15m", "30m", "1h"}
+            or horizon_minutes <= 0
+        ):
             return cls._insufficient_data(symbol, "intraday_direction_base_rate", 0)
 
         candles = CandleRepository.get_by_symbol_and_timeframe(
-            symbol=symbol, timeframe="1m", limit=100000, source="ZERODHA",
+            symbol=symbol,
+            timeframe="1m",
+            limit=100000,
+            source="ZERODHA",
         )
         now = timezone.localtime()
         today = now.date()
@@ -275,7 +298,8 @@ class HistoricalDistributionService:
             include_completed_today
             and now.hour * 60 + now.minute >= 15 * 60 + 30
             and today_rows
-            and max(stamp.hour * 60 + stamp.minute for stamp, _ in today_rows) >= 15 * 60 + 25
+            and max(stamp.hour * 60 + stamp.minute for stamp, _ in today_rows)
+            >= 15 * 60 + 25
         )
         for candle in candle_rows:
             candle_time = timezone.localtime(candle.candle_time)
@@ -288,7 +312,11 @@ class HistoricalDistributionService:
                 continue
             days[candle_time.date()].append((candle_time, candle))
 
-        current_minute = reference_minute if reference_minute is not None else now.hour * 60 + now.minute
+        current_minute = (
+            reference_minute
+            if reference_minute is not None
+            else now.hour * 60 + now.minute
+        )
         outcomes = {"up": 0, "down": 0, "sideways": 0}
         sample_size = 0
         tolerance = cls.INTRADAY_TIME_TOLERANCE_MINUTES
@@ -296,14 +324,23 @@ class HistoricalDistributionService:
 
         for day_candles in days.values():
             day_candles.sort(key=lambda row: row[0])
-            starts = [row for row in day_candles if row[0].hour * 60 + row[0].minute <= current_minute]
+            starts = [
+                row
+                for row in day_candles
+                if row[0].hour * 60 + row[0].minute <= current_minute
+            ]
             if not starts:
                 continue
             start_time, start = min(
                 starts,
-                key=lambda row: abs((row[0].hour * 60 + row[0].minute) - current_minute),
+                key=lambda row: abs(
+                    (row[0].hour * 60 + row[0].minute) - current_minute
+                ),
             )
-            if abs((start_time.hour * 60 + start_time.minute) - current_minute) > tolerance:
+            if (
+                abs((start_time.hour * 60 + start_time.minute) - current_minute)
+                > tolerance
+            ):
                 continue
 
             target_time = start_time + timedelta(minutes=horizon_minutes)
@@ -324,14 +361,17 @@ class HistoricalDistributionService:
             sample_dates.append(start_time.date())
 
         if sample_size < cls.INTRADAY_MIN_SAMPLE_SIZE:
-            return cls._insufficient_data(symbol, "intraday_direction_base_rate", sample_size)
+            return cls._insufficient_data(
+                symbol, "intraday_direction_base_rate", sample_size
+            )
 
         percentages = {
-            key: round(value / sample_size * 100, 1)
-            for key, value in outcomes.items()
+            key: round(value / sample_size * 100, 1) for key, value in outcomes.items()
         }
         # Keep the displayed split summing to exactly 100 after rounding.
-        percentages["sideways"] = round(100 - percentages["up"] - percentages["down"], 1)
+        percentages["sideways"] = round(
+            100 - percentages["up"] - percentages["down"], 1
+        )
         return {
             "symbol": symbol,
             "timeframe": timeframe,

@@ -14,6 +14,7 @@ available (no user, no NFO import, provider error) — same "real data
 or NA" principle as everywhere else, never fabricates a chart point
 or a stat.
 """
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -61,11 +62,13 @@ class AnalysisReportService:
     @staticmethod
     def _get_session() -> dict:
         from ..engine.market_state import MarketState
+
         return MarketState.session_info()
 
     @staticmethod
     def _get_spot(symbol: str, user) -> dict:
         from .market_service import MarketService
+
         return MarketService(user=user).quote(symbol)
 
     @staticmethod
@@ -73,7 +76,10 @@ class AnalysisReportService:
         from ..indicators.indicator_service import IndicatorService
 
         data = IndicatorService.calculate(
-            symbol=symbol, timeframe="15m", indicators=["CPR", "PIVOT"], limit=50,
+            symbol=symbol,
+            timeframe="15m",
+            indicators=["CPR", "PIVOT"],
+            limit=50,
         )
 
         def latest(series):
@@ -101,8 +107,10 @@ class AnalysisReportService:
         for tf in MULTI_TIMEFRAME_SET:
             try:
                 data = IndicatorService.calculate(
-                    symbol=symbol, timeframe=tf,
-                    indicators=["EMA_20", "RSI_14"], limit=60,
+                    symbol=symbol,
+                    timeframe=tf,
+                    indicators=["EMA_20", "RSI_14"],
+                    limit=60,
                 )
                 ema_vals = [v for v in (data.get("EMA_20") or []) if v is not None]
                 rsi_vals = [v for v in (data.get("RSI_14") or []) if v is not None]
@@ -113,7 +121,9 @@ class AnalysisReportService:
 
                 candles = list(
                     CandleRepository.get_by_instrument_and_timeframe(
-                        instrument=instrument, timeframe=tf, limit=1,
+                        instrument=instrument,
+                        timeframe=tf,
+                        limit=1,
                     ).values("close")
                 )
                 latest_close = float(candles[0]["close"]) if candles else None
@@ -152,11 +162,21 @@ class AnalysisReportService:
 
         chain = service.get_chain(symbol, expiry=summary.get("expiry"))
         atm_call = next(
-            (r for r in chain if r.get("strike") == summary["atm_strike"] and r.get("option_type") == "CE"),
+            (
+                r
+                for r in chain
+                if r.get("strike") == summary["atm_strike"]
+                and r.get("option_type") == "CE"
+            ),
             None,
         )
         atm_put = next(
-            (r for r in chain if r.get("strike") == summary["atm_strike"] and r.get("option_type") == "PE"),
+            (
+                r
+                for r in chain
+                if r.get("strike") == summary["atm_strike"]
+                and r.get("option_type") == "PE"
+            ),
             None,
         )
 
@@ -173,7 +193,9 @@ class AnalysisReportService:
     @staticmethod
     def _get_last_analysis(symbol: str) -> dict:
         from django.utils import timezone
+
         from apps.ai_engine.repositories.ai_repository import AnalysisSessionRepository
+
         from ..repositories.instrument_repository import InstrumentRepository
 
         instrument = InstrumentRepository.get_by_symbol(symbol)

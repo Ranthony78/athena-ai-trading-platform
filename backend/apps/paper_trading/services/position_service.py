@@ -1,13 +1,12 @@
 import logging
-from decimal import Decimal, ROUND_HALF_UP
-from datetime import datetime
+from decimal import ROUND_HALF_UP, Decimal
 
 from django.utils import timezone
 
 from ..models import PaperAccount, PaperPosition, PaperTrade
 from ..repositories.paper_repository import (
-    PaperPositionRepository,
     PaperAccountRepository,
+    PaperPositionRepository,
 )
 
 logger = logging.getLogger(__name__)
@@ -78,8 +77,7 @@ class PositionService:
             # Add to position — recalculate average price
             total_qty = existing.quantity + quantity
             total_cost = (
-                existing.average_price * existing.quantity +
-                execution_price * quantity
+                existing.average_price * existing.quantity + execution_price * quantity
             )
             existing.average_price = total_cost / total_qty
             existing.quantity = total_qty
@@ -108,10 +106,15 @@ class PositionService:
             allocated_entry_brokerage = (
                 existing.entry_brokerage
                 if is_full_close
-                else (existing.entry_brokerage * Decimal(close_quantity) / Decimal(existing.quantity))
-                .quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                else (
+                    existing.entry_brokerage
+                    * Decimal(close_quantity)
+                    / Decimal(existing.quantity)
+                ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
             )
-            exit_brokerage = order_brokerage if order_brokerage is not None else BROKERAGE
+            exit_brokerage = (
+                order_brokerage if order_brokerage is not None else BROKERAGE
+            )
             total_brokerage = allocated_entry_brokerage + exit_brokerage
             net_pnl = pnl - total_brokerage
 
@@ -135,9 +138,13 @@ class PositionService:
                 tag=existing.tag,
                 analysis_session=existing.analysis_session,
                 ai_signal=(
-                    "BOTH" if existing.tag == "AI_PAPER_VOLATILITY"
-                    else existing.analysis_session.ai_signal.signal
-                    if existing.analysis_session_id else ""
+                    "BOTH"
+                    if existing.tag == "AI_PAPER_VOLATILITY"
+                    else (
+                        existing.analysis_session.ai_signal.signal
+                        if existing.analysis_session_id
+                        else ""
+                    )
                 ),
             )
 
@@ -209,9 +216,7 @@ class PositionService:
                     )
                     position.save()
             except Exception as e:
-                logger.error(
-                    f"PnL update error for {position.instrument.symbol}: {e}"
-                )
+                logger.error(f"PnL update error for {position.instrument.symbol}: {e}")
 
     @staticmethod
     def get_open_positions(user):

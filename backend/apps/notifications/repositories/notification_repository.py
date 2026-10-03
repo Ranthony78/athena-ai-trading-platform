@@ -1,8 +1,11 @@
-from django.db import models
 from typing import Optional
+
+from django.db import models
 from django.db.models import QuerySet
 from django.utils import timezone
+
 from shared.repositories import BaseRepository
+
 from ..models import Alert, Notification, NotificationPreference
 
 
@@ -49,9 +52,13 @@ class NotificationRepository(BaseRepository[Notification]):
     @classmethod
     def get_unread_count(cls, user) -> int:
         """Return unread notification count."""
-        return cls.model.objects.filter(
-            user=user,
-        ).exclude(status="READ").count()
+        return (
+            cls.model.objects.filter(
+                user=user,
+            )
+            .exclude(status="READ")
+            .count()
+        )
 
     @classmethod
     def mark_read(cls, notification: Notification) -> Notification:
@@ -64,11 +71,15 @@ class NotificationRepository(BaseRepository[Notification]):
     @classmethod
     def mark_all_read(cls, user) -> int:
         """Mark all notifications as read for a user."""
-        return cls.model.objects.filter(
-            user=user,
-        ).exclude(status="READ").update(
-            status="READ",
-            read_at=timezone.now(),
+        return (
+            cls.model.objects.filter(
+                user=user,
+            )
+            .exclude(status="READ")
+            .update(
+                status="READ",
+                read_at=timezone.now(),
+            )
         )
 
     @classmethod
@@ -111,13 +122,14 @@ class AlertRepository(BaseRepository[Alert]):
     def get_all_active(cls) -> QuerySet[Alert]:
         """Return all active alerts across all users."""
         now = timezone.now()
-        return cls.model.objects.filter(
-            status="ACTIVE",
-            is_active=True,
-        ).filter(
-            models.Q(expires_at__isnull=True) |
-            models.Q(expires_at__gt=now)
-        ).select_related("user")
+        return (
+            cls.model.objects.filter(
+                status="ACTIVE",
+                is_active=True,
+            )
+            .filter(models.Q(expires_at__isnull=True) | models.Q(expires_at__gt=now))
+            .select_related("user")
+        )
 
     @classmethod
     def trigger(

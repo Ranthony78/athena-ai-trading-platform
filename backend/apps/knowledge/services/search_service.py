@@ -4,8 +4,8 @@ from django.db.models import Q
 
 from ..repositories.knowledge_repository import (
     ArticleRepository,
-    TradingRuleRepository,
     PromptRepository,
+    TradingRuleRepository,
 )
 
 logger = logging.getLogger(__name__)
@@ -29,29 +29,31 @@ class SearchService:
                 "total": 0,
             }
 
-        articles = ArticleRepository.filter(
-            user=user,
-            is_active=True,
-        ).filter(
-            Q(title__icontains=query) |
-            Q(content__icontains=query) |
-            Q(summary__icontains=query)
-        ).prefetch_related("tags")[:10]
+        articles = (
+            ArticleRepository.filter(
+                user=user,
+                is_active=True,
+            )
+            .filter(
+                Q(title__icontains=query)
+                | Q(content__icontains=query)
+                | Q(summary__icontains=query)
+            )
+            .prefetch_related("tags")[:10]
+        )
 
         rules = TradingRuleRepository.filter(
             user=user,
             is_active=True,
         ).filter(
-            Q(title__icontains=query) |
-            Q(description__icontains=query)
+            Q(title__icontains=query) | Q(description__icontains=query)
         )[:5]
 
         prompts = PromptRepository.filter(
             user=user,
             is_active=True,
         ).filter(
-            Q(title__icontains=query) |
-            Q(content__icontains=query)
+            Q(title__icontains=query) | Q(content__icontains=query)
         )[:5]
 
         return {

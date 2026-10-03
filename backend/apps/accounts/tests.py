@@ -9,6 +9,7 @@ Several tests pin security fixes:
   * auth endpoints are rate limited;
   * production refuses to start with a weak SECRET_KEY.
 """
+
 import os
 import subprocess
 import sys
@@ -44,7 +45,9 @@ class AuthAPITestCase(APITestCase):
     def setUp(self):
         cache.clear()
 
-    def register(self, username="alice", email="alice@example.com", password=STRONG_PASSWORD):
+    def register(
+        self, username="alice", email="alice@example.com", password=STRONG_PASSWORD
+    ):
         return self.client.post(
             "/api/accounts/register/",
             {
@@ -208,7 +211,9 @@ class GoogleLoginTests(AuthAPITestCase):
         User.objects.filter(username="carol").update(is_email_verified=True)
         session = RefreshToken.for_user(User.objects.get(username="carol"))
 
-        response, _ = self.google({"email": "carol@example.com", "email_verified": True})
+        response, _ = self.google(
+            {"email": "carol@example.com", "email_verified": True}
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.login("carol", STRONG_PASSWORD).status_code, 200)
@@ -306,14 +311,20 @@ class UserManagementTests(AuthAPITestCase):
         self.assertFalse(self.member.is_active)
 
     def test_staff_cannot_deactivate_themselves_or_a_superuser(self):
-        root = User.objects.create_superuser("root", "root@example.com", STRONG_PASSWORD)
+        root = User.objects.create_superuser(
+            "root", "root@example.com", STRONG_PASSWORD
+        )
         self.client.force_authenticate(self.admin)
 
         own = self.client.patch(
-            f"/api/accounts/users/{self.admin.pk}/status/", {"is_active": False}, format="json"
+            f"/api/accounts/users/{self.admin.pk}/status/",
+            {"is_active": False},
+            format="json",
         )
         superuser = self.client.patch(
-            f"/api/accounts/users/{root.pk}/status/", {"is_active": False}, format="json"
+            f"/api/accounts/users/{root.pk}/status/",
+            {"is_active": False},
+            format="json",
         )
 
         self.assertEqual(own.status_code, 400)
@@ -325,7 +336,9 @@ class UserManagementTests(AuthAPITestCase):
         self.client.force_authenticate(self.admin)
 
         response = self.client.patch(
-            f"/api/accounts/users/{self.member.pk}/status/", {"is_active": "false"}, format="json"
+            f"/api/accounts/users/{self.member.pk}/status/",
+            {"is_active": "false"},
+            format="json",
         )
 
         self.assertEqual(response.status_code, 400)
@@ -357,12 +370,16 @@ class PasswordResetTests(AuthAPITestCase):
         }
 
     def confirm(self, payload):
-        return self.client.post("/api/accounts/password-reset/confirm/", payload, format="json")
+        return self.client.post(
+            "/api/accounts/password-reset/confirm/", payload, format="json"
+        )
 
     def test_admin_reset_emails_the_user_not_the_admin(self):
         self.client.force_authenticate(self.admin)
 
-        response = self.client.post(f"/api/accounts/users/{self.member.pk}/password-reset/")
+        response = self.client.post(
+            f"/api/accounts/users/{self.member.pk}/password-reset/"
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(mail.outbox), 1)
@@ -372,11 +389,15 @@ class PasswordResetTests(AuthAPITestCase):
     def test_reset_for_inactive_or_emailless_user_is_refused(self):
         self.client.force_authenticate(self.admin)
         User.objects.filter(pk=self.member.pk).update(is_active=False)
-        inactive = self.client.post(f"/api/accounts/users/{self.member.pk}/password-reset/")
+        inactive = self.client.post(
+            f"/api/accounts/users/{self.member.pk}/password-reset/"
+        )
         self.assertEqual(inactive.status_code, 400)
 
         User.objects.filter(pk=self.member.pk).update(is_active=True, email="")
-        emailless = self.client.post(f"/api/accounts/users/{self.member.pk}/password-reset/")
+        emailless = self.client.post(
+            f"/api/accounts/users/{self.member.pk}/password-reset/"
+        )
         self.assertEqual(emailless.status_code, 400)
         self.assertEqual(len(mail.outbox), 0)
 
@@ -400,8 +421,13 @@ class PasswordResetTests(AuthAPITestCase):
         payload = self.reset_payload()
         self.assertEqual(self.confirm(payload).status_code, 200)
 
-        again = self.confirm({**payload, "new_password": "Zz81$qRt-another-one",
-                              "password_confirm": "Zz81$qRt-another-one"})
+        again = self.confirm(
+            {
+                **payload,
+                "new_password": "Zz81$qRt-another-one",
+                "password_confirm": "Zz81$qRt-another-one",
+            }
+        )
 
         self.assertEqual(again.status_code, 400)
         self.assertEqual(self.login("member", NEW_PASSWORD).status_code, 200)
@@ -435,7 +461,9 @@ class ThrottlingTests(AuthAPITestCase):
     def test_google_and_reset_confirm_share_the_auth_limit(self):
         with patch.object(ScopedRateThrottle, "THROTTLE_RATES", {"auth": "2/min"}):
             first = self.client.post("/api/accounts/google/", {}, format="json")
-            second = self.client.post("/api/accounts/password-reset/confirm/", {}, format="json")
+            second = self.client.post(
+                "/api/accounts/password-reset/confirm/", {}, format="json"
+            )
             third = self.login("nobody", "x")
 
         self.assertNotEqual(first.status_code, 429)
@@ -445,7 +473,9 @@ class ThrottlingTests(AuthAPITestCase):
     def test_registration_is_rate_limited(self):
         with patch.object(ScopedRateThrottle, "THROTTLE_RATES", {"register": "2/hour"}):
             codes = [
-                self.register(username=f"user{i}", email=f"user{i}@example.com").status_code
+                self.register(
+                    username=f"user{i}", email=f"user{i}@example.com"
+                ).status_code
                 for i in range(3)
             ]
 

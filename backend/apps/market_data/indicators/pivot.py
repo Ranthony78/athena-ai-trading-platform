@@ -34,15 +34,17 @@ class PivotPoints(BaseIndicator):
         s2 = pp - (high - low)
         s3 = low - 2 * (high - pp)
 
-        return pd.DataFrame({
-            "pp": pp,
-            "r1": r1,
-            "r2": r2,
-            "r3": r3,
-            "s1": s1,
-            "s2": s2,
-            "s3": s3,
-        })
+        return pd.DataFrame(
+            {
+                "pp": pp,
+                "r1": r1,
+                "r2": r2,
+                "r3": r3,
+                "s1": s1,
+                "s2": s2,
+                "s3": s3,
+            }
+        )
 
     @classmethod
     def compute(cls, candles: list[dict]) -> dict:
@@ -81,12 +83,14 @@ class CPR(BaseIndicator):
         tc = (pp - bc) + pp
         width = (tc - bc).abs()
 
-        return pd.DataFrame({
-            "tc": tc,
-            "pp": pp,
-            "bc": bc,
-            "width": width,
-        })
+        return pd.DataFrame(
+            {
+                "tc": tc,
+                "pp": pp,
+                "bc": bc,
+                "width": width,
+            }
+        )
 
     @classmethod
     def compute(cls, candles: list[dict]) -> dict:

@@ -1,23 +1,29 @@
-from rest_framework import status
-from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
-from rest_framework.response import Response
-from rest_framework.views import APIView
-from rest_framework.generics import ListAPIView
-from rest_framework.filters import SearchFilter
-from rest_framework.throttling import ScopedRateThrottle
-from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.views import TokenRefreshView
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ValidationError
-from django.utils.text import slugify
 from django.contrib.auth.tokens import default_token_generator
+from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.utils.text import slugify
+from rest_framework import status
+from rest_framework.filters import SearchFilter
+from rest_framework.generics import ListAPIView
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
+from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenRefreshView
 
-from .serializers import LoginSerializer, ManagedUserSerializer, PasswordResetConfirmSerializer, RegistrationSerializer, UserSerializer
+from .serializers import (
+    LoginSerializer,
+    ManagedUserSerializer,
+    PasswordResetConfirmSerializer,
+    RegistrationSerializer,
+    UserSerializer,
+)
 from .token_utils import revoke_user_tokens
 
 User = get_user_model()
@@ -25,13 +31,16 @@ User = get_user_model()
 
 def auth_response(user, message, response_status=status.HTTP_200_OK):
     refresh = RefreshToken.for_user(user)
-    return Response({
-        "success": True,
-        "message": message,
-        "access": str(refresh.access_token),
-        "refresh": str(refresh),
-        "user": UserSerializer(user).data,
-    }, status=response_status)
+    return Response(
+        {
+            "success": True,
+            "message": message,
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
+            "user": UserSerializer(user).data,
+        },
+        status=response_status,
+    )
 
 
 class LoginAPIView(APIView):
@@ -57,7 +66,9 @@ class RegistrationAPIView(APIView):
         serializer = RegistrationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        return auth_response(user, "Account created successfully.", status.HTTP_201_CREATED)
+        return auth_response(
+            user, "Account created successfully.", status.HTTP_201_CREATED
+        )
 
 
 class GoogleLoginAPIView(APIView):
@@ -69,28 +80,53 @@ class GoogleLoginAPIView(APIView):
         client_id = getattr(settings, "GOOGLE_OAUTH_CLIENT_ID", "")
         credential = request.data.get("credential")
         if not client_id:
-            return Response({"success": False, "message": "Google sign-in is not configured."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            return Response(
+                {"success": False, "message": "Google sign-in is not configured."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
         if not credential:
-            return Response({"success": False, "message": "Google credential is required."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"success": False, "message": "Google credential is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             from google.auth.transport import requests as google_requests
             from google.oauth2 import id_token
         except ImportError:
-            return Response({"success": False, "message": "Google sign-in dependencies are unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            return Response(
+                {
+                    "success": False,
+                    "message": "Google sign-in dependencies are unavailable.",
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
         try:
-            identity = id_token.verify_oauth2_token(credential, google_requests.Request(), client_id)
+            identity = id_token.verify_oauth2_token(
+                credential, google_requests.Request(), client_id
+            )
         except Exception:
-            return Response({"success": False, "message": "Google credential is invalid or expired."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {
+                    "success": False,
+                    "message": "Google credential is invalid or expired.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         email = (identity.get("email") or "").strip().lower()
         if not email or not identity.get("email_verified"):
-            return Response({"success": False, "message": "A verified Google email is required."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"success": False, "message": "A verified Google email is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         user = User.objects.filter(email__iexact=email).first()
         if user is None:
-            base_username = slugify(identity.get("name") or email.split("@")[0]).replace("-", "_")[:140]
+            base_username = slugify(
+                identity.get("name") or email.split("@")[0]
+            ).replace("-", "_")[:140]
             username_seed = base_username or "google_user"
             username = username_seed
             suffix = 1
@@ -106,7 +142,10 @@ class GoogleLoginAPIView(APIView):
             )
         else:
             if not user.is_active:
-                return Response({"success": False, "message": "This account is inactive."}, status=status.HTTP_403_FORBIDDEN)
+                return Response(
+                    {"success": False, "message": "This account is inactive."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
             if not user.is_email_verified:
                 # Registration does not verify email, so whoever created this
                 # account may not own the address. Google has just proven the
@@ -135,21 +174,42 @@ class ManagedUserStatusAPIView(APIView):
     def patch(self, request, user_id):
         is_active = request.data.get("is_active")
         if not isinstance(is_active, bool):
-            return Response({"success": False, "message": "is_active must be true or false."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"success": False, "message": "is_active must be true or false."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             user = User.objects.get(pk=user_id)
         except User.DoesNotExist:
-            return Response({"success": False, "message": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"success": False, "message": "User not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         if user.pk == request.user.pk and not is_active:
-            return Response({"success": False, "message": "You cannot deactivate your own account."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {
+                    "success": False,
+                    "message": "You cannot deactivate your own account.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if user.is_superuser and not request.user.is_superuser and not is_active:
-            return Response({"success": False, "message": "Only a superuser can deactivate another superuser."}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {
+                    "success": False,
+                    "message": "Only a superuser can deactivate another superuser.",
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         user.is_active = is_active
         user.save(update_fields=["is_active"])
-        return Response({"success": True, "user": ManagedUserSerializer(user).data}, status=status.HTTP_200_OK)
+        return Response(
+            {"success": True, "user": ManagedUserSerializer(user).data},
+            status=status.HTTP_200_OK,
+        )
 
 
 class ManagedUserPasswordResetAPIView(APIView):
@@ -159,12 +219,27 @@ class ManagedUserPasswordResetAPIView(APIView):
         try:
             user = User.objects.get(pk=user_id)
         except User.DoesNotExist:
-            return Response({"success": False, "message": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"success": False, "message": "User not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         if not user.email:
-            return Response({"success": False, "message": "This account does not have an email address."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {
+                    "success": False,
+                    "message": "This account does not have an email address.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if not user.is_active:
-            return Response({"success": False, "message": "Activate this account before sending a password reset link."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {
+                    "success": False,
+                    "message": "Activate this account before sending a password reset link.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         uid = urlsafe_base64_encode(force_bytes(user.pk))
         token = default_token_generator.make_token(user)
@@ -184,9 +259,21 @@ class ManagedUserPasswordResetAPIView(APIView):
                 fail_silently=False,
             )
         except Exception:
-            return Response({"success": False, "message": "The reset email could not be sent. Check the email server configuration."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            return Response(
+                {
+                    "success": False,
+                    "message": "The reset email could not be sent. Check the email server configuration.",
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
-        return Response({"success": True, "message": "Password reset instructions were sent to the user's email."}, status=status.HTTP_200_OK)
+        return Response(
+            {
+                "success": True,
+                "message": "Password reset instructions were sent to the user's email.",
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class PasswordResetConfirmAPIView(APIView):
@@ -200,24 +287,48 @@ class PasswordResetConfirmAPIView(APIView):
         try:
             user_id = force_str(urlsafe_base64_decode(serializer.validated_data["uid"]))
             user = User.objects.get(pk=user_id)
-        except (TypeError, ValueError, OverflowError, UnicodeDecodeError, User.DoesNotExist):
-            return Response({"success": False, "message": "This password reset link is invalid or expired."}, status=status.HTTP_400_BAD_REQUEST)
+        except (
+            TypeError,
+            ValueError,
+            OverflowError,
+            UnicodeDecodeError,
+            User.DoesNotExist,
+        ):
+            return Response(
+                {
+                    "success": False,
+                    "message": "This password reset link is invalid or expired.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         token = serializer.validated_data["token"]
         if not user.is_active or not default_token_generator.check_token(user, token):
-            return Response({"success": False, "message": "This password reset link is invalid or expired."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {
+                    "success": False,
+                    "message": "This password reset link is invalid or expired.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             validate_password(serializer.validated_data["new_password"], user=user)
         except ValidationError as error:
-            return Response({"success": False, "message": error.messages[0]}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"success": False, "message": error.messages[0]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         user.set_password(serializer.validated_data["new_password"])
         user.save(update_fields=["password"])
         # A reset is often a response to a compromised account: make sure any
         # existing session cannot be renewed with the old credentials.
         revoke_user_tokens(user)
-        return Response({"success": True, "message": "Password updated. You can now sign in."}, status=status.HTTP_200_OK)
+        return Response(
+            {"success": True, "message": "Password updated. You can now sign in."},
+            status=status.HTTP_200_OK,
+        )
 
 
 class ThrottledTokenRefreshView(TokenRefreshView):

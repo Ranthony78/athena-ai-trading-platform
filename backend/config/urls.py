@@ -7,10 +7,17 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
-    path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger",),
+    path(
+        "api/docs/",
+        SpectacularSwaggerView.as_view(url_name="schema"),
+        name="swagger",
+    ),
     path("api/accounts/", include("apps.accounts.urls")),
     path("api/dashboard/", include("apps.dashboard.urls")),
-    path("api/market/", include("apps.market_data.api.urls"),),
+    path(
+        "api/market/",
+        include("apps.market_data.api.urls"),
+    ),
     path("api/strategies/", include("apps.strategies.api.urls")),
     path("api/ai/", include("apps.ai_engine.api.urls")),
     path("api/paper/", include("apps.paper_trading.api.urls")),

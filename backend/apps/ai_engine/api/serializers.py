@@ -5,7 +5,9 @@ from ..models import AISignal, AnalysisSession, PromptTemplate
 
 class AIProviderCredentialSerializer(serializers.Serializer):
     provider = serializers.ChoiceField(choices=["gemini", "kimi", "claude", "groq"])
-    api_key = serializers.CharField(write_only=True, trim_whitespace=True, min_length=8, max_length=512)
+    api_key = serializers.CharField(
+        write_only=True, trim_whitespace=True, min_length=8, max_length=512
+    )
 
 
 class PromptTemplateSerializer(serializers.ModelSerializer):
@@ -67,7 +69,11 @@ class AnalysisSessionSerializer(serializers.ModelSerializer):
             "forecast_resolved_at",
             "forecast_brier_score",
             "probability_method_version",
-            "prompt_version", "prompt_hash", "provider_used", "paper_evaluation", "error_message",
+            "prompt_version",
+            "prompt_hash",
+            "provider_used",
+            "paper_evaluation",
+            "error_message",
         ]
 
 
@@ -88,7 +94,9 @@ class AISignalSerializer(serializers.ModelSerializer):
             "instrument_id": instrument.id,
             "trading_symbol": instrument.trading_symbol,
             "expiry": instrument.expiry.isoformat() if instrument.expiry else None,
-            "strike": float(instrument.strike) if instrument.strike is not None else None,
+            "strike": (
+                float(instrument.strike) if instrument.strike is not None else None
+            ),
             "option_type": instrument.option_type or instrument.instrument_type,
             "lot_size": instrument.lot_size,
             "entry_premium": float(obj.entry_premium),
@@ -115,6 +123,7 @@ class AISignalSerializer(serializers.ModelSerializer):
 
 class AnalysisRequestSerializer(serializers.Serializer):
     """Request body for triggering an analysis."""
+
     symbol = serializers.CharField()
     timeframe = serializers.ChoiceField(
         choices=["1m", "3m", "5m", "15m", "30m", "1h", "1d"],
@@ -143,9 +152,13 @@ class AnalysisRequestSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         if attrs["analysis_mode"] == "NEXT_SESSION" and attrs["paper_evaluate"]:
-            raise serializers.ValidationError({
-                "paper_evaluate": "Paper evaluation is unavailable for next-session outlooks; they are planning only."
-            })
+            raise serializers.ValidationError(
+                {
+                    "paper_evaluate": "Paper evaluation is unavailable for next-session outlooks; they are planning only."
+                }
+            )
         if attrs["paper_evaluate"] and not attrs["persist"]:
-            raise serializers.ValidationError("Paper evaluation requires a saved analysis.")
+            raise serializers.ValidationError(
+                "Paper evaluation requires a saved analysis."
+            )
         return attrs

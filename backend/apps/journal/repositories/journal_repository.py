@@ -1,6 +1,6 @@
 from typing import Optional
 
-from django.db.models import QuerySet, Sum, Avg
+from django.db.models import Avg, QuerySet, Sum
 from django.utils import timezone
 
 from shared.repositories import BaseRepository
@@ -19,9 +19,13 @@ class JournalEntryRepository(BaseRepository[JournalEntry]):
         limit: int = 30,
     ) -> QuerySet[JournalEntry]:
         """Return recent journal entries for a user."""
-        return cls.model.objects.filter(
-            user=user,
-        ).prefetch_related("trade_notes").order_by("-date")[:limit]
+        return (
+            cls.model.objects.filter(
+                user=user,
+            )
+            .prefetch_related("trade_notes")
+            .order_by("-date")[:limit]
+        )
 
     @classmethod
     def get_by_date(
@@ -47,10 +51,14 @@ class JournalEntryRepository(BaseRepository[JournalEntry]):
         entry_id: int,
     ) -> Optional[JournalEntry]:
         """Return a single entry owned by the user."""
-        return cls.model.objects.filter(
-            id=entry_id,
-            user=user,
-        ).prefetch_related("trade_notes", "lessons").first()
+        return (
+            cls.model.objects.filter(
+                id=entry_id,
+                user=user,
+            )
+            .prefetch_related("trade_notes", "lessons")
+            .first()
+        )
 
     @classmethod
     def get_stats(cls, user) -> dict:
@@ -82,14 +90,22 @@ class JournalEntryRepository(BaseRepository[JournalEntry]):
             "avg_rating": round(float(aggregates["avg_rating"] or 0), 1),
             "total_pnl": float(aggregates["total_pnl"] or 0),
             "total_trades": aggregates["total_trades"] or 0,
-            "best_day": {
-                "date": str(best.date),
-                "pnl": float(best.total_pnl),
-            } if best else None,
-            "worst_day": {
-                "date": str(worst.date),
-                "pnl": float(worst.total_pnl),
-            } if worst else None,
+            "best_day": (
+                {
+                    "date": str(best.date),
+                    "pnl": float(best.total_pnl),
+                }
+                if best
+                else None
+            ),
+            "worst_day": (
+                {
+                    "date": str(worst.date),
+                    "pnl": float(worst.total_pnl),
+                }
+                if worst
+                else None
+            ),
         }
 
 
@@ -110,11 +126,16 @@ class TradeNoteRepository(BaseRepository[TradeNote]):
     @classmethod
     def get_mistakes(cls, user) -> QuerySet[TradeNote]:
         """Return all trade notes with mistakes."""
-        return cls.model.objects.filter(
-            journal_entry__user=user,
-        ).exclude(
-            mistake_type="NONE",
-        ).select_related("instrument").order_by("-created_at")
+        return (
+            cls.model.objects.filter(
+                journal_entry__user=user,
+            )
+            .exclude(
+                mistake_type="NONE",
+            )
+            .select_related("instrument")
+            .order_by("-created_at")
+        )
 
 
 class LessonRepository(BaseRepository[Lesson]):

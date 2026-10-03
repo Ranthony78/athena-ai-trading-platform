@@ -34,16 +34,17 @@ rather than crashes:
    first, but it's the same fragile pattern and worth tidying up
    preventively.
 """
+
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-from apps.market_data.models import Instrument
-from apps.strategies.models import Strategy
 from apps.backtesting.models import BacktestRun, BacktestTrade
 from apps.backtesting.services.report_service import ReportService
+from apps.market_data.models import Instrument
+from apps.strategies.models import Strategy
 
 User = get_user_model()
 
@@ -108,9 +109,7 @@ class ReportServiceTestCase(TestCase):
     def _make_standard_trade_set(self):
         gross = [120.0, -30.0, 220.0, -10.0, 0.0]
         net = [100.0, -50.0, 200.0, -30.0, -20.0]
-        return [
-            self._make_trade(pnl=g, net_pnl=n) for g, n in zip(gross, net)
-        ]
+        return [self._make_trade(pnl=g, net_pnl=n) for g, n in zip(gross, net)]
 
     def test_win_loss_counts_and_win_rate(self):
         trades = self._make_standard_trade_set()

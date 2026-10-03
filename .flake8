@@ -1,0 +1,22 @@
+[flake8]
+# black owns line layout (88 columns). E501 is switched off because what is
+# left over is only string literals black cannot split (error messages and
+# AI prompt text), and re-wrapping those by hand risks changing the text.
+extend-ignore =
+    # Black owns whitespace around slices and line breaks around operators.
+    E203,
+    W503,
+    E501
+exclude =
+    .git,
+    __pycache__,
+    migrations,
+    .venv,
+    venv,
+    node_modules,
+    frontend
+per-file-ignores =
+    # Settings modules intentionally layer with `from .base import *`.
+    backend/config/settings/*.py: F401, F403, F405
+    # Package __init__ files re-export names on purpose.
+    __init__.py: F401

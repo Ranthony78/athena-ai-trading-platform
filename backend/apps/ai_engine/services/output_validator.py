@@ -17,8 +17,8 @@ and stays correct as more real data sources get wired in over time.
 """
 
 import logging
-import re
 import math
+import re
 from datetime import time as datetime_time
 from typing import Optional
 
@@ -73,7 +73,9 @@ class OutputValidator:
         )
         warnings.extend(risk_warnings)
 
-        probability_warning = cls._enforce_historical_probability(cleaned, market_context)
+        probability_warning = cls._enforce_historical_probability(
+            cleaned, market_context
+        )
         if probability_warning:
             warnings.append(probability_warning)
 
@@ -95,7 +97,9 @@ class OutputValidator:
             signal = "NO_SETUP"
             reason = "Next-session outlook only: scenarios are conditional and cannot authorize a current entry or paper trade."
             if str(output.get("signal", "")).upper() in ("BUY", "SELL"):
-                warnings.append("Next-session outlook cannot emit an actionable BUY/SELL signal; normalized to No Trade.")
+                warnings.append(
+                    "Next-session outlook cannot emit an actionable BUY/SELL signal; normalized to No Trade."
+                )
             if context.get("error"):
                 output["market_view"] = "UNCERTAIN"
                 output["scenarios"] = {
@@ -106,33 +110,64 @@ class OutputValidator:
                 output["missing_information"] = [context["error"]]
         elif signal not in ("BUY", "SELL"):
             signal = "NO_SETUP"
-            reason = reason if isinstance(reason, str) and reason.strip() else "The evidence does not support a clear directional trade."
+            reason = (
+                reason
+                if isinstance(reason, str) and reason.strip()
+                else "The evidence does not support a clear directional trade."
+            )
         quote = context.get("quote") or {}
         from apps.paper_trading.services.broker_simulator import BrokerSimulator
+
         if analysis_mode != "NEXT_SESSION":
-            if context.get("error") or not quote or context.get("quote_source") != "ZERODHA" or BrokerSimulator._quote_is_stale(quote.get("timestamp")):
-                signal, reason = "NO_SETUP", "Current verified price evidence is missing or stale. Refresh market data before considering a trade."
+            if (
+                context.get("error")
+                or not quote
+                or context.get("quote_source") != "ZERODHA"
+                or BrokerSimulator._quote_is_stale(quote.get("timestamp"))
+            ):
+                signal, reason = (
+                    "NO_SETUP",
+                    "Current verified price evidence is missing or stale. Refresh market data before considering a trade.",
+                )
                 live_context_unavailable = True
             elif (context.get("session") or {}).get("is_live") is not True:
                 session = context.get("session") or {}
                 if session.get("is_live") is False:
-                    signal, reason = "NO_SETUP", "The market is closed. LIVE mode does not create a next-session outlook; select NEXT_SESSION for conditional planning."
+                    signal, reason = (
+                        "NO_SETUP",
+                        "The market is closed. LIVE mode does not create a next-session outlook; select NEXT_SESSION for conditional planning.",
+                    )
                 else:
-                    signal, reason = "NO_SETUP", "Session status is unavailable. Refresh market/session data before requesting a live analysis."
+                    signal, reason = (
+                        "NO_SETUP",
+                        "Session status is unavailable. Refresh market/session data before requesting a live analysis.",
+                    )
                 live_context_unavailable = True
             else:
                 try:
-                    current_time = datetime_time.fromisoformat(str(context["session"]["time"]))
+                    current_time = datetime_time.fromisoformat(
+                        str(context["session"]["time"])
+                    )
                     if current_time >= datetime_time(14, 0):
-                        signal, reason = "NO_SETUP", "No new setup is eligible at or after 14:00 IST."
+                        signal, reason = (
+                            "NO_SETUP",
+                            "No new setup is eligible at or after 14:00 IST.",
+                        )
                 except (KeyError, TypeError, ValueError):
-                    signal, reason = "NO_SETUP", "Session time is unavailable; setup timing cannot be verified."
+                    signal, reason = (
+                        "NO_SETUP",
+                        "Session time is unavailable; setup timing cannot be verified.",
+                    )
         else:
             output["target"] = None
             output["stop_loss"] = None
         if signal != output.get("signal"):
-            warnings.append("Decision normalized to No Trade where evidence or session conditions do not support an entry.")
-        output["signal"], output["no_trade_reason"] = signal, reason if signal == "NO_SETUP" else None
+            warnings.append(
+                "Decision normalized to No Trade where evidence or session conditions do not support an entry."
+            )
+        output["signal"], output["no_trade_reason"] = signal, (
+            reason if signal == "NO_SETUP" else None
+        )
         if live_context_unavailable:
             output["market_view"] = "UNCERTAIN"
             output["scenarios"] = {
@@ -152,10 +187,13 @@ class OutputValidator:
             output["missing_information"] = missing
         moneyness = str(output.get("option_moneyness") or "").upper()
         if signal in ("BUY", "SELL"):
-            output["option_moneyness"] = moneyness if moneyness in {"ATM", "ITM", "OTM"} else "ATM"
+            output["option_moneyness"] = (
+                moneyness if moneyness in {"ATM", "ITM", "OTM"} else "ATM"
+            )
             selection_reason = output.get("option_selection_reason")
             output["option_selection_reason"] = (
-                selection_reason[:500] if isinstance(selection_reason, str) and selection_reason.strip()
+                selection_reason[:500]
+                if isinstance(selection_reason, str) and selection_reason.strip()
                 else "No distinct moneyness preference was supported; using the nearest listed ATM contract."
             )
         else:
@@ -164,19 +202,46 @@ class OutputValidator:
             if signal == "NO_SETUP":
                 output["target"] = None
                 output["stop_loss"] = None
-        for key in ("risks", "supporting_evidence", "conflicting_evidence", "invalidation_conditions", "missing_information"):
+        for key in (
+            "risks",
+            "supporting_evidence",
+            "conflicting_evidence",
+            "invalidation_conditions",
+            "missing_information",
+        ):
             value = output.get(key)
-            output[key] = [s[:1500] for s in value if isinstance(s, str)][:20] if isinstance(value, list) else []
+            output[key] = (
+                [s[:1500] for s in value if isinstance(s, str)][:20]
+                if isinstance(value, list)
+                else []
+            )
         view = output.get("market_view")
-        output["market_view"] = view if view in ("BULLISH", "BEARISH", "SIDEWAYS", "UNCERTAIN") else "UNCERTAIN"
+        output["market_view"] = (
+            view
+            if view in ("BULLISH", "BEARISH", "SIDEWAYS", "UNCERTAIN")
+            else "UNCERTAIN"
+        )
         scenarios = output.get("scenarios") or {}
-        output["scenarios"] = {key: scenarios.get(key) if isinstance(scenarios, dict) and isinstance(scenarios.get(key), str) else "Not provided by the model." for key in ("bullish", "bearish", "sideways")}
+        output["scenarios"] = {
+            key: (
+                scenarios.get(key)
+                if isinstance(scenarios, dict) and isinstance(scenarios.get(key), str)
+                else "Not provided by the model."
+            )
+            for key in ("bullish", "bearish", "sideways")
+        }
         try:
             confidence = float(output.get("confidence", 0))
-            output["confidence"] = round(max(0, min(100, confidence))) if math.isfinite(confidence) else 0
+            output["confidence"] = (
+                round(max(0, min(100, confidence))) if math.isfinite(confidence) else 0
+            )
         except (ValueError, TypeError):
             output["confidence"] = 0
-        output["confidence_level"] = "HIGH" if output["confidence"] >= 70 else "MEDIUM" if output["confidence"] >= 45 else "LOW"
+        output["confidence_level"] = (
+            "HIGH"
+            if output["confidence"] >= 70
+            else "MEDIUM" if output["confidence"] >= 45 else "LOW"
+        )
         for key in ("price", "target", "stop_loss"):
             try:
                 value = float(output.get(key))
@@ -186,13 +251,18 @@ class OutputValidator:
         if not isinstance(output.get("key_levels"), dict):
             output["key_levels"] = {}
         options = context.get("options") or {}
-        output["option_comparison"] = {
-            "stronger_side": None,
-            "call_delta": (options.get("atm_call") or {}).get("delta"),
-            "put_delta": (options.get("atm_put") or {}).get("delta"),
-            "call_itm_probability_pct": None, "put_itm_probability_pct": None,
-            "basis": "Supplied option delta sensitivity. Not calibrated odds of profit or expiring ITM.",
-        } if options else None
+        output["option_comparison"] = (
+            {
+                "stronger_side": None,
+                "call_delta": (options.get("atm_call") or {}).get("delta"),
+                "put_delta": (options.get("atm_put") or {}).get("delta"),
+                "call_itm_probability_pct": None,
+                "put_itm_probability_pct": None,
+                "basis": "Supplied option delta sensitivity. Not calibrated odds of profit or expiring ITM.",
+            }
+            if options
+            else None
+        )
         # Enforce the named daily statistical range, never a model-created target band.
         stats = context.get("historical_stats") or {}
         ranges = stats.get("range") or {}
@@ -200,7 +270,10 @@ class OutputValidator:
             opening = float(quote["open"])
             lower = opening - float(ranges["downside_from_open_points"]["median"])
             upper = opening + float(ranges["upside_from_open_points"]["median"])
-            valid = all(math.isfinite(v) and v > 0 for v in (lower, upper)) and lower <= upper
+            valid = (
+                all(math.isfinite(v) and v > 0 for v in (lower, upper))
+                and lower <= upper
+            )
         except (KeyError, TypeError, ValueError):
             lower = upper = None
             valid = False
@@ -208,6 +281,7 @@ class OutputValidator:
         expectation = expectation if isinstance(expectation, dict) else {}
         indicators = context.get("indicators") or {}
         spot = quote.get("ltp")
+
         def verified_levels(keys, relation):
             result = []
             for key in keys:
@@ -216,28 +290,44 @@ class OutputValidator:
                 for candidate in candidates:
                     try:
                         value = float(candidate)
-                        if math.isfinite(value) and value > 0 and spot is not None and relation(value, float(spot)):
+                        if (
+                            math.isfinite(value)
+                            and value > 0
+                            and spot is not None
+                            and relation(value, float(spot))
+                        ):
                             result.append(value)
                     except (ValueError, TypeError):
                         continue
             return result
-        supports = verified_levels(("CPR", "PIVOT"), lambda value, price: value <= price)
-        resistances = verified_levels(("CPR", "PIVOT"), lambda value, price: value >= price)
-        output["price_expectation"] = {**expectation,
+
+        supports = verified_levels(
+            ("CPR", "PIVOT"), lambda value, price: value <= price
+        )
+        resistances = verified_levels(
+            ("CPR", "PIVOT"), lambda value, price: value >= price
+        )
+        output["price_expectation"] = {
+            **expectation,
             "nearest_support": max(supports) if supports else None,
             "nearest_resistance": min(resistances) if resistances else None,
             "expected_range_low": round(lower, 2) if valid else None,
             "expected_range_high": round(upper, 2) if valid else None,
             "basis": (
                 "Support/resistance use supplied CPR and pivot levels. Range uses daily median historical excursions from the most recent reference-session open; not a next-session forecast or confidence interval."
-                if analysis_mode == "NEXT_SESSION" and valid else
-                "Support/resistance use supplied CPR and pivot levels. Range uses daily median historical excursions from today's open; not a confidence interval or horizon-specific forecast."
-                if valid else
-                "Support/resistance use supplied CPR and pivot levels. Daily historical excursion range unavailable: verified history or reference-session open is missing."
-            )}
+                if analysis_mode == "NEXT_SESSION" and valid
+                else (
+                    "Support/resistance use supplied CPR and pivot levels. Range uses daily median historical excursions from today's open; not a confidence interval or horizon-specific forecast."
+                    if valid
+                    else "Support/resistance use supplied CPR and pivot levels. Daily historical excursion range unavailable: verified history or reference-session open is missing."
+                )
+            ),
+        }
 
     @staticmethod
-    def _enforce_historical_probability(parsed: dict, market_context: dict) -> Optional[str]:
+    def _enforce_historical_probability(
+        parsed: dict, market_context: dict
+    ) -> Optional[str]:
         """Replace model-estimated percentages with Athena's measured baseline."""
         probability = parsed.get("probability")
         if not isinstance(probability, dict):
@@ -273,8 +363,9 @@ class OutputValidator:
                 f"Completed one-minute candle outcomes over {base['horizon_minutes']} minutes "
                 f"(analysis interval {base['timeframe']}); "
                 f"n={base['sample_size']}, "
-                f"anchor {base['reference_minute_ist'] // 60:02d}:{base['reference_minute_ist'] % 60:02d} IST ±{base['time_of_day_tolerance_minutes']}m" if base.get("reference_minute_ist") is not None else
-                f"Completed one-minute candle outcomes over {base['horizon_minutes']} minutes "
+                f"anchor {base['reference_minute_ist'] // 60:02d}:{base['reference_minute_ist'] % 60:02d} IST ±{base['time_of_day_tolerance_minutes']}m"
+                if base.get("reference_minute_ist") is not None
+                else f"Completed one-minute candle outcomes over {base['horizon_minutes']} minutes "
                 f"(analysis interval {base['timeframe']}); n={base['sample_size']}, time-of-day ±{base['time_of_day_tolerance_minutes']}m"
             )
             + (

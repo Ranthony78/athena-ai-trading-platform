@@ -102,11 +102,13 @@ class MACD(BaseIndicator):
 
         histogram = macd_line - signal_line
 
-        return pd.DataFrame({
-            "macd": macd_line,
-            "signal": signal_line,
-            "histogram": histogram,
-        })
+        return pd.DataFrame(
+            {
+                "macd": macd_line,
+                "signal": signal_line,
+                "histogram": histogram,
+            }
+        )
 
     @classmethod
     def compute(
@@ -121,7 +123,9 @@ class MACD(BaseIndicator):
         return {
             "macd": result["macd"].where(result["macd"].notna(), None).tolist(),
             "signal": result["signal"].where(result["signal"].notna(), None).tolist(),
-            "histogram": result["histogram"].where(result["histogram"].notna(), None).tolist(),
+            "histogram": result["histogram"]
+            .where(result["histogram"].notna(), None)
+            .tolist(),
         }
 
 

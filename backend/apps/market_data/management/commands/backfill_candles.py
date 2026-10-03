@@ -74,20 +74,22 @@ class Command(BaseCommand):
             type=int,
             default=None,
             help="User whose Zerodha connection to use. Defaults to the "
-                 "first user with an active, token-valid Zerodha config.",
+            "first user with an active, token-valid Zerodha config.",
         )
         parser.add_argument(
             "--clean",
             action="store_true",
             help="Delete existing candles for this symbol+timeframe "
-                 "(across all dates, not just the fetch range) before "
-                 "loading fresh data — clears out stale/fragmentary rows "
-                 "from earlier one-off fetches.",
+            "(across all dates, not just the fetch range) before "
+            "loading fresh data — clears out stale/fragmentary rows "
+            "from earlier one-off fetches.",
         )
         parser.add_argument("--dry-run", action="store_true")
 
     def handle(self, *args, **options):
-        symbols = [s.strip().upper() for s in options["symbols"].split(",") if s.strip()]
+        symbols = [
+            s.strip().upper() for s in options["symbols"].split(",") if s.strip()
+        ]
         timeframe = options["timeframe"]
         dry_run = options["dry_run"]
         clean = options["clean"]
@@ -96,7 +98,9 @@ class Command(BaseCommand):
             from_date_str, to_date_str = options["from_date"], options["to_date"]
         elif options["months"]:
             to_date_str = date.today().isoformat()
-            from_date_str = (date.today() - timedelta(days=options["months"] * 30)).isoformat()
+            from_date_str = (
+                date.today() - timedelta(days=options["months"] * 30)
+            ).isoformat()
         else:
             years = options["years"] or 5
             to_date_str = date.today().isoformat()
@@ -110,10 +114,12 @@ class Command(BaseCommand):
             f"{to_date_str} as user={user} - {len(chunks)} chunk(s)"
         )
         if clean:
-            self.stdout.write(self.style.WARNING(
-                f"--clean set: will delete ALL existing {timeframe} candles "
-                f"for {symbols} before loading fresh data."
-            ))
+            self.stdout.write(
+                self.style.WARNING(
+                    f"--clean set: will delete ALL existing {timeframe} candles "
+                    f"for {symbols} before loading fresh data."
+                )
+            )
 
         if dry_run:
             for c_from, c_to in chunks:
@@ -137,16 +143,32 @@ class Command(BaseCommand):
                         to_date=c_to,
                     )
                     total += count
-                    self.stdout.write(f"  {symbol} [{c_from} to {c_to}]: {count} candles")
+                    self.stdout.write(
+                        f"  {symbol} [{c_from} to {c_to}]: {count} candles"
+                    )
                 except Exception as e:
-                    safe_error = str(e).encode("ascii", "backslashreplace").decode("ascii")
-                    logger.error("backfill_candles failed for %s [%s to %s]: %s", symbol, c_from, c_to, safe_error)
-                    self.stdout.write(self.style.ERROR(
-                        f"  {symbol} [{c_from} to {c_to}]: failed - {safe_error}"
-                    ))
-            self.stdout.write(self.style.SUCCESS(f"{symbol}: {total} candles stored total"))
+                    safe_error = (
+                        str(e).encode("ascii", "backslashreplace").decode("ascii")
+                    )
+                    logger.error(
+                        "backfill_candles failed for %s [%s to %s]: %s",
+                        symbol,
+                        c_from,
+                        c_to,
+                        safe_error,
+                    )
+                    self.stdout.write(
+                        self.style.ERROR(
+                            f"  {symbol} [{c_from} to {c_to}]: failed - {safe_error}"
+                        )
+                    )
+            self.stdout.write(
+                self.style.SUCCESS(f"{symbol}: {total} candles stored total")
+            )
 
-    def _build_chunks(self, from_date_str: str, to_date_str: str, timeframe: str) -> list[tuple[str, str]]:
+    def _build_chunks(
+        self, from_date_str: str, to_date_str: str, timeframe: str
+    ) -> list[tuple[str, str]]:
         """Split the requested range into windows safely under Kite's
         real per-request limit for this timeframe."""
         chunk_days = self.CHUNK_DAYS.get(timeframe, 55)  # conservative default
@@ -162,8 +184,10 @@ class Command(BaseCommand):
         return chunks
 
     def _clean_existing(self, symbols: list[str], timeframe: str) -> None:
-        from apps.market_data.repositories.instrument_repository import InstrumentRepository
         from apps.market_data.repositories.candle_repository import CandleRepository
+        from apps.market_data.repositories.instrument_repository import (
+            InstrumentRepository,
+        )
 
         for symbol in symbols:
             instrument = InstrumentRepository.get_by_symbol(symbol)
@@ -172,7 +196,9 @@ class Command(BaseCommand):
             deleted, _ = CandleRepository.model.objects.filter(
                 instrument=instrument, timeframe=timeframe
             ).delete()
-            self.stdout.write(f"  cleaned {symbol} [{timeframe}]: {deleted} old candles deleted")
+            self.stdout.write(
+                f"  cleaned {symbol} [{timeframe}]: {deleted} old candles deleted"
+            )
 
     @staticmethod
     def _resolve_user(user_id):
@@ -182,9 +208,7 @@ class Command(BaseCommand):
             except User.DoesNotExist:
                 raise CommandError(f"No user with id={user_id}")
 
-        config = ZerodhaConfigRepository.model.objects.filter(
-            is_connected=True
-        ).first()
+        config = ZerodhaConfigRepository.model.objects.filter(is_connected=True).first()
 
         if config and config.is_token_valid:
             return config.user

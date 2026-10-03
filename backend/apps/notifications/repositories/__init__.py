@@ -1,7 +1,7 @@
 from .notification_repository import (
+    AlertRepository,
     NotificationPreferenceRepository,
     NotificationRepository,
-    AlertRepository,
 )
 
 __all__ = [

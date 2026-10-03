@@ -32,9 +32,7 @@ class VWAPStrategy(BaseStrategy):
         context = {
             "vwap": round(vwap_now, 2),
             "price": price,
-            "price_vs_vwap_pct": round(
-                (price - vwap_now) / vwap_now * 100, 3
-            ),
+            "price_vs_vwap_pct": round((price - vwap_now) / vwap_now * 100, 3),
         }
 
         # Price crosses above VWAP — BUY

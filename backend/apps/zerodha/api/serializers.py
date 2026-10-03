@@ -26,6 +26,7 @@ class ZerodhaConfigSerializer(serializers.ModelSerializer):
 
 class ZerodhaConfigUpdateSerializer(serializers.Serializer):
     """Request body for saving Zerodha config."""
+
     api_key = serializers.CharField()
     api_secret = serializers.CharField()
     mcp_url = serializers.URLField(
@@ -35,6 +36,7 @@ class ZerodhaConfigUpdateSerializer(serializers.Serializer):
 
 class TokenExchangeSerializer(serializers.Serializer):
     """Request body for token exchange."""
+
     request_token = serializers.CharField()
 
 
@@ -57,6 +59,7 @@ class ZerodhaSessionSerializer(serializers.ModelSerializer):
 
 class OrderPlaceSerializer(serializers.Serializer):
     """Request body for placing a live order."""
+
     confirm_live_order = serializers.BooleanField(required=True)
     tradingsymbol = serializers.CharField()
     exchange = serializers.ChoiceField(

@@ -1,7 +1,7 @@
 from .backtest_repository import (
+    BacktestResultRepository,
     BacktestRunRepository,
     BacktestTradeRepository,
-    BacktestResultRepository,
 )
 
 __all__ = [

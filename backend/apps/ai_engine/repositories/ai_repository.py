@@ -15,14 +15,17 @@ class PromptTemplateRepository(BaseRepository[PromptTemplate]):
     @classmethod
     def get_by_type(cls, template_type: str) -> Optional[PromptTemplate]:
         """Return the default template for a given type."""
-        return cls.model.objects.filter(
-            template_type=template_type,
-            is_default=True,
-            is_active=True,
-        ).first() or cls.model.objects.filter(
-            template_type=template_type,
-            is_active=True,
-        ).first()
+        return (
+            cls.model.objects.filter(
+                template_type=template_type,
+                is_default=True,
+                is_active=True,
+            ).first()
+            or cls.model.objects.filter(
+                template_type=template_type,
+                is_active=True,
+            ).first()
+        )
 
     @classmethod
     def get_by_name(cls, name: str) -> Optional[PromptTemplate]:
@@ -43,7 +46,9 @@ class AnalysisSessionRepository(BaseRepository[AnalysisSession]):
         )
         if user:
             queryset = queryset.filter(user=user)
-        return queryset.select_related("instrument", "template").order_by("-session_time")
+        return queryset.select_related("instrument", "template").order_by(
+            "-session_time"
+        )
 
     @classmethod
     def get_by_instrument(
@@ -52,22 +57,35 @@ class AnalysisSessionRepository(BaseRepository[AnalysisSession]):
         limit: int = 20,
     ) -> QuerySet[AnalysisSession]:
         """Return recent sessions for an instrument."""
-        return cls.model.objects.filter(
-            instrument=instrument,
-        ).select_related("template").order_by("-session_time")[:limit]
+        return (
+            cls.model.objects.filter(
+                instrument=instrument,
+            )
+            .select_related("template")
+            .order_by("-session_time")[:limit]
+        )
 
     @classmethod
     def get_completed(cls, limit: int = 50) -> QuerySet[AnalysisSession]:
         """Return completed sessions."""
-        return cls.model.objects.filter(
-            status="COMPLETE",
-        ).select_related("instrument").order_by("-session_time")[:limit]
+        return (
+            cls.model.objects.filter(
+                status="COMPLETE",
+            )
+            .select_related("instrument")
+            .order_by("-session_time")[:limit]
+        )
 
     @classmethod
     def get_by_id_for_user(cls, session_id: int, user) -> Optional[AnalysisSession]:
-        return cls.model.objects.filter(id=session_id, user=user).select_related(
-            "instrument", "template",
-        ).first()
+        return (
+            cls.model.objects.filter(id=session_id, user=user)
+            .select_related(
+                "instrument",
+                "template",
+            )
+            .first()
+        )
 
 
 class AISignalRepository(BaseRepository[AISignal]):
@@ -84,7 +102,9 @@ class AISignalRepository(BaseRepository[AISignal]):
         if user:
             queryset = queryset.filter(user=user)
         return queryset.select_related(
-            "instrument", "session", "option_instrument",
+            "instrument",
+            "session",
+            "option_instrument",
         ).order_by("-signal_time")
 
     @classmethod
@@ -96,11 +116,17 @@ class AISignalRepository(BaseRepository[AISignal]):
         """Return recent AI signals for an instrument."""
         return cls.model.objects.filter(
             instrument=instrument,
-        ).order_by("-signal_time")[:limit]
+        ).order_by(
+            "-signal_time"
+        )[:limit]
 
     @classmethod
     def get_active(cls) -> QuerySet[AISignal]:
         """Return active AI signals."""
-        return cls.model.objects.filter(
-            is_active=True,
-        ).select_related("instrument").order_by("-signal_time")
+        return (
+            cls.model.objects.filter(
+                is_active=True,
+            )
+            .select_related("instrument")
+            .order_by("-signal_time")
+        )

@@ -114,9 +114,7 @@ class NotificationService:
                 )
                 count += 1
             except Exception as e:
-                logger.error(
-                    f"NotificationService bulk error [{user.username}]: {e}"
-                )
+                logger.error(f"NotificationService bulk error [{user.username}]: {e}")
         return count
 
     # ------------------------------------------------------------------
@@ -214,8 +212,8 @@ class NotificationService:
         if not prefs.quiet_hours_enabled:
             return False
 
-        from zoneinfo import ZoneInfo
         from datetime import datetime
+        from zoneinfo import ZoneInfo
 
         now = datetime.now(tz=ZoneInfo("Asia/Kolkata")).time()
         quiet_from = prefs.quiet_from
@@ -240,6 +238,7 @@ class NotificationService:
 
         if channel == "EMAIL":
             from .email_service import EmailService
+
             EmailService.send(
                 to_email=prefs.email_address or user.email,
                 subject=title,
@@ -248,6 +247,7 @@ class NotificationService:
 
         elif channel == "TELEGRAM":
             from .telegram_service import TelegramService
+
             service = TelegramService()
             service.send(
                 chat_id=prefs.telegram_chat_id,

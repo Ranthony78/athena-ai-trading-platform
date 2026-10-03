@@ -2,7 +2,6 @@ import logging
 import time
 
 import httpx
-
 from django.conf import settings
 
 from .base_ai_provider import BaseAIProvider
@@ -17,6 +16,7 @@ class ClaudeAPIError(Exception):
     wrong — e.g. 'Your credit balance is too low...' instead of a bare
     '400 Bad Request'.
     """
+
     pass
 
 
@@ -30,12 +30,14 @@ class ClaudeProvider(BaseAIProvider):
     API_VERSION = "2023-06-01"
 
     def __init__(self, api_key=None) -> None:
-        self.api_key = api_key if api_key is not None else getattr(settings, "ANTHROPIC_API_KEY", "")
+        self.api_key = (
+            api_key
+            if api_key is not None
+            else getattr(settings, "ANTHROPIC_API_KEY", "")
+        )
 
         if not self.api_key:
-            raise ValueError(
-                "ANTHROPIC_API_KEY not set in settings or environment."
-            )
+            raise ValueError("ANTHROPIC_API_KEY not set in settings or environment.")
 
     def complete(
         self,
@@ -82,8 +84,9 @@ class ClaudeProvider(BaseAIProvider):
             duration_ms = int((time.time() - start) * 1000)
 
             content = data["content"][0]["text"]
-            tokens_used = data.get("usage", {}).get("input_tokens", 0) + \
-                          data.get("usage", {}).get("output_tokens", 0)
+            tokens_used = data.get("usage", {}).get("input_tokens", 0) + data.get(
+                "usage", {}
+            ).get("output_tokens", 0)
 
             return {
                 "content": content,
@@ -93,7 +96,9 @@ class ClaudeProvider(BaseAIProvider):
             }
 
         except httpx.HTTPStatusError as e:
-            logger.error(f"Claude API HTTP error: {e.response.status_code} — {e.response.text}")
+            logger.error(
+                f"Claude API HTTP error: {e.response.status_code} — {e.response.text}"
+            )
 
             # Extract Anthropic's actual error message from the response
             # body so it can propagate to the caller (and eventually the

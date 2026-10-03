@@ -6,13 +6,13 @@ from rest_framework.views import APIView
 from shared.api_response import ApiResponse
 
 from ..constants import INDICES
+from ..services.analysis_report_service import AnalysisReportService
 from ..services.candle_service import CandleService
 from ..services.instrument_service import InstrumentService
 from ..services.market_service import MarketService
-from ..services.quote_service import QuoteService
 from ..services.option_chain_service import OptionChainService
 from ..services.outcome_stats_service import OutcomeStatsService
-from ..services.analysis_report_service import AnalysisReportService
+from ..services.quote_service import QuoteService
 from .serializers import (
     BulkQuoteRequestSerializer,
     CandleSerializer,
@@ -43,6 +43,7 @@ class InstrumentListAPIView(APIView):
             instruments = InstrumentService.get_by_exchange(exchange.upper())
         elif instrument_type:
             from ..repositories.instrument_repository import InstrumentRepository
+
             instruments = InstrumentRepository.filter(
                 instrument_type=instrument_type.upper(),
                 is_active=True,
@@ -227,9 +228,13 @@ class HistoricalDataAPIView(APIView):
             # backfill from Zerodha so the chart has the morning's candles
             # after a page load. The browser aggregates refreshed quotes
             # into the still-forming bar between these history snapshots.
-            current_session_requested = request.query_params.get("current_session") in {"1", "true"}
+            current_session_requested = request.query_params.get("current_session") in {
+                "1",
+                "true",
+            }
             if current_session_requested and timeframe not in {"1h", "1d"}:
                 from django.conf import settings
+
                 from ..engine.market_state import MarketState
 
                 if (
@@ -238,7 +243,9 @@ class HistoricalDataAPIView(APIView):
                 ):
                     current_date = MarketState.now_ist().date()
                     try:
-                        current_candles = CandleService(user=request.user).fetch_historical(
+                        current_candles = CandleService(
+                            user=request.user
+                        ).fetch_historical(
                             symbol=symbol.upper(),
                             interval=timeframe,
                             from_date=str(current_date),
@@ -251,22 +258,32 @@ class HistoricalDataAPIView(APIView):
                             # stored candles, so returning these without saving
                             # them leaves those panels one session behind.
                             try:
-                                from ..repositories.candle_repository import CandleRepository
-                                from ..repositories.instrument_repository import InstrumentRepository
+                                from ..repositories.candle_repository import (
+                                    CandleRepository,
+                                )
+                                from ..repositories.instrument_repository import (
+                                    InstrumentRepository,
+                                )
 
-                                instrument = InstrumentRepository.get_by_symbol(symbol.upper())
+                                instrument = InstrumentRepository.get_by_symbol(
+                                    symbol.upper()
+                                )
                                 if instrument:
                                     provider = CandleService(user=request.user).provider
                                     CandleRepository.bulk_upsert(
                                         instrument=instrument,
                                         timeframe=timeframe,
                                         candles=current_candles,
-                                        source=getattr(provider, "data_source", "UNKNOWN"),
+                                        source=getattr(
+                                            provider, "data_source", "UNKNOWN"
+                                        ),
                                     )
                             except Exception as storage_error:
                                 logger.warning(
                                     "Could not store current-session candles for %s %s: %s",
-                                    symbol.upper(), timeframe, storage_error,
+                                    symbol.upper(),
+                                    timeframe,
+                                    storage_error,
                                 )
                             return ApiResponse.success(
                                 data=current_candles,
@@ -277,7 +294,9 @@ class HistoricalDataAPIView(APIView):
                         # the broker history endpoint is temporarily down.
                         logger.warning(
                             "Current-session candle backfill failed for %s (%s): %s",
-                            symbol.upper(), timeframe, provider_error,
+                            symbol.upper(),
+                            timeframe,
+                            provider_error,
                         )
 
             candles = CandleService.get_candles(
@@ -299,12 +318,15 @@ class FuturesActivityAPIView(APIView):
 
     def get(self, request, symbol: str):
         from django.conf import settings
+
         from ..engine.market_state import MARKET_CLOSE, MarketState
         from ..repositories.instrument_repository import InstrumentRepository
 
         symbol = symbol.strip().upper()
         if symbol != "NIFTY":
-            return ApiResponse.error(message="Futures activity is currently available for NIFTY only.")
+            return ApiResponse.error(
+                message="Futures activity is currently available for NIFTY only."
+            )
 
         unavailable = {
             "available": False,
@@ -319,7 +341,9 @@ class FuturesActivityAPIView(APIView):
             "source": "ZERODHA",
         }
         if getattr(settings, "MARKET_PROVIDER", "mock") != "zerodha":
-            unavailable["reason"] = "The configured provider does not supply live NIFTY futures data."
+            unavailable["reason"] = (
+                "The configured provider does not supply live NIFTY futures data."
+            )
             return ApiResponse.success(data=unavailable)
 
         now_ist = MarketState.now_ist()
@@ -333,37 +357,52 @@ class FuturesActivityAPIView(APIView):
             futures = futures.filter(expiry__gte=today)
         future = futures.order_by("expiry", "trading_symbol").first()
         if not future:
-            unavailable["reason"] = "No active NIFTY futures contract was found. Refresh the Zerodha instrument catalog."
+            unavailable["reason"] = (
+                "No active NIFTY futures contract was found. Refresh the Zerodha instrument catalog."
+            )
             return ApiResponse.success(data=unavailable)
 
         try:
             quote = MarketService(user=request.user).quote(future.trading_symbol)
         except Exception:
-            logger.warning("Unable to retrieve read-only NIFTY futures quote.", exc_info=True)
-            return ApiResponse.error(message="Could not retrieve the NIFTY futures quote from Zerodha.")
+            logger.warning(
+                "Unable to retrieve read-only NIFTY futures quote.", exc_info=True
+            )
+            return ApiResponse.error(
+                message="Could not retrieve the NIFTY futures quote from Zerodha."
+            )
 
         if not quote or not quote.get("ltp"):
-            unavailable.update({
-                "trading_symbol": future.trading_symbol,
-                "expiry": str(future.expiry),
-                "reason": "Zerodha has not returned a usable quote for the active futures contract.",
-            })
+            unavailable.update(
+                {
+                    "trading_symbol": future.trading_symbol,
+                    "expiry": str(future.expiry),
+                    "reason": "Zerodha has not returned a usable quote for the active futures contract.",
+                }
+            )
             return ApiResponse.success(data=unavailable)
 
         vwap = quote.get("average_price")
-        return ApiResponse.success(data={
-            "available": True,
-            "symbol": symbol,
-            "trading_symbol": future.trading_symbol,
-            "expiry": str(future.expiry),
-            "ltp": quote.get("ltp"),
-            "volume": quote.get("volume"),
-            "vwap": vwap if vwap is not None and float(vwap) > 0 else None,
-            "quote_timestamp": quote.get("quote_timestamp") or quote.get("timestamp"),
-            "last_trade_time": quote.get("last_trade_time"),
-            "source": "ZERODHA KITE QUOTE",
-            "reason": None if vwap is not None and float(vwap) > 0 else "Zerodha has not supplied a usable session average price for this contract.",
-        })
+        return ApiResponse.success(
+            data={
+                "available": True,
+                "symbol": symbol,
+                "trading_symbol": future.trading_symbol,
+                "expiry": str(future.expiry),
+                "ltp": quote.get("ltp"),
+                "volume": quote.get("volume"),
+                "vwap": vwap if vwap is not None and float(vwap) > 0 else None,
+                "quote_timestamp": quote.get("quote_timestamp")
+                or quote.get("timestamp"),
+                "last_trade_time": quote.get("last_trade_time"),
+                "source": "ZERODHA KITE QUOTE",
+                "reason": (
+                    None
+                    if vwap is not None and float(vwap) > 0
+                    else "Zerodha has not supplied a usable session average price for this contract."
+                ),
+            }
+        )
 
 
 class ExpiryListAPIView(APIView):
@@ -416,7 +455,9 @@ class OptionChainAPIView(APIView):
             return ApiResponse.success(serializer.data, message=service.status_message)
         except Exception as e:
             logger.error(f"OptionChainAPIView error: {e}")
-            return ApiResponse.error(message="Unable to fetch option quotes. Check your Zerodha connection, token validity, and market-data access.")
+            return ApiResponse.error(
+                message="Unable to fetch option quotes. Check your Zerodha connection, token validity, and market-data access."
+            )
 
 
 class OptionChainSummaryAPIView(APIView):
@@ -453,12 +494,15 @@ class MarketReadAPIView(APIView):
             return ApiResponse.success(data=data)
         except Exception as e:
             logger.error("MarketReadAPIView error: %s", e)
-            return ApiResponse.error(message="Unable to build the read-only market snapshot.")
+            return ApiResponse.error(
+                message="Unable to build the read-only market snapshot."
+            )
 
 
 # ----------------------------------------------------------------------
 # Sprint 11 — Market Engine
 # ----------------------------------------------------------------------
+
 
 class MarketSessionAPIView(APIView):
     """
@@ -471,6 +515,7 @@ class MarketSessionAPIView(APIView):
     def get(self, request):
         try:
             from ..engine.market_state import MarketState
+
             return ApiResponse.success(MarketState.session_info())
         except Exception as e:
             logger.error(f"MarketSessionAPIView error: {e}")
@@ -487,8 +532,9 @@ class MarketEngineStatusAPIView(APIView):
 
     def get(self, request):
         try:
-            from ..engine.market_state import MarketState
             from django.conf import settings
+
+            from ..engine.market_state import MarketState
 
             provider = getattr(settings, "MARKET_PROVIDER", "mock")
             session_info = MarketState.session_info()
@@ -512,6 +558,7 @@ class MarketEngineStatusAPIView(APIView):
 # Sprint 12 — Technical Indicators
 # ----------------------------------------------------------------------
 
+
 class IndicatorListAPIView(APIView):
     """
     GET /api/market/indicators/
@@ -529,8 +576,16 @@ class IndicatorListAPIView(APIView):
             ],
             "momentum": [
                 {"name": "RSI", "params": ["period"], "example": "RSI_14"},
-                {"name": "MACD", "params": ["fast", "slow", "signal"], "example": "MACD_12_26_9"},
-                {"name": "STOCH", "params": ["k_period", "d_period"], "example": "STOCH_14_3"},
+                {
+                    "name": "MACD",
+                    "params": ["fast", "slow", "signal"],
+                    "example": "MACD_12_26_9",
+                },
+                {
+                    "name": "STOCH",
+                    "params": ["k_period", "d_period"],
+                    "example": "STOCH_14_3",
+                },
             ],
             "volatility": [
                 {"name": "BB", "params": ["period", "std_dev"], "example": "BB_20_2"},
@@ -591,6 +646,7 @@ class IndicatorAPIView(APIView):
 
         try:
             from ..indicators.indicator_service import IndicatorService
+
             result = IndicatorService.calculate(
                 symbol=symbol,
                 timeframe=timeframe,
@@ -628,6 +684,7 @@ class AnalysisReportAPIView(APIView):
 # ----------------------------------------------------------------------
 # Step 6 — Outcome Tracking Stats
 # ----------------------------------------------------------------------
+
 
 class OutcomeStatsSummaryAPIView(APIView):
     """
