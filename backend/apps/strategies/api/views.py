@@ -81,9 +81,9 @@ class SignalListAPIView(APIView):
         active_only = request.query_params.get("active") == "1"
 
         if active_only:
-            signals = StrategyService.get_active_signals()
+            signals = StrategyService.get_active_signals(request.user)
         else:
-            signals = StrategyService.get_today_signals()
+            signals = StrategyService.get_today_signals(request.user)
 
         serializer = StrategySignalSerializer(signals, many=True)
         return ApiResponse.success(serializer.data)
@@ -98,6 +98,8 @@ class SignalBySymbolAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, symbol: str):
-        signals = StrategyService.get_signals_for_instrument(symbol.upper())
+        signals = StrategyService.get_signals_for_instrument(
+            request.user, symbol.upper()
+        )
         serializer = StrategySignalSerializer(signals, many=True)
         return ApiResponse.success(serializer.data)
