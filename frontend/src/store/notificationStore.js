@@ -4,11 +4,9 @@ const useNotificationStore = create((set, get) => ({
     notifications: [],
     unreadCount: 0,
 
-    setNotifications: (notifications) =>
-        set({ notifications }),
+    setNotifications: (notifications) => set({ notifications }),
 
-    setUnreadCount: (count) =>
-        set({ unreadCount: count }),
+    setUnreadCount: (count) => set({ unreadCount: count }),
 
     addNotification: (notification) =>
         set((state) => ({

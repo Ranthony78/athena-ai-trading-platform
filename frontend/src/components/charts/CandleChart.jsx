@@ -39,7 +39,10 @@ function toChartData(points) {
 }
 
 function formatPrice(value) {
-    return Number(value).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return Number(value).toLocaleString("en-IN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
 }
 
 export default function CandleChart({ candles = [], currentPrice, interval = "15m" }) {
@@ -55,10 +58,15 @@ export default function CandleChart({ candles = [], currentPrice, interval = "15
 
     const points = useMemo(() => {
         const valid = candles
-            .filter((candle) => [candle.open, candle.high, candle.low, candle.close]
-                .every((value) => Number.isFinite(Number(value))))
+            .filter((candle) =>
+                [candle.open, candle.high, candle.low, candle.close].every((value) =>
+                    Number.isFinite(Number(value))
+                )
+            )
             .sort((a, b) => new Date(a.candle_time) - new Date(b.candle_time));
-        const latestDate = valid.length ? formatMarketDate(valid[valid.length - 1].candle_time) : "";
+        const latestDate = valid.length
+            ? formatMarketDate(valid[valid.length - 1].candle_time)
+            : "";
         return valid.filter((candle) => formatMarketDate(candle.candle_time) === latestDate);
     }, [candles]);
     const chartData = useMemo(() => toChartData(points), [points]);
@@ -91,21 +99,31 @@ export default function CandleChart({ candles = [], currentPrice, interval = "15
                 vertLines: { color: theme.gridColor },
                 horzLines: { color: theme.gridColor },
             },
-            rightPriceScale: { borderColor: theme.gridColor, scaleMargins: { top: 0.12, bottom: 0.12 } },
+            rightPriceScale: {
+                borderColor: theme.gridColor,
+                scaleMargins: { top: 0.12, bottom: 0.12 },
+            },
             timeScale: {
                 borderColor: theme.gridColor,
                 timeVisible: true,
                 secondsVisible: false,
-                tickMarkFormatter: (time) => typeof time === "number" ? formatMarketTime(time) : "",
+                tickMarkFormatter: (time) =>
+                    typeof time === "number" ? formatMarketTime(time) : "",
             },
             localization: {
                 locale: "en-IN",
-                timeFormatter: (time) => typeof time === "number"
-                    ? `${formatMarketDate(new Date(time * 1000).toISOString())} ${formatMarketTime(time)} IST`
-                    : "",
+                timeFormatter: (time) =>
+                    typeof time === "number"
+                        ? `${formatMarketDate(new Date(time * 1000).toISOString())} ${formatMarketTime(time)} IST`
+                        : "",
             },
             crosshair: { mode: 0 },
-            handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
+            handleScroll: {
+                mouseWheel: true,
+                pressedMouseMove: true,
+                horzTouchDrag: true,
+                vertTouchDrag: false,
+            },
             handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true },
         });
         const candleSeries = chart.addSeries(CandlestickSeries, {
@@ -124,22 +142,33 @@ export default function CandleChart({ candles = [], currentPrice, interval = "15
             lastValueVisible: false,
         });
         const resizeObserver = new ResizeObserver(([entry]) => {
-            if (entry?.contentRect.width) chart.applyOptions({ width: Math.floor(entry.contentRect.width) });
+            if (entry?.contentRect.width)
+                chart.applyOptions({ width: Math.floor(entry.contentRect.width) });
         });
         resizeObserver.observe(host);
 
         const themeObserver = new MutationObserver(() => {
             const next = readTheme();
             chart.applyOptions({
-                layout: { background: { type: ColorType.Solid, color: next.background }, textColor: next.textColor },
-                grid: { vertLines: { color: next.gridColor }, horzLines: { color: next.gridColor } },
+                layout: {
+                    background: { type: ColorType.Solid, color: next.background },
+                    textColor: next.textColor,
+                },
+                grid: {
+                    vertLines: { color: next.gridColor },
+                    horzLines: { color: next.gridColor },
+                },
                 rightPriceScale: { borderColor: next.gridColor },
                 timeScale: { borderColor: next.gridColor },
             });
             lineSeries.applyOptions({ color: next.accentColor });
-            if (priceLineRef.current) priceLineRef.current.applyOptions({ color: next.accentColor });
+            if (priceLineRef.current)
+                priceLineRef.current.applyOptions({ color: next.accentColor });
         });
-        themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+        themeObserver.observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ["data-theme"],
+        });
 
         chart.subscribeCrosshairMove((param) => {
             const hovered = param.seriesData.get(candleSeries);
@@ -180,7 +209,11 @@ export default function CandleChart({ candles = [], currentPrice, interval = "15
 
         if (intervalChanged && chartData.length) {
             chart.timeScale().fitContent();
-        } else if (previousLatest && chartData.length && previousLatest.time !== chartData[chartData.length - 1].time) {
+        } else if (
+            previousLatest &&
+            chartData.length &&
+            previousLatest.time !== chartData[chartData.length - 1].time
+        ) {
             chart.timeScale().scrollToRealTime();
         }
     }, [chartData, interval]);
@@ -195,7 +228,10 @@ export default function CandleChart({ candles = [], currentPrice, interval = "15
             if (priceLineRef.current) {
                 priceLineRef.current.applyOptions({ price });
             } else {
-                const accent = getComputedStyle(document.documentElement).getPropertyValue("--chart-accent").trim() || "#60a5fa";
+                const accent =
+                    getComputedStyle(document.documentElement)
+                        .getPropertyValue("--chart-accent")
+                        .trim() || "#60a5fa";
                 priceLineRef.current = candleSeries.createPriceLine({
                     price,
                     color: accent,
@@ -218,46 +254,92 @@ export default function CandleChart({ candles = [], currentPrice, interval = "15
     if (chartData.length < 2) {
         return (
             <div className="flex min-h-64 items-center justify-center rounded-lg bg-dark-950 px-5 text-center text-sm text-dark-500">
-                Chart needs at least two stored {intervalMinutes}-minute candles from the latest available trading session.
+                Chart needs at least two stored {intervalMinutes}-minute candles from the latest
+                available trading session.
             </div>
         );
     }
 
     return (
-        <div className="overflow-hidden rounded-lg border border-dark-700 bg-dark-950" aria-label={`NIFTY ${chartType === "candles" ? "candlestick" : "line"} chart`}>
+        <div
+            className="overflow-hidden rounded-lg border border-dark-700 bg-dark-950"
+            aria-label={`NIFTY ${chartType === "candles" ? "candlestick" : "line"} chart`}
+        >
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-dark-800 px-3 py-2.5">
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs" aria-live="polite">
-                    <span className="font-sans font-semibold text-dark-400">{hoveredCandle ? formatMarketTime(hoveredCandle.time) : "O H L C"}</span>
-                    {displayCandle && <>
-                        <span className="text-dark-300">O <b className="text-dark-100">{formatPrice(displayCandle.open)}</b></span>
-                        <span className="text-dark-300">H <b className="text-green-500">{formatPrice(displayCandle.high)}</b></span>
-                        <span className="text-dark-300">L <b className="text-red-500">{formatPrice(displayCandle.low)}</b></span>
-                        <span className="text-dark-300">C <b className="text-dark-100">{formatPrice(displayCandle.close)}</b></span>
-                    </>}
+                <div
+                    className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs"
+                    aria-live="polite"
+                >
+                    <span className="font-sans font-semibold text-dark-400">
+                        {hoveredCandle ? formatMarketTime(hoveredCandle.time) : "O H L C"}
+                    </span>
+                    {displayCandle && (
+                        <>
+                            <span className="text-dark-300">
+                                O <b className="text-dark-100">{formatPrice(displayCandle.open)}</b>
+                            </span>
+                            <span className="text-dark-300">
+                                H{" "}
+                                <b className="text-green-500">{formatPrice(displayCandle.high)}</b>
+                            </span>
+                            <span className="text-dark-300">
+                                L <b className="text-red-500">{formatPrice(displayCandle.low)}</b>
+                            </span>
+                            <span className="text-dark-300">
+                                C{" "}
+                                <b className="text-dark-100">{formatPrice(displayCandle.close)}</b>
+                            </span>
+                        </>
+                    )}
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="flex rounded-md border border-dark-700 p-0.5" role="group" aria-label="Chart type">
-                        {[{ value: "candles", label: "Candles" }, { value: "line", label: "Line" }].map((item) => (
+                    <div
+                        className="flex rounded-md border border-dark-700 p-0.5"
+                        role="group"
+                        aria-label="Chart type"
+                    >
+                        {[
+                            { value: "candles", label: "Candles" },
+                            { value: "line", label: "Line" },
+                        ].map((item) => (
                             <button
                                 key={item.value}
                                 type="button"
                                 onClick={() => toggleChartType(item.value)}
                                 aria-pressed={chartType === item.value}
                                 className={`rounded px-2.5 py-1 text-xs font-medium transition ${chartType === item.value ? "bg-dark-700 text-dark-50" : "text-dark-400 hover:text-dark-100"}`}
-                            >{item.label}</button>
+                            >
+                                {item.label}
+                            </button>
                         ))}
                     </div>
                     <button
                         type="button"
                         onClick={() => chartRef.current?.timeScale().fitContent()}
                         className="rounded-md border border-dark-700 px-2.5 py-1.5 text-xs font-medium text-dark-300 hover:bg-dark-800 hover:text-dark-50"
-                    >Reset view</button>
+                    >
+                        Reset view
+                    </button>
                 </div>
             </div>
-            <div ref={hostRef} className="h-[340px] w-full bg-dark-950" role="img" aria-label={`Interactive NIFTY chart with ${chartData.length} ${intervalMinutes}-minute candles. Use the mouse wheel or pinch to zoom, and drag to pan.`} />
+            <div
+                ref={hostRef}
+                className="h-[340px] w-full bg-dark-950"
+                role="img"
+                aria-label={`Interactive NIFTY chart with ${chartData.length} ${intervalMinutes}-minute candles. Use the mouse wheel or pinch to zoom, and drag to pan.`}
+            />
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-dark-800 px-3 py-2 text-[11px] text-dark-500">
-                <span>{points.length} candles · India Standard Time · Drag to pan · Scroll to zoom</span>
-                <a href="https://www.tradingview.com/" target="_blank" rel="noreferrer" className="font-medium text-dark-400 hover:text-dark-200">Charting by TradingView</a>
+                <span>
+                    {points.length} candles · India Standard Time · Drag to pan · Scroll to zoom
+                </span>
+                <a
+                    href="https://www.tradingview.com/"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-medium text-dark-400 hover:text-dark-200"
+                >
+                    Charting by TradingView
+                </a>
             </div>
         </div>
     );

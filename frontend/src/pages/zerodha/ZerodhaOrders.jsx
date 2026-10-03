@@ -17,9 +17,7 @@ export default function ZerodhaOrders() {
         {
             key: "transaction_type",
             label: "Type",
-            render: (v) => (
-                <Badge variant={v === "BUY" ? "green" : "red"}>{v}</Badge>
-            ),
+            render: (v) => <Badge variant={v === "BUY" ? "green" : "red"}>{v}</Badge>,
         },
         { key: "order_type", label: "Order" },
         { key: "quantity", label: "Qty" },
@@ -52,9 +50,10 @@ export default function ZerodhaOrders() {
     return (
         <PageWrapper title="Zerodha Orders" subtitle="Live broker orders">
             <Card padding={false}>
-                {isLoading ? <Spinner /> : (
-                    <Table columns={columns} data={orders || []}
-                        emptyTitle="No orders today" />
+                {isLoading ? (
+                    <Spinner />
+                ) : (
+                    <Table columns={columns} data={orders || []} emptyTitle="No orders today" />
                 )}
             </Card>
         </PageWrapper>

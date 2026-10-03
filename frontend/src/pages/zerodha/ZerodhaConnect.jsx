@@ -86,9 +86,12 @@ export default function ZerodhaConnect() {
     }, [configHydrated, savedConfig]);
 
     const isActive = Boolean(status?.is_connected && status?.is_token_valid);
-    const liveOrderPermission = typeof status?.live_orders_enabled === "boolean"
-        ? (status.live_orders_enabled ? "enabled" : "disabled")
-        : "unknown";
+    const liveOrderPermission =
+        typeof status?.live_orders_enabled === "boolean"
+            ? status.live_orders_enabled
+                ? "enabled"
+                : "disabled"
+            : "unknown";
 
     const {
         data: loginUrl,
@@ -153,8 +156,7 @@ export default function ZerodhaConnect() {
 
     const { mutate: logout } = useMutation({
         mutationFn: () => zerodhaAPI.logout(),
-        onSuccess: () =>
-            queryClient.invalidateQueries({ queryKey: ["zerodha-status"] }),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["zerodha-status"] }),
     });
 
     useEffect(() => {
@@ -175,8 +177,7 @@ export default function ZerodhaConnect() {
 
     if (isLoading) return <Spinner />;
 
-    const autoExchangeInFlight =
-        exchanging && Boolean(searchParams.get("request_token"));
+    const autoExchangeInFlight = exchanging && Boolean(searchParams.get("request_token"));
 
     return (
         <PageWrapper
@@ -184,33 +185,40 @@ export default function ZerodhaConnect() {
             subtitle="Connect your Kite account"
             actions={
                 status?.is_connected && (
-                    <Button variant="danger" size="sm" icon={LogOut}
-                        onClick={() => logout()}>
+                    <Button variant="danger" size="sm" icon={LogOut} onClick={() => logout()}>
                         Disconnect
                     </Button>
                 )
             }
         >
-            {autoExchangeInFlight && (
-                <Alert type="info" message="Completing Zerodha login..." />
-            )}
+            {autoExchangeInFlight && <Alert type="info" message="Completing Zerodha login..." />}
 
             {exchangeFailed && !autoExchangeInFlight && (
-                <Alert type="error"
-                    message={`Automatic login failed: ${exchangeError?.response?.data?.message || exchangeError?.message || "please try reconnecting"}.`} />
+                <Alert
+                    type="error"
+                    message={`Automatic login failed: ${exchangeError?.response?.data?.message || exchangeError?.message || "please try reconnecting"}.`}
+                />
             )}
 
             {!isActive && status?.is_connected && !autoExchangeInFlight && (
-                <Alert type="warning"
-                    message="Your Zerodha session has expired for today — reconnect below to continue." />
+                <Alert
+                    type="warning"
+                    message="Your Zerodha session has expired for today — reconnect below to continue."
+                />
             )}
 
             {configLoadFailed && (
                 <div className="space-y-3">
-                    <Alert type="error"
-                        message={formatApiError(configLoadError, "Loading saved Zerodha settings")} />
-                    <Button variant="secondary" icon={RefreshCw} loading={fetchingConfig}
-                        onClick={() => refetchConfig()}>
+                    <Alert
+                        type="error"
+                        message={formatApiError(configLoadError, "Loading saved Zerodha settings")}
+                    />
+                    <Button
+                        variant="secondary"
+                        icon={RefreshCw}
+                        loading={fetchingConfig}
+                        onClick={() => refetchConfig()}
+                    >
                         Retry Saved Settings
                     </Button>
                 </div>
@@ -223,54 +231,85 @@ export default function ZerodhaConnect() {
 
             {!isActive && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <Card title={`Step 1 — ${savedConfig?.api_key ? "Update" : "Save"} API Credentials`}>
+                    <Card
+                        title={`Step 1 — ${savedConfig?.api_key ? "Update" : "Save"} API Credentials`}
+                    >
                         <div className="space-y-4">
-                            <Input label="API Key" value={config.api_key}
+                            <Input
+                                label="API Key"
+                                value={config.api_key}
                                 onChange={(e) => {
                                     setSaveFeedback(null);
-                                    setConfig(c => ({ ...c, api_key: e.target.value }));
+                                    setConfig((c) => ({ ...c, api_key: e.target.value }));
                                 }}
-                                placeholder="Your Kite API key" />
-                            <Input label="API Secret" type="password" value={config.api_secret}
+                                placeholder="Your Kite API key"
+                            />
+                            <Input
+                                label="API Secret"
+                                type="password"
+                                value={config.api_secret}
                                 onChange={(e) => {
                                     setSaveFeedback(null);
-                                    setConfig(c => ({ ...c, api_secret: e.target.value }));
+                                    setConfig((c) => ({ ...c, api_secret: e.target.value }));
                                 }}
-                                placeholder={savedConfig?.api_key
-                                    ? "Enter only when updating your API credentials"
-                                    : "Your Kite API secret"} />
+                                placeholder={
+                                    savedConfig?.api_key
+                                        ? "Enter only when updating your API credentials"
+                                        : "Your Kite API secret"
+                                }
+                            />
                             {savedConfig?.api_key && (
                                 <p className="text-xs text-dark-400">
-                                    The saved API secret is not displayed here. Leave this field blank unless you are updating credentials.
+                                    The saved API secret is not displayed here. Leave this field
+                                    blank unless you are updating credentials.
                                 </p>
                             )}
                             {saveFeedback && (
                                 <Alert type={saveFeedback.type} message={saveFeedback.message} />
                             )}
-                            <Button variant="primary" loading={saving}
+                            <Button
+                                variant="primary"
+                                loading={saving}
                                 disabled={!config.api_key.trim() || !config.api_secret.trim()}
-                                onClick={() => saveConfig({
-                                    api_key: config.api_key.trim(),
-                                    api_secret: config.api_secret.trim(),
-                                })}
-                                className="w-full">
+                                onClick={() =>
+                                    saveConfig({
+                                        api_key: config.api_key.trim(),
+                                        api_secret: config.api_secret.trim(),
+                                    })
+                                }
+                                className="w-full"
+                            >
                                 {savedConfig?.api_key ? "Update Credentials" : "Save Credentials"}
                             </Button>
                         </div>
                     </Card>
 
-                    <Card title={status?.is_connected ? "Step 2 — Reconnect to Zerodha" : "Step 2 — Login to Zerodha"}>
+                    <Card
+                        title={
+                            status?.is_connected
+                                ? "Step 2 — Reconnect to Zerodha"
+                                : "Step 2 — Login to Zerodha"
+                        }
+                    >
                         <div className="space-y-4">
                             {loginUrl ? (
                                 <>
                                     <a href={loginUrl}>
-                                        <Button variant="primary" icon={ExternalLink}
-                                            loading={autoExchangeInFlight} className="w-full">
-                                            {status?.is_connected ? "Reconnect to Zerodha" : "Login to Zerodha"}
+                                        <Button
+                                            variant="primary"
+                                            icon={ExternalLink}
+                                            loading={autoExchangeInFlight}
+                                            className="w-full"
+                                        >
+                                            {status?.is_connected
+                                                ? "Reconnect to Zerodha"
+                                                : "Login to Zerodha"}
                                         </Button>
                                     </a>
-                                    <Alert type="info"
-                                        message="After Kite login, you should return here automatically. Set the Kite app redirect URL to this portal's address ending in /zerodha." />
+                                    <Alert
+                                        type="info"
+                                        message="After Kite login, you should return here automatically. Set the Kite app redirect URL to this portal's address ending in /zerodha."
+                                    />
 
                                     {!showManualEntry ? (
                                         <button
@@ -282,13 +321,19 @@ export default function ZerodhaConnect() {
                                         </button>
                                     ) : (
                                         <>
-                                            <Input label="Request Token"
+                                            <Input
+                                                label="Request Token"
                                                 value={requestToken}
                                                 onChange={(e) => setRequestToken(e.target.value)}
-                                                placeholder="Paste request_token here" />
-                                            <Button variant="success" loading={exchanging}
+                                                placeholder="Paste request_token here"
+                                            />
+                                            <Button
+                                                variant="success"
+                                                loading={exchanging}
                                                 onClick={() => exchangeToken(requestToken)}
-                                                className="w-full" disabled={!requestToken}>
+                                                className="w-full"
+                                                disabled={!requestToken}
+                                            >
                                                 Exchange Token
                                             </Button>
                                         </>
@@ -296,11 +341,20 @@ export default function ZerodhaConnect() {
                                 </>
                             ) : loginUrlFailed ? (
                                 <div className="space-y-3">
-                                    <Alert type="error"
-                                        message={formatApiError(loginUrlError, "Preparing the Kite login link")} />
-                                    <Button variant="secondary" icon={RefreshCw}
+                                    <Alert
+                                        type="error"
+                                        message={formatApiError(
+                                            loginUrlError,
+                                            "Preparing the Kite login link"
+                                        )}
+                                    />
+                                    <Button
+                                        variant="secondary"
+                                        icon={RefreshCw}
                                         loading={loadingLoginUrl}
-                                        onClick={() => refetchLoginUrl()} className="w-full">
+                                        onClick={() => refetchLoginUrl()}
+                                        className="w-full"
+                                    >
                                         Retry Login Link
                                     </Button>
                                 </div>
@@ -309,16 +363,20 @@ export default function ZerodhaConnect() {
                             ) : savedConfig?.api_key ? (
                                 <Alert type="info" message="Preparing your Kite login link…" />
                             ) : (
-                                <Alert type="warning"
-                                    message="Save your Kite API key and secret to prepare the login link." />
+                                <Alert
+                                    type="warning"
+                                    message="Save your Kite API key and secret to prepare the login link."
+                                />
                             )}
                         </div>
                     </Card>
                 </div>
             )}
 
-            <Alert type={status?.live_orders_enabled ? "warning" : "info"}
-                message={`Server live-order permission is currently ${liveOrderPermission}. Connecting your Kite account does not change this setting.`} />
+            <Alert
+                type={status?.live_orders_enabled ? "warning" : "info"}
+                message={`Server live-order permission is currently ${liveOrderPermission}. Connecting your Kite account does not change this setting.`}
+            />
 
             {isActive && (
                 <div className="grid grid-cols-2 gap-4">
@@ -327,8 +385,10 @@ export default function ZerodhaConnect() {
                         { href: "/zerodha/positions", label: "Live Positions" },
                     ].map((link) => (
                         <a key={link.href} href={link.href}>
-                            <Card className="hover:border-primary-500 cursor-pointer
-                               transition-colors text-center">
+                            <Card
+                                className="hover:border-primary-500 cursor-pointer
+                               transition-colors text-center"
+                            >
                                 <p className="text-sm font-medium text-primary-400">
                                     {link.label} →
                                 </p>

@@ -18,20 +18,17 @@ export default function PortfolioStats({ portfolio }) {
         {
             label: "Today PnL",
             value: formatCurrency(account.today_pnl),
-            color: parseFloat(account.today_pnl) >= 0
-                ? "text-green-400" : "text-red-400",
+            color: parseFloat(account.today_pnl) >= 0 ? "text-green-400" : "text-red-400",
         },
         {
             label: "Total PnL",
             value: formatCurrency(account.total_pnl),
-            color: parseFloat(account.total_pnl) >= 0
-                ? "text-green-400" : "text-red-400",
+            color: parseFloat(account.total_pnl) >= 0 ? "text-green-400" : "text-red-400",
         },
         {
             label: "Return",
             value: formatPercent(account.total_return_pct),
-            color: parseFloat(account.total_return_pct) >= 0
-                ? "text-green-400" : "text-red-400",
+            color: parseFloat(account.total_return_pct) >= 0 ? "text-green-400" : "text-red-400",
         },
         {
             label: "Win Rate",
@@ -55,9 +52,7 @@ export default function PortfolioStats({ portfolio }) {
             {stats.map((stat) => (
                 <div key={stat.label} className="card text-center">
                     <p className="stat-label">{stat.label}</p>
-                    <p className={`stat-value text-lg ${stat.color}`}>
-                        {stat.value}
-                    </p>
+                    <p className={`stat-value text-lg ${stat.color}`}>{stat.value}</p>
                 </div>
             ))}
         </div>

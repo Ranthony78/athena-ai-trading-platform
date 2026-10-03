@@ -17,14 +17,14 @@ export default function FundsCard({ funds }) {
         <Card title="Funds & Margins">
             <div className="space-y-3">
                 {items.map((item) => (
-                    <div key={item.label}
+                    <div
+                        key={item.label}
                         className="flex items-center justify-between py-2
-                       border-b border-dark-800 last:border-0">
+                       border-b border-dark-800 last:border-0"
+                    >
                         <span className="text-sm text-dark-400">{item.label}</span>
                         <span className="text-sm font-mono font-semibold text-dark-100">
-                            {item.value !== undefined
-                                ? formatCurrency(item.value)
-                                : "—"}
+                            {item.value !== undefined ? formatCurrency(item.value) : "—"}
                         </span>
                     </div>
                 ))}

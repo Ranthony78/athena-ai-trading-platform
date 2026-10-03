@@ -22,7 +22,8 @@ export default function OrderForm({ onSubmit, loading, initialValues = {} }) {
         <div className="space-y-4">
             {aiLinked && (
                 <div className="rounded-lg border border-primary-500/30 bg-primary-500/10 px-3 py-2 text-xs text-dark-300">
-                    Paper simulation only. This records the AI analysis link and never sends an order to Zerodha.
+                    Paper simulation only. This records the AI analysis link and never sends an
+                    order to Zerodha.
                 </div>
             )}
             <div className="grid grid-cols-2 gap-4">

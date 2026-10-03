@@ -38,7 +38,9 @@ export default function Journal() {
             actions={
                 <div className="flex gap-2">
                     <a href="/journal/lessons">
-                        <Button variant="secondary" size="sm">Lessons</Button>
+                        <Button variant="secondary" size="sm">
+                            Lessons
+                        </Button>
                     </a>
                     <Button
                         variant="primary"
@@ -91,8 +93,10 @@ export default function Journal() {
                 <div className="space-y-3">
                     {entries.map((entry) => (
                         <a key={entry.id} href={`/journal/${entry.id}`}>
-                            <Card className="hover:border-dark-600 cursor-pointer
-                               transition-colors">
+                            <Card
+                                className="hover:border-dark-600 cursor-pointer
+                               transition-colors"
+                            >
                                 <div className="flex items-start justify-between">
                                     <div>
                                         <p className="text-sm font-semibold text-dark-100">
@@ -104,19 +108,25 @@ export default function Journal() {
                                     </div>
                                     <div className="flex items-center gap-2">
                                         {entry.market_bias && (
-                                            <Badge variant={
-                                                entry.market_bias === "BULLISH" ? "green" :
-                                                    entry.market_bias === "BEARISH" ? "red" : "gray"
-                                            }>
+                                            <Badge
+                                                variant={
+                                                    entry.market_bias === "BULLISH"
+                                                        ? "green"
+                                                        : entry.market_bias === "BEARISH"
+                                                          ? "red"
+                                                          : "gray"
+                                                }
+                                            >
                                                 {entry.market_bias}
                                             </Badge>
                                         )}
                                         <span className="text-xs text-dark-500">
                                             ⭐ {entry.rating}/10
                                         </span>
-                                        <span className={`text-xs font-mono font-semibold
-                      ${parseFloat(entry.total_pnl) >= 0
-                                                ? "text-green-400" : "text-red-400"}`}>
+                                        <span
+                                            className={`text-xs font-mono font-semibold
+                      ${parseFloat(entry.total_pnl) >= 0 ? "text-green-400" : "text-red-400"}`}
+                                        >
                                             {formatCurrency(entry.total_pnl)}
                                         </span>
                                     </div>

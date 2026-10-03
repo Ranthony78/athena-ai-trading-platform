@@ -51,8 +51,7 @@ export function useIndices() {
 export function useHistorical(symbol, timeframe, limit = 100) {
     return useQuery({
         queryKey: ["historical", symbol, timeframe, limit],
-        queryFn: () =>
-            marketAPI.getHistorical(symbol, { timeframe, limit }),
+        queryFn: () => marketAPI.getHistorical(symbol, { timeframe, limit }),
         select: (res) => res.data.data,
         enabled: !!symbol && !!timeframe,
     });

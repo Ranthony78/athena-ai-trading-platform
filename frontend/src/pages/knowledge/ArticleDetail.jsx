@@ -8,7 +8,11 @@ import { knowledgeAPI } from "../../api/knowledge";
 export default function ArticleDetail() {
     const { slug } = useParams();
 
-    const { data: article, isLoading, refetch } = useQuery({
+    const {
+        data: article,
+        isLoading,
+        refetch,
+    } = useQuery({
         queryKey: ["article", slug],
         queryFn: () => knowledgeAPI.getArticle(slug),
         select: (res) => res.data.data,
@@ -27,8 +31,13 @@ export default function ArticleDetail() {
             title={article.title}
             subtitle={`${article.category} · ${article.source}`}
             actions={
-                <Button variant="secondary" size="sm" icon={Brain}
-                    loading={isPending} onClick={() => summarize()}>
+                <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={Brain}
+                    loading={isPending}
+                    onClick={() => summarize()}
+                >
                     AI Summary
                 </Button>
             }

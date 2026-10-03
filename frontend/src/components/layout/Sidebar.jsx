@@ -28,9 +28,7 @@ import { APP_NAME } from "../../utils/constants";
 const navItems = [
     {
         group: "Overview",
-        items: [
-            { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard", end: true },
-        ],
+        items: [{ to: "/dashboard", icon: LayoutDashboard, label: "Dashboard", end: true }],
     },
     {
         group: "Market",
@@ -42,15 +40,11 @@ const navItems = [
     },
     {
         group: "Analysis",
-        items: [
-            { to: "/analysis", icon: Brain, label: "AI Workspace" },
-        ],
+        items: [{ to: "/analysis", icon: Brain, label: "AI Workspace" }],
     },
     {
         group: "Research",
-        items: [
-            { to: "/backtest", icon: FlaskConical, label: "Backtesting" },
-        ],
+        items: [{ to: "/backtest", icon: FlaskConical, label: "Backtesting" }],
     },
     {
         group: "Trading",
@@ -78,9 +72,7 @@ const navItems = [
     {
         group: "Administration",
         adminOnly: true,
-        items: [
-            { to: "/admin/users", icon: Users, label: "User Management" },
-        ],
+        items: [{ to: "/admin/users", icon: Users, label: "User Management" }],
     },
 ];
 
@@ -111,9 +103,7 @@ export default function Sidebar() {
                 {sidebarOpen && (
                     <div className="flex items-center gap-2">
                         <Activity className="w-5 h-5 text-primary-500" />
-                        <span className="font-bold text-dark-50 text-sm">
-                            {APP_NAME}
-                        </span>
+                        <span className="font-bold text-dark-50 text-sm">{APP_NAME}</span>
                     </div>
                 )}
                 <button
@@ -130,37 +120,42 @@ export default function Sidebar() {
 
             {/* Navigation */}
             <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-6">
-                {navItems.filter((group) => !group.adminOnly || user?.is_staff).map((group) => (
-                    <div key={group.group}>
-                        {sidebarOpen && (
-                            <p className="text-xs font-semibold text-dark-600
-                            uppercase tracking-wider px-2 mb-2">
-                                {group.group}
-                            </p>
-                        )}
-                        <ul className="space-y-0.5">
-                            {group.items.map((item) => (
-                                <li key={item.to}>
-                                    <NavLink
-                                        to={item.to}
-                                        end={item.end}
-                                        className={({ isActive }) => `
+                {navItems
+                    .filter((group) => !group.adminOnly || user?.is_staff)
+                    .map((group) => (
+                        <div key={group.group}>
+                            {sidebarOpen && (
+                                <p
+                                    className="text-xs font-semibold text-dark-600
+                            uppercase tracking-wider px-2 mb-2"
+                                >
+                                    {group.group}
+                                </p>
+                            )}
+                            <ul className="space-y-0.5">
+                                {group.items.map((item) => (
+                                    <li key={item.to}>
+                                        <NavLink
+                                            to={item.to}
+                                            end={item.end}
+                                            className={({ isActive }) => `
                       flex items-center gap-3 px-2 py-2 rounded-lg
                       text-sm font-medium transition-all duration-150
-                      ${isActive
-                                                ? "bg-primary-600/20 text-primary-400"
-                                                : "text-dark-400 hover:text-dark-100 hover:bg-dark-800"
-                                            }
+                      ${
+                          isActive
+                              ? "bg-primary-600/20 text-primary-400"
+                              : "text-dark-400 hover:text-dark-100 hover:bg-dark-800"
+                      }
                     `}
-                                    >
-                                        <item.icon className="w-4 h-4 shrink-0" />
-                                        {sidebarOpen && <span>{item.label}</span>}
-                                    </NavLink>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                ))}
+                                        >
+                                            <item.icon className="w-4 h-4 shrink-0" />
+                                            {sidebarOpen && <span>{item.label}</span>}
+                                        </NavLink>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    ))}
             </nav>
         </aside>
     );

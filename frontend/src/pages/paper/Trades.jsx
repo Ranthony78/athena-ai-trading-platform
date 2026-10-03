@@ -16,9 +16,7 @@ export default function Trades() {
         {
             key: "direction",
             label: "Direction",
-            render: (val) => (
-                <Badge variant={val === "LONG" ? "green" : "red"}>{val}</Badge>
-            ),
+            render: (val) => <Badge variant={val === "LONG" ? "green" : "red"}>{val}</Badge>,
         },
         { key: "quantity", label: "Qty" },
         {
@@ -35,9 +33,12 @@ export default function Trades() {
             key: "net_pnl",
             label: "Net PnL",
             render: (val) => (
-                <span className={`font-mono font-semibold
-          ${parseFloat(val) >= 0 ? "text-green-400" : "text-red-400"}`}>
-                    {parseFloat(val) >= 0 ? "+" : ""}{formatCurrency(val)}
+                <span
+                    className={`font-mono font-semibold
+          ${parseFloat(val) >= 0 ? "text-green-400" : "text-red-400"}`}
+                >
+                    {parseFloat(val) >= 0 ? "+" : ""}
+                    {formatCurrency(val)}
                 </span>
             ),
         },
@@ -54,11 +55,7 @@ export default function Trades() {
                 {isLoading ? (
                     <Spinner />
                 ) : (
-                    <Table
-                        columns={columns}
-                        data={trades || []}
-                        emptyTitle="No completed trades"
-                    />
+                    <Table columns={columns} data={trades || []} emptyTitle="No completed trades" />
                 )}
             </Card>
         </PageWrapper>

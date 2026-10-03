@@ -30,10 +30,7 @@ export default function Table({
                     {data.length === 0 ? (
                         <tr>
                             <td colSpan={columns.length}>
-                                <EmptyState
-                                    title={emptyTitle}
-                                    description={emptyDescription}
-                                />
+                                <EmptyState title={emptyTitle} description={emptyDescription} />
                             </td>
                         </tr>
                     ) : (
@@ -43,7 +40,7 @@ export default function Table({
                                     <td key={col.key} className={col.cellClassName || ""}>
                                         {col.render
                                             ? col.render(row[col.key], row)
-                                            : row[col.key] ?? "—"}
+                                            : (row[col.key] ?? "—")}
                                     </td>
                                 ))}
                             </tr>

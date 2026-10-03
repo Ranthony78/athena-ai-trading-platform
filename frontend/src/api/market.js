@@ -2,63 +2,47 @@ import api from "./axios";
 
 export const marketAPI = {
     // Instruments
-    getInstruments: (params) =>
-        api.get("/market/instruments/", { params }),
+    getInstruments: (params) => api.get("/market/instruments/", { params }),
 
-    searchInstruments: (q) =>
-        api.get("/market/instruments/search/", { params: { q } }),
+    searchInstruments: (q) => api.get("/market/instruments/search/", { params: { q } }),
 
-    getInstrument: (symbol) =>
-        api.get(`/market/instruments/${symbol}/`),
+    getInstrument: (symbol) => api.get(`/market/instruments/${symbol}/`),
 
     // Indices
-    getIndices: () =>
-        api.get("/market/indices/"),
+    getIndices: () => api.get("/market/indices/"),
 
     // Quotes
-    getQuotes: () =>
-        api.get("/market/quotes/"),
+    getQuotes: () => api.get("/market/quotes/"),
 
-    getQuote: (symbol) =>
-        api.get(`/market/quotes/${symbol}/`),
+    getQuote: (symbol) => api.get(`/market/quotes/${symbol}/`),
 
-    getBulkQuotes: (symbols) =>
-        api.post("/market/quotes/bulk/", { symbols }),
+    getBulkQuotes: (symbols) => api.post("/market/quotes/bulk/", { symbols }),
 
     // Historical
-    getHistorical: (symbol, params) =>
-        api.get(`/market/historical/${symbol}/`, { params }),
+    getHistorical: (symbol, params) => api.get(`/market/historical/${symbol}/`, { params }),
 
-    getFuturesActivity: (symbol) =>
-        api.get(`/market/futures/${symbol}/activity/`),
+    getFuturesActivity: (symbol) => api.get(`/market/futures/${symbol}/activity/`),
 
     // Expiry
-    getExpiry: (symbol) =>
-        api.get(`/market/expiry/${symbol}/`),
+    getExpiry: (symbol) => api.get(`/market/expiry/${symbol}/`),
 
     // Option Chain
-    getOptionChain: (symbol, params) =>
-        api.get(`/market/option-chain/${symbol}/`, { params }),
+    getOptionChain: (symbol, params) => api.get(`/market/option-chain/${symbol}/`, { params }),
 
     getOptionChainSummary: (symbol, params) =>
         api.get(`/market/option-chain/${symbol}/summary/`, { params }),
 
-    getMarketRead: (symbol) =>
-        api.get(`/market/read/${symbol}/`),
+    getMarketRead: (symbol) => api.get(`/market/read/${symbol}/`),
 
     // Session
-    getSession: () =>
-        api.get("/market/session/"),
+    getSession: () => api.get("/market/session/"),
 
-    getEngineStatus: () =>
-        api.get("/market/engine/status/"),
+    getEngineStatus: () => api.get("/market/engine/status/"),
 
     // Indicators
-    getIndicatorList: () =>
-        api.get("/market/indicators/"),
+    getIndicatorList: () => api.get("/market/indicators/"),
 
-    calculateIndicators: (data) =>
-        api.post("/market/indicators/calculate/", data),
+    calculateIndicators: (data) => api.post("/market/indicators/calculate/", data),
 
     getAnalysisReport: (symbol) => api.get(`/market/report/${symbol}/`),
 };

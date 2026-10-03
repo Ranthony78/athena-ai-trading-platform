@@ -20,7 +20,9 @@ export default function SessionHistory() {
     const clearHistory = useMutation({
         mutationFn: () => analysisAPI.clearSessions(),
         onSuccess: (response) => {
-            setActionMessage(`Removed ${response.data.data.sessions_deleted} saved analysis sessions.`);
+            setActionMessage(
+                `Removed ${response.data.data.sessions_deleted} saved analysis sessions.`
+            );
             setConfirmClear(false);
             setSelected(null);
             queryClient.invalidateQueries({ queryKey: ["ai-sessions"] });
@@ -31,7 +33,15 @@ export default function SessionHistory() {
     });
 
     const columns = [
-        { key: "id", label: "Request", render: (val) => <button className="text-primary-400 underline" onClick={()=>setSelected(val)}>Inspect #{val}</button> },
+        {
+            key: "id",
+            label: "Request",
+            render: (val) => (
+                <button className="text-primary-400 underline" onClick={() => setSelected(val)}>
+                    Inspect #{val}
+                </button>
+            ),
+        },
         { key: "symbol", label: "Symbol" },
         { key: "session_type", label: "Type" },
         {
@@ -45,9 +55,24 @@ export default function SessionHistory() {
         },
         { key: "model_used", label: "Model" },
         { key: "tokens_used", label: "Tokens" },
-        { key: "parsed_output", label: "Decision", render: (value) => ["NO_SETUP", "NEUTRAL", "WATCH"].includes(value?.signal) ? "No Trade" : value?.signal || "Unavailable" },
-        { key: "forecast_actual_class", label: "Observed move", render: (value) => value || "Unresolved" },
-        { key: "paper_evaluation", label: "Paper", render: (value) => value?.status || "Not requested" },
+        {
+            key: "parsed_output",
+            label: "Decision",
+            render: (value) =>
+                ["NO_SETUP", "NEUTRAL", "WATCH"].includes(value?.signal)
+                    ? "No Trade"
+                    : value?.signal || "Unavailable",
+        },
+        {
+            key: "forecast_actual_class",
+            label: "Observed move",
+            render: (value) => value || "Unresolved",
+        },
+        {
+            key: "paper_evaluation",
+            label: "Paper",
+            render: (value) => value?.status || "Not requested",
+        },
         {
             key: "session_time",
             label: "Time",
@@ -59,13 +84,27 @@ export default function SessionHistory() {
         <PageWrapper
             title="Analysis History"
             subtitle="Your latest 200 saved sessions, including No Trade and failed requests"
-            actions={sessions?.length > 0 && (
-                <Button variant="danger" size="sm" icon={Trash2} onClick={() => { setActionMessage(null); setConfirmClear(true); }}>
-                    Clear history
-                </Button>
-            )}
+            actions={
+                sessions?.length > 0 && (
+                    <Button
+                        variant="danger"
+                        size="sm"
+                        icon={Trash2}
+                        onClick={() => {
+                            setActionMessage(null);
+                            setConfirmClear(true);
+                        }}
+                    >
+                        Clear history
+                    </Button>
+                )
+            }
         >
-            {actionMessage && <p role="status" className="mb-3 text-sm text-dark-300">{actionMessage}</p>}
+            {actionMessage && (
+                <p role="status" className="mb-3 text-sm text-dark-300">
+                    {actionMessage}
+                </p>
+            )}
             <Card padding={false}>
                 {isLoading ? (
                     <Spinner />
@@ -78,17 +117,43 @@ export default function SessionHistory() {
                     />
                 )}
             </Card>
-            {selected && <Card title={`Saved analysis #${selected}`}><SavedRequest key={selected} sessionId={selected} /></Card>}
-            <Modal isOpen={confirmClear} onClose={() => !clearHistory.isPending && setConfirmClear(false)} title="Permanently clear analysis history">
-                <p className="text-sm text-dark-300">This permanently deletes all saved AI analysis sessions for your account and their linked AI signal records. Paper orders, positions, and trades are kept, but their links to these analyses are removed.</p>
+            {selected && (
+                <Card title={`Saved analysis #${selected}`}>
+                    <SavedRequest key={selected} sessionId={selected} />
+                </Card>
+            )}
+            <Modal
+                isOpen={confirmClear}
+                onClose={() => !clearHistory.isPending && setConfirmClear(false)}
+                title="Permanently clear analysis history"
+            >
+                <p className="text-sm text-dark-300">
+                    This permanently deletes all saved AI analysis sessions for your account and
+                    their linked AI signal records. Paper orders, positions, and trades are kept,
+                    but their links to these analyses are removed.
+                </p>
                 {clearHistory.isError && (
                     <p role="alert" className="mt-3 text-sm text-red-400">
-                        {clearHistory.error?.response?.data?.message || "Could not clear analysis history."}
+                        {clearHistory.error?.response?.data?.message ||
+                            "Could not clear analysis history."}
                     </p>
                 )}
                 <div className="flex justify-end gap-2 mt-6">
-                    <Button variant="secondary" disabled={clearHistory.isPending} onClick={() => setConfirmClear(false)}>Cancel</Button>
-                    <Button variant="danger" icon={Trash2} loading={clearHistory.isPending} onClick={() => clearHistory.mutate()}>Delete saved history</Button>
+                    <Button
+                        variant="secondary"
+                        disabled={clearHistory.isPending}
+                        onClick={() => setConfirmClear(false)}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="danger"
+                        icon={Trash2}
+                        loading={clearHistory.isPending}
+                        onClick={() => clearHistory.mutate()}
+                    >
+                        Delete saved history
+                    </Button>
                 </div>
             </Modal>
         </PageWrapper>

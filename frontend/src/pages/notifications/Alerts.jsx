@@ -27,8 +27,7 @@ export default function Alerts() {
 
     const { mutate: cancel } = useMutation({
         mutationFn: (id) => notificationsAPI.cancelAlert(id),
-        onSuccess: () =>
-            queryClient.invalidateQueries({ queryKey: ["alerts"] }),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["alerts"] }),
     });
 
     const columns = [
@@ -58,11 +57,17 @@ export default function Alerts() {
             label: "Action",
             render: (v, row) =>
                 row.status === "ACTIVE" ? (
-                    <Button variant="ghost" size="sm" onClick={() => cancel(v)}
-                        className="text-red-400">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => cancel(v)}
+                        className="text-red-400"
+                    >
                         Cancel
                     </Button>
-                ) : "—",
+                ) : (
+                    "—"
+                ),
         },
     ];
 
@@ -71,21 +76,24 @@ export default function Alerts() {
             title="Price Alerts"
             subtitle="Get notified when prices hit your targets"
             actions={
-                <Button variant="primary" size="sm" icon={Bell}
-                    onClick={() => setShowModal(true)}>
+                <Button variant="primary" size="sm" icon={Bell} onClick={() => setShowModal(true)}>
                     New Alert
                 </Button>
             }
         >
             <Card padding={false}>
-                {isLoading ? <Spinner /> : (
-                    <Table columns={columns} data={alerts || []}
-                        emptyTitle="No alerts set" />
+                {isLoading ? (
+                    <Spinner />
+                ) : (
+                    <Table columns={columns} data={alerts || []} emptyTitle="No alerts set" />
                 )}
             </Card>
 
-            <Modal isOpen={showModal} onClose={() => setShowModal(false)}
-                title="Create Price Alert">
+            <Modal
+                isOpen={showModal}
+                onClose={() => setShowModal(false)}
+                title="Create Price Alert"
+            >
                 <AlertForm onSubmit={create} loading={isPending} />
             </Modal>
         </PageWrapper>

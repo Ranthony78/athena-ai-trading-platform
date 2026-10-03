@@ -35,12 +35,16 @@ export default function Settings() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {settingsLinks.map((link) => (
                     <a key={link.href} href={link.href}>
-                        <Card className="hover:border-primary-500 cursor-pointer
-                             transition-colors">
+                        <Card
+                            className="hover:border-primary-500 cursor-pointer
+                             transition-colors"
+                        >
                             <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-xl bg-primary-900/30
+                                <div
+                                    className="w-10 h-10 rounded-xl bg-primary-900/30
                                 border border-primary-800 flex items-center
-                                justify-center shrink-0">
+                                justify-center shrink-0"
+                                >
                                     <link.icon className="w-5 h-5 text-primary-400" />
                                 </div>
                                 <div>

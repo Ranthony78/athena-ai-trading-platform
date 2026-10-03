@@ -40,7 +40,10 @@ function sortQuotes(quotes = []) {
 function sessionLabel(session) {
     if (session === "LIVE") return "Open";
     if (!session) return "Checking";
-    return session.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
+    return session
+        .replaceAll("_", " ")
+        .toLowerCase()
+        .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function istDateParts(timestamp) {
@@ -71,18 +74,25 @@ function getSessionBucketTime(timestamp, interval) {
 
 function mergeLiveCandle(history = [], liveCandle) {
     if (!liveCandle) return history;
-    const existing = history.find((candle) => new Date(candle.candle_time).getTime() === new Date(liveCandle.candle_time).getTime());
+    const existing = history.find(
+        (candle) =>
+            new Date(candle.candle_time).getTime() === new Date(liveCandle.candle_time).getTime()
+    );
     const nextLiveCandle = existing
         ? {
-            ...existing,
-            high: Math.max(Number(existing.high), liveCandle.high),
-            low: Math.min(Number(existing.low), liveCandle.low),
-            close: liveCandle.close,
-            is_live: true,
-        }
+              ...existing,
+              high: Math.max(Number(existing.high), liveCandle.high),
+              low: Math.min(Number(existing.low), liveCandle.low),
+              close: liveCandle.close,
+              is_live: true,
+          }
         : liveCandle;
     return [
-        ...history.filter((candle) => new Date(candle.candle_time).getTime() !== new Date(liveCandle.candle_time).getTime()),
+        ...history.filter(
+            (candle) =>
+                new Date(candle.candle_time).getTime() !==
+                new Date(liveCandle.candle_time).getTime()
+        ),
         nextLiveCandle,
     ].sort((a, b) => new Date(a.candle_time) - new Date(b.candle_time));
 }
@@ -97,9 +107,13 @@ function StatusTile({ icon: Icon, label, value, detail, tone = "neutral" }) {
     };
 
     return (
-        <div className={`min-w-0 rounded-xl border px-4 py-3 shadow-sm ${styles[tone] || styles.neutral}`}>
+        <div
+            className={`min-w-0 rounded-xl border px-4 py-3 shadow-sm ${styles[tone] || styles.neutral}`}
+        >
             <div className="flex items-center justify-between gap-2">
-                <p className="truncate text-[11px] font-bold uppercase tracking-[0.12em] opacity-75">{label}</p>
+                <p className="truncate text-[11px] font-bold uppercase tracking-[0.12em] opacity-75">
+                    {label}
+                </p>
                 <Icon className="h-4 w-4 shrink-0 opacity-80" aria-hidden="true" />
             </div>
             <p className="mt-2 truncate text-sm font-bold">{value}</p>
@@ -118,10 +132,15 @@ function MarketTicker({ quote }) {
             <div className="min-w-0">
                 <p className="truncate text-xs font-semibold text-dark-500">{quote.symbol}</p>
                 <p className="mt-0.5 font-mono text-base font-bold text-dark-100">
-                    {Number(quote.ltp).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {Number(quote.ltp).toLocaleString("en-IN", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                    })}
                 </p>
             </div>
-            <div className={`flex shrink-0 items-center gap-1 text-sm font-semibold ${positive ? "text-green-700" : "text-red-700"}`}>
+            <div
+                className={`flex shrink-0 items-center gap-1 text-sm font-semibold ${positive ? "text-green-700" : "text-red-700"}`}
+            >
                 <DirectionIcon className="h-4 w-4" aria-hidden="true" />
                 {Number.isFinite(change) ? `${Math.abs(change).toFixed(2)}%` : "—"}
             </div>
@@ -152,7 +171,11 @@ export default function Dashboard() {
         refetchInterval: 30000,
         select: (res) => res.data.data,
     });
-    const { data: brokerStatus, isLoading: brokerStatusLoading, isError: brokerStatusError } = useQuery({
+    const {
+        data: brokerStatus,
+        isLoading: brokerStatusLoading,
+        isError: brokerStatusError,
+    } = useQuery({
         queryKey: ["zerodha-status"],
         queryFn: () => zerodhaAPI.getStatus(),
         refetchInterval: 30000,
@@ -195,62 +218,91 @@ export default function Dashboard() {
         select: (res) => res.data.data,
     });
     const sortedQuotes = sortQuotes(quotes);
-    const primaryQuote = sortedQuotes.find((quote) => ["NIFTY", "NIFTY50"].includes(quote.symbol?.toUpperCase()));
+    const primaryQuote = sortedQuotes.find((quote) =>
+        ["NIFTY", "NIFTY50"].includes(quote.symbol?.toUpperCase())
+    );
     const candles = candleResult?.candles || [];
     const liveCandle = liveCandles[chartInterval];
     const displayedInterval = candleResult?.interval || chartInterval;
     const chartLiveCandle = displayedInterval === chartInterval ? liveCandle : null;
     const chartCandles = mergeLiveCandle(candles, chartLiveCandle);
-    const latestCandle = chartCandles.reduce((latest, candle) => (
-        !latest || new Date(candle.candle_time) > new Date(latest.candle_time) ? candle : latest
-    ), null);
+    const latestCandle = chartCandles.reduce(
+        (latest, candle) =>
+            !latest || new Date(candle.candle_time) > new Date(latest.candle_time)
+                ? candle
+                : latest,
+        null
+    );
     const todayInIndia = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit",
+        timeZone: "Asia/Kolkata",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
     }).format(new Date());
-    const historyIncludesToday = candles.some((candle) => (
-        new Intl.DateTimeFormat("en-CA", {
-            timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit",
-        }).format(new Date(candle.candle_time)) === todayInIndia
-    ));
-    const latestStoredCandle = candles.reduce((latest, candle) => (
-        !latest || new Date(candle.candle_time) > new Date(latest.candle_time) ? candle : latest
-    ), null);
+    const historyIncludesToday = candles.some(
+        (candle) =>
+            new Intl.DateTimeFormat("en-CA", {
+                timeZone: "Asia/Kolkata",
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+            }).format(new Date(candle.candle_time)) === todayInIndia
+    );
+    const latestStoredCandle = candles.reduce(
+        (latest, candle) =>
+            !latest || new Date(candle.candle_time) > new Date(latest.candle_time)
+                ? candle
+                : latest,
+        null
+    );
     const latestStoredCandleAgeMinutes = latestStoredCandle
         ? Math.max(0, (Date.now() - new Date(latestStoredCandle.candle_time).getTime()) / 60000)
         : null;
-    const storedCandlesAreStale = latestStoredCandleAgeMinutes !== null
-        && latestStoredCandleAgeMinutes > (isMarketLive ? 30 : 72 * 60);
-    const liveCandleIsFromToday = Boolean(liveCandle && new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit",
-    }).format(new Date(liveCandle.candle_time)) === todayInIndia);
-    const hideOldChart = (storedCandlesAreStale && !liveCandleIsFromToday)
-        || (isMarketLive && !historyIncludesToday && !liveCandle);
-    const quoteAgeSeconds = dataUpdatedAt ? Math.max(0, Math.floor((Date.now() - dataUpdatedAt) / 1000)) : null;
+    const storedCandlesAreStale =
+        latestStoredCandleAgeMinutes !== null &&
+        latestStoredCandleAgeMinutes > (isMarketLive ? 30 : 72 * 60);
+    const liveCandleIsFromToday = Boolean(
+        liveCandle &&
+        new Intl.DateTimeFormat("en-CA", {
+            timeZone: "Asia/Kolkata",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+        }).format(new Date(liveCandle.candle_time)) === todayInIndia
+    );
+    const hideOldChart =
+        (storedCandlesAreStale && !liveCandleIsFromToday) ||
+        (isMarketLive && !historyIncludesToday && !liveCandle);
+    const quoteAgeSeconds = dataUpdatedAt
+        ? Math.max(0, Math.floor((Date.now() - dataUpdatedAt) / 1000))
+        : null;
     const quoteFeedIsFresh = !quotesError && quoteAgeSeconds !== null && quoteAgeSeconds <= 15;
     const quoteSync = quotesError
         ? "Latest request failed"
         : quoteAgeSeconds === null
-            ? quotesLoading ? "Loading the first quote" : "Waiting for the first successful request"
-            : quoteAgeSeconds > 30
-                ? `Refresh delayed · last request ${quoteAgeSeconds}s ago`
-                : `Request updated ${quoteAgeSeconds < 5 ? "just now" : `${quoteAgeSeconds}s ago`}`;
+          ? quotesLoading
+              ? "Loading the first quote"
+              : "Waiting for the first successful request"
+          : quoteAgeSeconds > 30
+            ? `Refresh delayed · last request ${quoteAgeSeconds}s ago`
+            : `Request updated ${quoteAgeSeconds < 5 ? "just now" : `${quoteAgeSeconds}s ago`}`;
     const providerName = engineStatusLoading
         ? "Checking provider"
         : engineStatus?.provider?.toLowerCase() === "zerodha"
-            ? "Zerodha configured"
-            : engineStatus?.provider
-                ? `${engineStatus.provider} configured`
-                : "Provider unavailable";
+          ? "Zerodha configured"
+          : engineStatus?.provider
+            ? `${engineStatus.provider} configured`
+            : "Provider unavailable";
     const brokerConnected = Boolean(brokerStatus?.is_connected && brokerStatus?.is_token_valid);
     const brokerLabel = brokerStatusError
         ? "Status unavailable"
         : brokerStatusLoading
-            ? "Checking connection"
-            : brokerConnected
+          ? "Checking connection"
+          : brokerConnected
             ? "Connected"
             : brokerStatus?.is_connected
-                ? "Reconnect required"
-                : "Not connected";
+              ? "Reconnect required"
+              : "Not connected";
 
     useEffect(() => {
         const sampleTime = dataUpdatedAt;
@@ -289,13 +341,25 @@ export default function Dashboard() {
     }, [isMarketLive, dataUpdatedAt, primaryQuote?.ltp]);
 
     return (
-        <PageWrapper title="Trading Overview" subtitle="Market context, signals, and account state in one view.">
-            <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Trading system status">
+        <PageWrapper
+            title="Trading Overview"
+            subtitle="Market context, signals, and account state in one view."
+        >
+            <section
+                className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"
+                aria-label="Trading system status"
+            >
                 <StatusTile
                     icon={Activity}
                     label="Market session"
                     value={sessionError ? "Status unavailable" : sessionLabel(session?.session)}
-                    detail={sessionError ? "Market-session request failed" : session?.session === "LIVE" ? "Market is open" : "Session state reported by Athena"}
+                    detail={
+                        sessionError
+                            ? "Market-session request failed"
+                            : session?.session === "LIVE"
+                              ? "Market is open"
+                              : "Session state reported by Athena"
+                    }
                     tone={session?.session === "LIVE" ? "green" : "neutral"}
                 />
                 <StatusTile
@@ -303,33 +367,53 @@ export default function Dashboard() {
                     label="Market data"
                     value={providerName}
                     detail={quoteSync}
-                    tone={quotesError || (quoteAgeSeconds !== null && quoteAgeSeconds > 30) ? "amber" : "blue"}
+                    tone={
+                        quotesError || (quoteAgeSeconds !== null && quoteAgeSeconds > 30)
+                            ? "amber"
+                            : "blue"
+                    }
                 />
                 <StatusTile
                     icon={brokerConnected ? ShieldCheck : ShieldAlert}
                     label="Zerodha connection"
                     value={brokerLabel}
-                    detail={brokerStatusLoading
-                        ? "Checking the saved Zerodha session"
-                        : brokerConnected ? "Session token is valid" : "Check connection before using broker features"}
+                    detail={
+                        brokerStatusLoading
+                            ? "Checking the saved Zerodha session"
+                            : brokerConnected
+                              ? "Session token is valid"
+                              : "Check connection before using broker features"
+                    }
                     tone={brokerConnected ? "green" : brokerStatusError ? "amber" : "neutral"}
                 />
                 <StatusTile
                     icon={brokerStatus?.live_orders_enabled ? ShieldAlert : ShieldCheck}
                     label="Real-order permission"
-                    value={brokerStatusLoading
-                        ? "Checking server permission"
-                        : brokerStatus?.live_orders_enabled === undefined
-                            ? "Status unavailable"
-                            : brokerStatus.live_orders_enabled ? "Enabled on server" : "Blocked on server"}
-                    detail={brokerStatusLoading
-                        ? "Reading the server order gate"
-                        : brokerStatus?.live_orders_enabled === undefined
-                            ? "Server permission has not been reported"
-                            : brokerStatus.live_orders_enabled
+                    value={
+                        brokerStatusLoading
+                            ? "Checking server permission"
+                            : brokerStatus?.live_orders_enabled === undefined
+                              ? "Status unavailable"
+                              : brokerStatus.live_orders_enabled
+                                ? "Enabled on server"
+                                : "Blocked on server"
+                    }
+                    detail={
+                        brokerStatusLoading
+                            ? "Reading the server order gate"
+                            : brokerStatus?.live_orders_enabled === undefined
+                              ? "Server permission has not been reported"
+                              : brokerStatus.live_orders_enabled
                                 ? "Server allows real-order requests"
-                                : "Server currently rejects real-order requests"}
-                    tone={brokerStatus?.live_orders_enabled ? "red" : brokerStatus?.live_orders_enabled === false ? "green" : "amber"}
+                                : "Server currently rejects real-order requests"
+                    }
+                    tone={
+                        brokerStatus?.live_orders_enabled
+                            ? "red"
+                            : brokerStatus?.live_orders_enabled === false
+                              ? "green"
+                              : "amber"
+                    }
                 />
             </section>
 
@@ -337,7 +421,9 @@ export default function Dashboard() {
                 <Card padding={false} className="overflow-hidden">
                     <div className="flex flex-wrap items-start justify-between gap-3 border-b border-dark-700 px-5 py-4">
                         <div>
-                            <p className="text-xs font-bold uppercase tracking-[0.16em] text-dark-500">NIFTY 50</p>
+                            <p className="text-xs font-bold uppercase tracking-[0.16em] text-dark-500">
+                                NIFTY 50
+                            </p>
                             <p className="mt-1 text-sm text-dark-400">
                                 {candlesArePreviousInterval
                                     ? `Loading ${chartInterval} candles · showing ${displayedInterval} temporarily`
@@ -350,41 +436,60 @@ export default function Dashboard() {
                                 aria-label="Candle interval"
                                 value={chartInterval}
                                 onChange={(event) => setChartInterval(event.target.value)}
-                                options={CHART_INTERVALS.map((interval) => ({ value: interval, label: interval }))}
+                                options={CHART_INTERVALS.map((interval) => ({
+                                    value: interval,
+                                    label: interval,
+                                }))}
                                 className="w-32 text-left"
                             />
                             {liveCandle && (
-                                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${isMarketLive && quoteFeedIsFresh ? "bg-green-500/15 text-green-300" : "bg-dark-800 text-dark-400"}`}>
-                                    {isMarketLive && quoteFeedIsFresh ? "Live candle" : "Last candle"}
+                                <span
+                                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${isMarketLive && quoteFeedIsFresh ? "bg-green-500/15 text-green-300" : "bg-dark-800 text-dark-400"}`}
+                                >
+                                    {isMarketLive && quoteFeedIsFresh
+                                        ? "Live candle"
+                                        : "Last candle"}
                                 </span>
                             )}
                             <div className="text-right">
                                 <p className="font-mono text-2xl font-bold tracking-tight text-dark-50">
                                     {primaryQuote?.ltp !== undefined
-                                        ? Number(primaryQuote.ltp).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                        ? Number(primaryQuote.ltp).toLocaleString("en-IN", {
+                                              minimumFractionDigits: 2,
+                                              maximumFractionDigits: 2,
+                                          })
                                         : "—"}
                                 </p>
-                                <p className={`mt-1 text-sm font-semibold ${Number(primaryQuote?.change_percent) >= 0 ? "text-green-700" : "text-red-700"}`}>
+                                <p
+                                    className={`mt-1 text-sm font-semibold ${Number(primaryQuote?.change_percent) >= 0 ? "text-green-700" : "text-red-700"}`}
+                                >
                                     {quotesLoading
                                         ? "Loading quote…"
                                         : primaryQuote?.change_percent !== undefined
-                                        ? `${Number(primaryQuote.change_percent) >= 0 ? "▲" : "▼"} ${Math.abs(Number(primaryQuote.change_percent)).toFixed(2)}% today`
-                                        : "Quote unavailable"}
+                                          ? `${Number(primaryQuote.change_percent) >= 0 ? "▲" : "▼"} ${Math.abs(Number(primaryQuote.change_percent)).toFixed(2)}% today`
+                                          : "Quote unavailable"}
                                 </p>
                             </div>
                         </div>
                     </div>
                     <div className="px-3 pb-3 pt-2 sm:px-5">
-                        {candlesLoading ? <Spinner text="Loading candles…" /> : candlesError ? (
+                        {candlesLoading ? (
+                            <Spinner text="Loading candles…" />
+                        ) : candlesError ? (
                             <div className="flex min-h-64 items-center justify-center rounded-lg bg-dark-950 px-5 text-center text-sm text-dark-500">
                                 Candle history could not be loaded. Check the market-data provider.
                             </div>
                         ) : (
                             <>
                                 {hideOldChart ? (
-                                    <div className="flex min-h-64 flex-col items-center justify-center gap-2 rounded-lg border border-dark-700 bg-dark-950 px-5 text-center" role="status">
+                                    <div
+                                        className="flex min-h-64 flex-col items-center justify-center gap-2 rounded-lg border border-dark-700 bg-dark-950 px-5 text-center"
+                                        role="status"
+                                    >
                                         <p className="text-sm font-semibold text-dark-200">
-                                            {latestStoredCandle ? "Old candles hidden" : "Waiting for today’s candles"}
+                                            {latestStoredCandle
+                                                ? "Old candles hidden"
+                                                : "Waiting for today’s candles"}
                                         </p>
                                         <p className="max-w-xl text-xs leading-5 text-dark-400">
                                             {isMarketLive
@@ -392,49 +497,100 @@ export default function Dashboard() {
                                                 : "No recent candles are stored for this interval. It will refresh from Zerodha when the market opens; older candles are kept but hidden here."}
                                         </p>
                                         {latestStoredCandle && (
-                                            <p className="text-xs text-dark-500">Last stored {chartInterval.replace("m", "-minute")} candle: {formatDateTime(latestStoredCandle.candle_time)}</p>
+                                            <p className="text-xs text-dark-500">
+                                                Last stored {chartInterval.replace("m", "-minute")}{" "}
+                                                candle:{" "}
+                                                {formatDateTime(latestStoredCandle.candle_time)}
+                                            </p>
                                         )}
                                     </div>
                                 ) : isMarketLive && liveCandle && !quoteFeedIsFresh ? (
-                                    <p className="mb-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-200" role="status">
-                                        The quote feed is delayed. Showing the last {chartInterval.replace("m", "-minute")} candle received at {formatDateTime(liveCandle.candle_time)} until quotes resume.
+                                    <p
+                                        className="mb-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-200"
+                                        role="status"
+                                    >
+                                        The quote feed is delayed. Showing the last{" "}
+                                        {chartInterval.replace("m", "-minute")} candle received at{" "}
+                                        {formatDateTime(liveCandle.candle_time)} until quotes
+                                        resume.
                                     </p>
                                 ) : liveCandleIsFromToday && liveCandle && !historyIncludesToday ? (
-                                    <p className="mb-2 rounded-md border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-xs leading-5 text-blue-200" role="status">
-                                        Earlier candles for today aren’t available from Zerodha yet; this chart contains quote data collected since this page opened.
+                                    <p
+                                        className="mb-2 rounded-md border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-xs leading-5 text-blue-200"
+                                        role="status"
+                                    >
+                                        Earlier candles for today aren’t available from Zerodha yet;
+                                        this chart contains quote data collected since this page
+                                        opened.
                                     </p>
                                 ) : null}
-                                {!hideOldChart && isMarketLive && liveCandle && historyIncludesToday && (
-                                    <p className="mb-2 rounded-md border border-green-500/30 bg-green-500/10 px-3 py-2 text-xs leading-5 text-green-200" role="status">
-                                        Quotes refresh every 5 seconds; history refreshes every 30 seconds while the market is open.
-                                    </p>
+                                {!hideOldChart &&
+                                    isMarketLive &&
+                                    liveCandle &&
+                                    historyIncludesToday && (
+                                        <p
+                                            className="mb-2 rounded-md border border-green-500/30 bg-green-500/10 px-3 py-2 text-xs leading-5 text-green-200"
+                                            role="status"
+                                        >
+                                            Quotes refresh every 5 seconds; history refreshes every
+                                            30 seconds while the market is open.
+                                        </p>
+                                    )}
+                                {!hideOldChart && (
+                                    <CandleChart
+                                        candles={chartCandles}
+                                        currentPrice={primaryQuote?.ltp}
+                                        interval={displayedInterval}
+                                    />
                                 )}
-                                {!hideOldChart && <CandleChart candles={chartCandles} currentPrice={primaryQuote?.ltp} interval={displayedInterval} />}
                             </>
                         )}
                         <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-dark-800 pt-3 text-xs text-dark-500">
-                            <span className="inline-flex items-center gap-2"><Clock3 className="h-3.5 w-3.5" aria-hidden="true" />{candleResult?.source && candleResult.source !== "Success"
-                                ? `${candleResult.source.replace(/\.$/, "")} · `
-                                : liveCandle
-                                    ? `${isMarketLive ? "Live quote candle" : "Last quote candle"} + stored history · `
-                                    : "Stored history · "}candle data through {latestCandle ? formatDateTime(latestCandle.candle_time) : "unavailable"}</span>
-                            <a href="/market/option-chain" className="inline-flex items-center gap-1 font-semibold text-primary-600 hover:text-primary-700">
-                                Open option chain <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                            <span className="inline-flex items-center gap-2">
+                                <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
+                                {candleResult?.source && candleResult.source !== "Success"
+                                    ? `${candleResult.source.replace(/\.$/, "")} · `
+                                    : liveCandle
+                                      ? `${isMarketLive ? "Live quote candle" : "Last quote candle"} + stored history · `
+                                      : "Stored history · "}
+                                candle data through{" "}
+                                {latestCandle
+                                    ? formatDateTime(latestCandle.candle_time)
+                                    : "unavailable"}
+                            </span>
+                            <a
+                                href="/market/option-chain"
+                                className="inline-flex items-center gap-1 font-semibold text-primary-600 hover:text-primary-700"
+                            >
+                                Open option chain{" "}
+                                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                             </a>
                         </div>
                     </div>
                 </Card>
-
             </section>
 
-            <DashboardMarketPanels brokerStatus={brokerStatus} aiSignals={aiSignals || []} quote={primaryQuote} marketIsLive={isMarketLive} quoteFeedIsFresh={quoteFeedIsFresh} />
+            <DashboardMarketPanels
+                brokerStatus={brokerStatus}
+                aiSignals={aiSignals || []}
+                quote={primaryQuote}
+                marketIsLive={isMarketLive}
+                quoteFeedIsFresh={quoteFeedIsFresh}
+            />
 
-            <section className="grid grid-cols-1 gap-4 xl:grid-cols-2" aria-label="Additional market and account context">
+            <section
+                className="grid grid-cols-1 gap-4 xl:grid-cols-2"
+                aria-label="Additional market and account context"
+            >
                 <Card title="Market watch" subtitle="Indices from the configured market provider">
                     <div className="space-y-2">
-                        {sortedQuotes.slice(0, 4).map((quote) => <MarketTicker key={quote.symbol} quote={quote} />)}
+                        {sortedQuotes.slice(0, 4).map((quote) => (
+                            <MarketTicker key={quote.symbol} quote={quote} />
+                        ))}
                         {!quotesLoading && !sortedQuotes.length && (
-                            <p className="rounded-lg bg-dark-950 px-3 py-4 text-sm text-dark-500">No quote data is available. Check the provider and instrument list.</p>
+                            <p className="rounded-lg bg-dark-950 px-3 py-4 text-sm text-dark-500">
+                                No quote data is available. Check the provider and instrument list.
+                            </p>
                         )}
                     </div>
                 </Card>

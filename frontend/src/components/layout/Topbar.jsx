@@ -23,7 +23,9 @@ export default function Topbar() {
                         ) : (
                             <WifiOff className="w-4 h-4 text-dark-500" />
                         )}
-                        <span className={`text-sm font-medium ${getSessionColor(session.session)}`}>{session.session}</span>
+                        <span className={`text-sm font-medium ${getSessionColor(session.session)}`}>
+                            {session.session}
+                        </span>
                         <span className="text-dark-600 text-xs">•</span>
                         <span className="text-dark-500 text-xs font-mono">{session.time}</span>
                     </div>
@@ -36,7 +38,10 @@ export default function Topbar() {
             </div>
 
             <div className="flex items-center gap-2">
-                <label className="flex items-center gap-1.5 rounded-lg border border-dark-700 bg-dark-800 px-2 py-1.5 text-dark-400" title="Choose appearance">
+                <label
+                    className="flex items-center gap-1.5 rounded-lg border border-dark-700 bg-dark-800 px-2 py-1.5 text-dark-400"
+                    title="Choose appearance"
+                >
                     <Palette className="h-3.5 w-3.5" aria-hidden="true" />
                     <span className="sr-only">Choose appearance</span>
                     <select
@@ -55,7 +60,10 @@ export default function Topbar() {
                     </select>
                 </label>
 
-                <a href="/notifications" className="relative p-2 rounded-lg text-dark-400 hover:text-dark-100 hover:bg-dark-800 transition-colors">
+                <a
+                    href="/notifications"
+                    className="relative p-2 rounded-lg text-dark-400 hover:text-dark-100 hover:bg-dark-800 transition-colors"
+                >
                     <Bell className="w-4 h-4" />
                     {unreadCount > 0 && (
                         <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-medium">

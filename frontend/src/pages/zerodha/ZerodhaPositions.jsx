@@ -11,10 +11,7 @@ export default function ZerodhaPositions() {
         refetchInterval: 5000,
         select: (res) => {
             const data = res.data.data;
-            return [
-                ...(data?.day || []),
-                ...(data?.net || []),
-            ];
+            return [...(data?.day || []), ...(data?.net || [])];
         },
     });
 
@@ -24,9 +21,7 @@ export default function ZerodhaPositions() {
             key: "quantity",
             label: "Qty",
             render: (v) => (
-                <span className={v > 0 ? "text-green-400" : v < 0 ? "text-red-400" : ""}>
-                    {v}
-                </span>
+                <span className={v > 0 ? "text-green-400" : v < 0 ? "text-red-400" : ""}>{v}</span>
             ),
         },
         {
@@ -43,8 +38,10 @@ export default function ZerodhaPositions() {
             key: "pnl",
             label: "PnL",
             render: (v) => (
-                <span className={`font-mono font-semibold
-          ${parseFloat(v) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                <span
+                    className={`font-mono font-semibold
+          ${parseFloat(v) >= 0 ? "text-green-400" : "text-red-400"}`}
+                >
                     {formatCurrency(v)}
                 </span>
             ),
@@ -55,9 +52,14 @@ export default function ZerodhaPositions() {
     return (
         <PageWrapper title="Zerodha Positions" subtitle="Live broker positions">
             <Card padding={false}>
-                {isLoading ? <Spinner /> : (
-                    <Table columns={columns} data={positions || []}
-                        emptyTitle="No open positions" />
+                {isLoading ? (
+                    <Spinner />
+                ) : (
+                    <Table
+                        columns={columns}
+                        data={positions || []}
+                        emptyTitle="No open positions"
+                    />
                 )}
             </Card>
         </PageWrapper>
