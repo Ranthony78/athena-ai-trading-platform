@@ -42,7 +42,7 @@ class JournalEntryRepository(BaseRepository[JournalEntry]):
     @classmethod
     def get_today(cls, user) -> QuerySet[JournalEntry]:
         """Return today's entries."""
-        return cls.get_by_date(user, timezone.now().date())
+        return cls.get_by_date(user, timezone.localdate())
 
     @classmethod
     def get_by_id_for_user(
