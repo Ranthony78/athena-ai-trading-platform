@@ -24,11 +24,14 @@ CORS_ALLOWED_ORIGINS = [
     if origin.strip()
 ]
 
-# Production is the one place allowed to flip these on by default; an
-# explicit LIVE_TRADING_ENABLED=True in the environment can also do so
-# from any settings module — see base.py.
+# Production uses live Zerodha market data by default.
 MARKET_PROVIDER = "zerodha"
-LIVE_TRADING_ENABLED = True
+
+# Real broker orders are OFF unless the server's environment turns them on:
+# LIVE_TRADING_ENABLED is inherited from base.py, which reads the environment
+# variable of the same name and treats anything other than exactly "True" as
+# off. Nothing here forces it on, so a fresh or misconfigured deployment can
+# never place a real order by accident.
 
 # Production password reset links require a real email service. Configure its
 # host and credentials through environment variables; never fall back to the

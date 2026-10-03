@@ -8,10 +8,14 @@ and the existing 401-on-expired-token behavior still works once past
 the gate.
 """
 
+import os
+import subprocess
+import sys
+from pathlib import Path
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.test import override_settings
+from django.test import SimpleTestCase, override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -113,3 +117,54 @@ class LiveTradingGateTestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertFalse(response.data["success"])
+
+
+class LiveTradingSettingTests(SimpleTestCase):
+    """
+    Real broker orders are off unless the server environment turns them on.
+
+    Each case starts the real settings module in a fresh process, because that
+    is the only way to see what production would actually do.
+    """
+
+    BACKEND_DIR = Path(__file__).resolve().parents[2]
+
+    def live_flag(self, settings_module, value):
+        env = {
+            **os.environ,
+            "DJANGO_SECRET_KEY": "k" * 50,
+            "CORS_ALLOWED_ORIGINS": "",
+            "LIVE_TRADING_ENABLED": value,
+        }
+        code = (
+            "import os, django; "
+            f"os.environ['DJANGO_SETTINGS_MODULE']='{settings_module}'; "
+            "django.setup(); "
+            "from django.conf import settings; "
+            "print(settings.LIVE_TRADING_ENABLED)"
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            cwd=self.BACKEND_DIR,
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return result.stdout.strip()
+
+    def test_production_is_off_unless_the_environment_says_exactly_True(self):
+        # An empty value stands in for "not set" and keeps a developer's .env
+        # from leaking into the test; the others are near misses.
+        for value in ("", "False", "false", "0", "yes", "true", "TRUE", " True"):
+            self.assertEqual(
+                self.live_flag("config.settings.production", value),
+                "False",
+                repr(value),
+            )
+
+    def test_production_turns_on_when_the_environment_asks_for_it(self):
+        self.assertEqual(self.live_flag("config.settings.production", "True"), "True")
+
+    def test_development_stays_off_even_if_the_environment_asks(self):
+        self.assertEqual(self.live_flag("config.settings.development", "True"), "False")

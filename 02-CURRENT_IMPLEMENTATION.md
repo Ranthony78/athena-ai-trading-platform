@@ -66,17 +66,19 @@ order.
   This controls which market-data provider `market_data/providers/provider_factory.py`
   uses — it does **not** by itself gate order placement.
 - **`LIVE_TRADING_ENABLED`** (`config/settings/base.py`) defaults to
-  `False`, read from the `LIVE_TRADING_ENABLED` environment variable.
-  `production.py` sets it to `True`. This is the actual gate.
+  `False`, read from the `LIVE_TRADING_ENABLED` environment variable (only
+  the exact value `True` turns it on). `production.py` no longer forces it
+  on, so production is also off until the server's environment sets it.
+  `development.py` always forces it off. This is the actual gate.
 - `ZerodhaOrderListAPIView.post()` checks `settings.LIVE_TRADING_ENABLED`
   directly and unconditionally, before touching the serializer or
   `KiteService`, returning `403 Forbidden` if it's not explicitly `True` —
   **independent of what `MARKET_PROVIDER` resolves to**. This means even a
   misconfigured environment that has `MARKET_PROVIDER="zerodha"` cannot
   place a live order unless `LIVE_TRADING_ENABLED` is also explicitly on.
-- To enable live trading anywhere outside of `production.py`, set
-  `LIVE_TRADING_ENABLED=True` in `.env` explicitly — there is no other way
-  to turn it on.
+- To enable live trading in production, set `LIVE_TRADING_ENABLED=True` in
+  the server's environment explicitly — there is no other way to turn it
+  on. (`development.py` ignores the variable and always keeps it off.)
 - Covered by `apps/zerodha/tests.py` (`LiveTradingGateTestCase`): gate
   blocks when disabled, gate allows when enabled, and the existing
   401-on-expired-token behavior is unaffected by the gate.
