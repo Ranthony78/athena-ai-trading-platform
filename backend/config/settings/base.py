@@ -2,6 +2,7 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 # -----------------------------------------------------
@@ -166,6 +167,25 @@ REST_FRAMEWORK = {
         "refresh": "60/min",  # token refresh
     },
 }
+
+# -----------------------------------------------------
+# Account registration
+# -----------------------------------------------------
+
+# Who may create an account:
+#   "approval" - anyone may sign up, but the account stays inactive until a
+#                staff member approves it in User Management (default).
+#   "open"     - anyone may sign up and is signed in immediately.
+#   "closed"   - nobody may sign up; staff create accounts (admin or
+#                createsuperuser). Existing users, including those who use
+#                Google sign-in, can still sign in.
+# The same rule applies to first-time Google sign-in.
+REGISTRATION_MODE = os.getenv("REGISTRATION_MODE", "approval").strip().lower()
+if REGISTRATION_MODE not in {"approval", "open", "closed"}:
+    raise ImproperlyConfigured(
+        f"REGISTRATION_MODE must be 'approval', 'open' or 'closed' "
+        f"(got {REGISTRATION_MODE!r})."
+    )
 
 # -----------------------------------------------------
 # JWT

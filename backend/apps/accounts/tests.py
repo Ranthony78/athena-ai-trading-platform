@@ -39,6 +39,9 @@ FAST_HASHER = override_settings(
 )
 
 
+# Most tests below sign accounts up and use the tokens straight away, which is
+# what "open" mode does. The approval and closed modes have their own classes.
+@override_settings(REGISTRATION_MODE="open")
 class AuthAPITestCase(APITestCase):
     """Clears throttle counters so tests never rate-limit each other."""
 
@@ -526,3 +529,256 @@ class ProductionSecretKeyTests(SimpleTestCase):
         result = self.load_production_settings("k" * 50)
 
         self.assertEqual(result.returncode, 0, result.stderr)
+
+
+MAIL_SETTINGS = override_settings(
+    EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+    FRONTEND_URL="https://athena.example",
+)
+
+
+@FAST_HASHER
+@MAIL_SETTINGS
+@override_settings(
+    REGISTRATION_MODE="approval", GOOGLE_OAUTH_CLIENT_ID="test-client-id"
+)
+class ApprovalModeTests(AuthAPITestCase):
+    """Anyone may sign up, but nothing works until staff approve the account."""
+
+    def setUp(self):
+        super().setUp()
+        self.admin = User.objects.create_user(
+            "admin", "admin@example.com", STRONG_PASSWORD, is_staff=True
+        )
+
+    def google(self, email, **extra):
+        identity = {"email": email, "email_verified": True, **extra}
+        with patch(GOOGLE_VERIFY, return_value=identity):
+            return self.client.post(
+                "/api/accounts/google/", {"credential": "x"}, format="json"
+            )
+
+    def approve(self, username):
+        self.client.force_authenticate(self.admin)
+        user_id = User.objects.get(username=username).pk
+        response = self.client.patch(
+            f"/api/accounts/users/{user_id}/status/", {"is_active": True}, format="json"
+        )
+        self.client.force_authenticate(None)
+        return response
+
+    def test_signup_creates_an_inactive_account_and_issues_no_tokens(self):
+        response = self.register()
+
+        self.assertEqual(response.status_code, 202)
+        self.assertTrue(response.data["pending_approval"])
+        self.assertNotIn("access", response.data)
+        self.assertNotIn("refresh", response.data)
+        user = User.objects.get(username="alice")
+        self.assertFalse(user.is_active)
+        self.assertFalse(user.is_staff)
+
+    def test_pending_user_is_told_why_only_after_giving_the_right_password(self):
+        self.register()
+
+        right = self.login("alice", STRONG_PASSWORD)
+        wrong = self.login("alice", "not-the-password")
+        unknown = self.login("nobody", STRONG_PASSWORD)
+
+        self.assertEqual(right.status_code, 400)
+        self.assertIn("approval", str(right.data).lower())
+        # Without the password, a pending account looks like any bad login.
+        self.assertEqual(str(wrong.data), str(unknown.data))
+        self.assertIn("Invalid username or password", str(wrong.data))
+
+    def test_staff_approval_lets_the_user_sign_in(self):
+        self.register()
+
+        self.assertEqual(self.approve("alice").status_code, 200)
+
+        self.assertEqual(self.login("alice", STRONG_PASSWORD).status_code, 200)
+
+    def test_invalid_signup_still_fails_and_creates_nothing(self):
+        response = self.register(password="12345678")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(User.objects.filter(username="alice").count(), 0)
+
+    def test_staff_are_emailed_about_a_pending_account(self):
+        User.objects.create_user("member", "member@example.com", STRONG_PASSWORD)
+
+        self.register()
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["admin@example.com"])
+        self.assertIn("alice", mail.outbox[0].body)
+        self.assertIn("https://athena.example/admin/users", mail.outbox[0].body)
+
+    def test_a_mail_failure_does_not_break_signup(self):
+        with patch(
+            "apps.accounts.registration.send_mail", side_effect=OSError("smtp down")
+        ):
+            response = self.register()
+
+        self.assertEqual(response.status_code, 202)
+        self.assertTrue(User.objects.filter(username="alice").exists())
+
+    def test_signup_works_when_no_staff_can_be_emailed(self):
+        User.objects.filter(pk=self.admin.pk).update(email="")
+
+        self.assertEqual(self.register().status_code, 202)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_user_list_can_be_filtered_to_pending_accounts(self):
+        self.register()  # pending: inactive and never signed in
+        used = User.objects.create_user("used", "used@example.com", STRONG_PASSWORD)
+        User.objects.filter(pk=used.pk).update(
+            is_active=False, last_login="2026-01-01T00:00:00Z"
+        )
+        self.client.force_authenticate(self.admin)
+
+        def names(status):
+            response = self.client.get("/api/accounts/users/", {"status": status})
+            self.assertEqual(response.status_code, 200)
+            return {row["username"] for row in response.data["results"]}
+
+        self.assertEqual(names("pending"), {"alice"})
+        self.assertEqual(names("inactive"), {"alice", "used"})
+        self.assertEqual(names("active"), {"admin"})
+        rows = {
+            row["username"]: row
+            for row in self.client.get("/api/accounts/users/").data["results"]
+        }
+        self.assertTrue(rows["alice"]["is_pending"])
+        self.assertFalse(rows["used"]["is_pending"])
+        self.assertFalse(rows["admin"]["is_pending"])
+
+    def test_first_google_sign_in_also_waits_for_approval(self):
+        response = self.google("new@example.com", name="New Person")
+
+        self.assertEqual(response.status_code, 202)
+        self.assertTrue(response.data["pending_approval"])
+        self.assertNotIn("access", response.data)
+        user = User.objects.get(email="new@example.com")
+        self.assertFalse(user.is_active)
+        self.assertTrue(user.is_email_verified)
+        self.assertFalse(user.has_usable_password())
+        self.assertEqual(len(mail.outbox), 1)
+
+        # Still blocked on a second attempt, until staff approve.
+        blocked = self.google("new@example.com")
+        self.assertEqual(blocked.status_code, 403)
+        self.approve(user.username)
+        self.assertEqual(self.google("new@example.com").status_code, 200)
+
+    def test_existing_active_google_user_is_unaffected(self):
+        User.objects.create_user(
+            "carol", "carol@example.com", STRONG_PASSWORD, is_email_verified=True
+        )
+
+        self.assertEqual(self.google("carol@example.com").status_code, 200)
+
+    def test_mode_endpoint_reports_approval(self):
+        response = self.client.get("/api/accounts/registration/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["mode"], "approval")
+
+
+@FAST_HASHER
+@MAIL_SETTINGS
+@override_settings(REGISTRATION_MODE="closed", GOOGLE_OAUTH_CLIENT_ID="test-client-id")
+class ClosedModeTests(AuthAPITestCase):
+    """Nobody can sign up; people who already have accounts are unaffected."""
+
+    def google(self, email):
+        identity = {"email": email, "email_verified": True}
+        with patch(GOOGLE_VERIFY, return_value=identity):
+            return self.client.post(
+                "/api/accounts/google/", {"credential": "x"}, format="json"
+            )
+
+    def test_signup_is_refused_and_creates_nothing(self):
+        response = self.register()
+
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(response.data["success"])
+        self.assertEqual(response.data["code"], "registration_closed")
+        self.assertEqual(User.objects.count(), 0)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_refusal_reveals_nothing_about_existing_accounts(self):
+        User.objects.create_user("taken", "taken@example.com", STRONG_PASSWORD)
+
+        taken = self.register(username="taken", email="taken@example.com")
+        fresh = self.register(username="fresh", email="fresh@example.com")
+        garbage = self.client.post("/api/accounts/register/", {}, format="json")
+
+        self.assertEqual(
+            {taken.status_code, fresh.status_code, garbage.status_code}, {403}
+        )
+        self.assertEqual(taken.data, fresh.data)
+
+    def test_new_google_user_is_refused(self):
+        response = self.google("new@example.com")
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.data["code"], "registration_closed")
+        self.assertFalse(User.objects.filter(email="new@example.com").exists())
+
+    def test_existing_users_can_still_sign_in_with_a_password_or_google(self):
+        User.objects.create_user(
+            "carol", "carol@example.com", STRONG_PASSWORD, is_email_verified=True
+        )
+
+        self.assertEqual(self.login("carol", STRONG_PASSWORD).status_code, 200)
+        self.assertEqual(self.google("carol@example.com").status_code, 200)
+
+    def test_mode_endpoint_reports_closed(self):
+        response = self.client.get("/api/accounts/registration/")
+
+        self.assertEqual(response.data["mode"], "closed")
+
+
+class OpenModeTests(AuthAPITestCase):
+
+    def test_mode_endpoint_reports_open_without_authentication(self):
+        response = self.client.get("/api/accounts/registration/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["mode"], "open")
+
+
+class RegistrationModeSettingTests(SimpleTestCase):
+    """A typo in REGISTRATION_MODE must stop the app, not quietly open sign-up."""
+
+    BACKEND_DIR = Path(__file__).resolve().parents[2]
+
+    def load_settings(self, mode):
+        env = {**os.environ, "REGISTRATION_MODE": mode}
+        return subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "import os, django; "
+                "os.environ['DJANGO_SETTINGS_MODULE']='config.settings'; "
+                "django.setup(); "
+                "from django.conf import settings; print(settings.REGISTRATION_MODE)",
+            ],
+            cwd=self.BACKEND_DIR,
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+
+    def test_valid_modes_are_accepted_case_insensitively(self):
+        for mode in ("open", "approval", "closed", " Closed "):
+            result = self.load_settings(mode)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.strip(), mode.strip().lower())
+
+    def test_unknown_mode_stops_startup(self):
+        for mode in ("opne", "", "public"):
+            result = self.load_settings(mode)
+            self.assertNotEqual(result.returncode, 0, mode)
+            self.assertIn("REGISTRATION_MODE", result.stderr)

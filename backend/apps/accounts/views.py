@@ -17,6 +17,15 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 
+from .registration import (
+    CLOSED,
+    CLOSED_MESSAGE,
+    INACTIVE_MESSAGE,
+    OPEN,
+    PENDING_MESSAGE,
+    notify_staff_of_pending_user,
+    registration_mode,
+)
 from .serializers import (
     LoginSerializer,
     ManagedUserSerializer,
@@ -43,6 +52,21 @@ def auth_response(user, message, response_status=status.HTTP_200_OK):
     )
 
 
+def closed_response():
+    return Response(
+        {"success": False, "message": CLOSED_MESSAGE, "code": "registration_closed"},
+        status=status.HTTP_403_FORBIDDEN,
+    )
+
+
+def pending_response():
+    # 202: the request was accepted, but nothing is usable until staff approve.
+    return Response(
+        {"success": True, "pending_approval": True, "message": PENDING_MESSAGE},
+        status=status.HTTP_202_ACCEPTED,
+    )
+
+
 class LoginAPIView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [ScopedRateThrottle]
@@ -63,12 +87,34 @@ class RegistrationAPIView(APIView):
     throttle_scope = "register"
 
     def post(self, request):
+        mode = registration_mode()
+        if mode == CLOSED:
+            # Refuse before validating so a closed door reveals nothing about
+            # which usernames or emails already exist.
+            return closed_response()
+
         serializer = RegistrationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        return auth_response(
-            user, "Account created successfully.", status.HTTP_201_CREATED
-        )
+
+        if mode == OPEN:
+            user = serializer.save()
+            return auth_response(
+                user, "Account created successfully.", status.HTTP_201_CREATED
+            )
+
+        # "approval": save the account switched off and issue no tokens.
+        user = serializer.save(is_active=False)
+        notify_staff_of_pending_user(user)
+        return pending_response()
+
+
+class RegistrationModeAPIView(APIView):
+    """GET /api/accounts/registration/ - lets the sign-in page adapt to the policy."""
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        return Response({"success": True, "mode": registration_mode()})
 
 
 class GoogleLoginAPIView(APIView):
@@ -124,6 +170,9 @@ class GoogleLoginAPIView(APIView):
 
         user = User.objects.filter(email__iexact=email).first()
         if user is None:
+            mode = registration_mode()
+            if mode == CLOSED:
+                return closed_response()
             base_username = slugify(
                 identity.get("name") or email.split("@")[0]
             ).replace("-", "_")[:140]
@@ -139,11 +188,15 @@ class GoogleLoginAPIView(APIView):
                 first_name=(identity.get("given_name") or "")[:150],
                 last_name=(identity.get("family_name") or "")[:150],
                 is_email_verified=True,
+                is_active=(mode == OPEN),
             )
+            if mode != OPEN:
+                notify_staff_of_pending_user(user)
+                return pending_response()
         else:
             if not user.is_active:
                 return Response(
-                    {"success": False, "message": "This account is inactive."},
+                    {"success": False, "message": INACTIVE_MESSAGE},
                     status=status.HTTP_403_FORBIDDEN,
                 )
             if not user.is_email_verified:
@@ -163,9 +216,25 @@ class GoogleLoginAPIView(APIView):
 class ManagedUserListAPIView(ListAPIView):
     permission_classes = [IsAdminUser]
     serializer_class = ManagedUserSerializer
-    queryset = User.objects.all().order_by("-date_joined", "id")
     filter_backends = [SearchFilter]
     search_fields = ["username", "email", "first_name", "last_name"]
+
+    def get_queryset(self):
+        """
+        Optional ?status= filter:
+          pending  - inactive and never signed in (waiting for approval)
+          active   - can sign in
+          inactive - switched off (includes pending)
+        """
+        users = User.objects.all().order_by("-date_joined", "id")
+        wanted = self.request.query_params.get("status")
+        if wanted == "pending":
+            users = users.filter(is_active=False, last_login__isnull=True)
+        elif wanted == "active":
+            users = users.filter(is_active=True)
+        elif wanted == "inactive":
+            users = users.filter(is_active=False)
+        return users
 
 
 class ManagedUserStatusAPIView(APIView):

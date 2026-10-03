@@ -10,12 +10,14 @@ from .views import (
     PasswordResetConfirmAPIView,
     ProfileAPIView,
     RegistrationAPIView,
+    RegistrationModeAPIView,
     ThrottledTokenRefreshView,
 )
 
 urlpatterns = [
     path("login/", LoginAPIView.as_view(), name="login"),
     path("register/", RegistrationAPIView.as_view(), name="register"),
+    path("registration/", RegistrationModeAPIView.as_view(), name="registration-mode"),
     path("google/", GoogleLoginAPIView.as_view(), name="google-login"),
     path("users/", ManagedUserListAPIView.as_view(), name="user-management-list"),
     path(
