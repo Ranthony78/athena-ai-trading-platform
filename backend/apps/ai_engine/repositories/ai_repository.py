@@ -40,7 +40,7 @@ class AnalysisSessionRepository(BaseRepository[AnalysisSession]):
     @classmethod
     def get_today(cls, user=None) -> QuerySet[AnalysisSession]:
         """Return today's sessions, scoped to the requesting user."""
-        today = timezone.now().date()
+        today = timezone.localdate()
         queryset = cls.model.objects.filter(
             session_time__date=today,
         )
@@ -95,7 +95,7 @@ class AISignalRepository(BaseRepository[AISignal]):
     @classmethod
     def get_today(cls, user=None) -> QuerySet[AISignal]:
         """Return today's AI signals, scoped to the requesting user."""
-        today = timezone.now().date()
+        today = timezone.localdate()
         queryset = cls.model.objects.filter(
             signal_time__date=today,
         )

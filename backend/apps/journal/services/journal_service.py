@@ -48,7 +48,7 @@ class JournalService:
         """Create a new journal entry."""
         data["user"] = user
         if "date" not in data:
-            data["date"] = timezone.now().date()
+            data["date"] = timezone.localdate()
         return JournalEntryRepository.create(**data)
 
     @staticmethod

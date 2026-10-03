@@ -54,7 +54,7 @@ class PaperOrderRepository(BaseRepository[PaperOrder]):
     @classmethod
     def get_today(cls, account: PaperAccount) -> QuerySet[PaperOrder]:
         """Return today's orders for an account."""
-        today = timezone.now().date()
+        today = timezone.localdate()
         return (
             cls.model.objects.filter(
                 account=account,
@@ -128,7 +128,7 @@ class PaperTradeRepository(BaseRepository[PaperTrade]):
     @classmethod
     def get_today(cls, account: PaperAccount) -> QuerySet[PaperTrade]:
         """Return today's completed trades."""
-        today = timezone.now().date()
+        today = timezone.localdate()
         return (
             cls.model.objects.filter(
                 account=account,
