@@ -24,12 +24,14 @@ from .registration import (
     OPEN,
     PENDING_MESSAGE,
     notify_staff_of_pending_user,
+    notify_user_of_activation,
     registration_mode,
 )
 from .serializers import (
     LoginSerializer,
     ManagedUserSerializer,
     PasswordResetConfirmSerializer,
+    ProfileUpdateSerializer,
     RegistrationSerializer,
     UserSerializer,
 )
@@ -273,8 +275,12 @@ class ManagedUserStatusAPIView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        was_active = user.is_active
         user.is_active = is_active
         user.save(update_fields=["is_active"])
+        if is_active and not was_active:
+            # Approval (or re-activation): tell the user they can sign in now.
+            notify_user_of_activation(user)
         return Response(
             {"success": True, "user": ManagedUserSerializer(user).data},
             status=status.HTTP_200_OK,
@@ -415,6 +421,22 @@ class ProfileAPIView(APIView):
             {
                 "success": True,
                 "user": UserSerializer(request.user).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    def patch(self, request):
+        # Always the signed-in user; there is no way to name someone else.
+        serializer = ProfileUpdateSerializer(
+            request.user, data=request.data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return Response(
+            {
+                "success": True,
+                "message": "Profile updated.",
+                "user": UserSerializer(user).data,
             },
             status=status.HTTP_200_OK,
         )
