@@ -34,6 +34,7 @@ export default function Login() {
     const loginMutation = useLogin();
     const registerMutation = useRegister();
     const googleMutation = useGoogleLogin();
+    const googleSignIn = googleMutation.mutate;
     const activeMutation = isSignup ? registerMutation : loginMutation;
 
     useEffect(() => {
@@ -43,7 +44,7 @@ export default function Login() {
             if (cancelled || !window.google?.accounts?.id || !googleButton.current) return;
             window.google.accounts.id.initialize({
                 client_id: googleClientId,
-                callback: ({ credential }) => googleMutation.mutate(credential),
+                callback: ({ credential }) => googleSignIn(credential),
             });
             window.google.accounts.id.renderButton(googleButton.current, {
                 theme: "filled_black",
@@ -67,7 +68,7 @@ export default function Login() {
         return () => {
             cancelled = true;
         };
-    }, [isSignup, googleMutation.mutate]);
+    }, [isSignup, googleSignIn]);
 
     const handleSubmit = (event) => {
         event.preventDefault();

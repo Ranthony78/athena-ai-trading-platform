@@ -1,5 +1,5 @@
 import { Badge, Card } from "../../../components/common";
-import { getSignalBadge, getConfidenceColor } from "../../../utils/helpers";
+import { getConfidenceColor } from "../../../utils/helpers";
 import { formatNumber } from "../../../utils/formatters";
 import { Link } from "react-router-dom";
 

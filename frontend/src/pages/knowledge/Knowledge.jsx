@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Search, Plus } from "lucide-react";
+import { Search } from "lucide-react";
 import { PageWrapper } from "../../components/layout";
-import { Card, Button, Badge, Spinner, EmptyState } from "../../components/common";
+import { Button, Spinner, EmptyState } from "../../components/common";
 import ArticleCard from "./components/ArticleCard";
 import { knowledgeAPI } from "../../api/knowledge";
 

@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Bell } from "lucide-react";
+import { Bell } from "lucide-react";
 import { PageWrapper } from "../../components/layout";
 import { Card, Table, Badge, Button, Modal, Spinner } from "../../components/common";
 import AlertForm from "./components/AlertForm";
 import { notificationsAPI } from "../../api/notifications";
-import { formatNumber, formatDateTime } from "../../utils/formatters";
+import { formatNumber } from "../../utils/formatters";
 
 export default function Alerts() {
     const [showModal, setShowModal] = useState(false);

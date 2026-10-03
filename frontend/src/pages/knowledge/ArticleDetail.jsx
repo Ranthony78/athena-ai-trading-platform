@@ -2,7 +2,7 @@ import { useParams } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Brain } from "lucide-react";
 import { PageWrapper } from "../../components/layout";
-import { Card, Button, Badge, Spinner } from "../../components/common";
+import { Card, Button, Spinner } from "../../components/common";
 import { knowledgeAPI } from "../../api/knowledge";
 
 export default function ArticleDetail() {

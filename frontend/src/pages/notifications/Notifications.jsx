@@ -1,10 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCheck } from "lucide-react";
 import { PageWrapper } from "../../components/layout";
-import { Card, Button, Badge, Spinner, EmptyState } from "../../components/common";
+import { Card, Button, Spinner, EmptyState } from "../../components/common";
 import NotificationItem from "./components/NotificationItem";
 import { notificationsAPI } from "../../api/notifications";
-import { formatRelativeTime } from "../../utils/formatters";
 
 export default function Notifications() {
     const queryClient = useQueryClient();

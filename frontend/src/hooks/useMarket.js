@@ -15,7 +15,7 @@ export function useSession() {
 
     useEffect(() => {
         if (query.data) setSession(query.data);
-    }, [query.data]);
+    }, [query.data, setSession]);
 
     return query;
 }

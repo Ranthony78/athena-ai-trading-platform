@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { AlertTriangle } from "lucide-react";
 import { PageWrapper } from "../../components/layout";
-import { Card, Button } from "../../components/common";
+import { Card } from "../../components/common";
 import AnalysisForm from "./components/AnalysisForm";
 import SignalCard from "./components/SignalCard";
 import AIResponseView from "./components/AIResponseView";

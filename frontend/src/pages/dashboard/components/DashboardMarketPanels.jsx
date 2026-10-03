@@ -303,7 +303,7 @@ export default function DashboardMarketPanels({
             ),
     });
     const summary = summaryQuery.data;
-    const chain = chainQuery.data || [];
+    const chain = useMemo(() => chainQuery.data || [], [chainQuery.data]);
     const atmRows = useMemo(() => {
         if (!summary?.atm_strike) return [];
         return chain.filter((row) => Number(row.strike) === Number(summary.atm_strike));

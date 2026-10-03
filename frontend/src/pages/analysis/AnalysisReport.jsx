@@ -792,7 +792,7 @@ export default function AnalysisReport() {
                                     </>
                                 ) : (
                                     <p className="text-sm text-dark-600">
-                                        Today's range unavailable.
+                                        Today&apos;s range unavailable.
                                     </p>
                                 )}
                             </div>

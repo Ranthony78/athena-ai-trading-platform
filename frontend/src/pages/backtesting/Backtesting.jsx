@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { PageWrapper } from "../../components/layout";
 import { Card, Table, Badge, Spinner } from "../../components/common";
 import { backtestingAPI } from "../../api/backtesting";
-import { formatDate, formatNumber } from "../../utils/formatters";
+import { formatDate } from "../../utils/formatters";
 
 export default function Backtesting() {
     const { data: runs, isLoading } = useQuery({

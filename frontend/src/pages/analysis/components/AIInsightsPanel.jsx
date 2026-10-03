@@ -430,7 +430,8 @@ function OptionComparisonCard({ comparison }) {
             <Card title="ATM Option Comparison">
                 <p className="text-sm text-dark-600">
                     Option delta unavailable — needs verified option Greeks. The real ATM strike and
-                    expiry are still shown in the "ATM Option Analysis" card further down this page.
+                    expiry are still shown in the &quot;ATM Option Analysis&quot; card further down
+                    this page.
                 </p>
             </Card>
         );
@@ -531,8 +532,8 @@ function SessionStructureCard({ structure }) {
             {referenceDate && (
                 <div className="mb-3 px-3 py-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
                     <p className="text-xs text-yellow-400">
-                        Market hasn't opened today yet. The blocks below are from the most recent
-                        completed session ({referenceDate}), not today.
+                        Market hasn&apos;t opened today yet. The blocks below are from the most
+                        recent completed session ({referenceDate}), not today.
                     </p>
                 </div>
             )}

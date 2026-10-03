@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { PageWrapper } from "../../components/layout";
-import { Card, Table, Badge, Spinner } from "../../components/common";
+import { Card, Table, Spinner } from "../../components/common";
 import { zerodhaAPI } from "../../api/zerodha";
 import { formatNumber, formatCurrency } from "../../utils/formatters";
 

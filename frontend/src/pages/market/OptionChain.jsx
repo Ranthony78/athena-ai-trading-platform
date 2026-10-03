@@ -96,7 +96,7 @@ export default function OptionChain() {
             engineQuery.data?.provider === "zerodha" && engineQuery.data?.is_live ? 30_000 : false,
     });
 
-    const chain = chainQuery.data?.rows ?? [];
+    const chain = useMemo(() => chainQuery.data?.rows ?? [], [chainQuery.data?.rows]);
     const summary = summaryQuery.data;
     const sortedStrikes = useMemo(
         () => [...new Set(chain.map((row) => Number(row.strike)))].sort((a, b) => a - b),

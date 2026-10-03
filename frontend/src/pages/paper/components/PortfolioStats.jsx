@@ -2,7 +2,7 @@ import { formatCurrency, formatPercent } from "../../../utils/formatters";
 
 export default function PortfolioStats({ portfolio }) {
     if (!portfolio) return null;
-    const { account, trades } = portfolio;
+    const { account } = portfolio;
 
     const stats = [
         {

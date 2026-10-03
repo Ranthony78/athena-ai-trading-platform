@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, BookOpen, CircleHelp, ExternalLink, Search } from "lucide-react";
-import { Alert, Card } from "../../components/common";
+import { Card } from "../../components/common";
 import { PageWrapper } from "../../components/layout";
 
 const topics = [

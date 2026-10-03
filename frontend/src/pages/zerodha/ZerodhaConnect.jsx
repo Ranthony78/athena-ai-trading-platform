@@ -317,7 +317,7 @@ export default function ZerodhaConnect() {
                                             className="text-xs text-dark-500 hover:text-dark-300 underline"
                                             onClick={() => setShowManualEntry(true)}
                                         >
-                                            Redirect didn't work? Enter request_token manually
+                                            Redirect didn&apos;t work? Enter request_token manually
                                         </button>
                                     ) : (
                                         <>

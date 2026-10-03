@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, BookOpen } from "lucide-react";
 import { PageWrapper } from "../../components/layout";
-import { Card, Button, Badge, Modal, Spinner, EmptyState } from "../../components/common";
+import { Button, Modal, Spinner, EmptyState } from "../../components/common";
 import LessonCard from "./components/LessonCard";
 import { journalAPI } from "../../api/journal";
 
