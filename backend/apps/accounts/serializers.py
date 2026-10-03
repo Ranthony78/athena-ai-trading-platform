@@ -1,8 +1,9 @@
-from django.contrib.auth import authenticate
+from django.contrib.auth.backends import AllowAllUsersModelBackend
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
 from .models import User
+from .registration import INACTIVE_MESSAGE
 
 
 class LoginSerializer(serializers.Serializer):
@@ -10,13 +11,20 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
-        user = authenticate(
+        # The default backend returns None for inactive users, which would
+        # make "wrong password" and "awaiting approval" look the same. This
+        # one hashes the password once for every outcome (no timing
+        # difference) and lets us say so only after the password is right.
+        user = AllowAllUsersModelBackend().authenticate(
+            request=None,
             username=attrs["username"],
             password=attrs["password"],
         )
 
-        if not user:
+        if user is None:
             raise serializers.ValidationError("Invalid username or password.")
+        if not user.is_active:
+            raise serializers.ValidationError(INACTIVE_MESSAGE)
 
         attrs["user"] = user
         return attrs
@@ -74,6 +82,10 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class ManagedUserSerializer(serializers.ModelSerializer):
+    # Inactive and never signed in: a sign-up waiting for approval, as
+    # opposed to an account that was switched off after being used.
+    is_pending = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = [
@@ -83,11 +95,15 @@ class ManagedUserSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "is_active",
+            "is_pending",
             "is_staff",
             "date_joined",
             "last_login",
         ]
         read_only_fields = fields
+
+    def get_is_pending(self, obj) -> bool:
+        return not obj.is_active and obj.last_login is None
 
 
 class PasswordResetConfirmSerializer(serializers.Serializer):
