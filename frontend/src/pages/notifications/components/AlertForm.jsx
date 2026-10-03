@@ -18,12 +18,14 @@ export default function AlertForm({ onSubmit, loading }) {
     return (
         <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-                <Select label="Symbol"
+                <Select
+                    label="Symbol"
                     options={INDICES.map((i) => ({ value: i, label: i }))}
                     value={form.symbol}
                     onChange={(e) => set("symbol", e.target.value)}
                 />
-                <Select label="Alert Type"
+                <Select
+                    label="Alert Type"
                     options={[
                         { value: "PRICE_ABOVE", label: "Price Above" },
                         { value: "PRICE_BELOW", label: "Price Below" },
@@ -33,10 +35,15 @@ export default function AlertForm({ onSubmit, loading }) {
                     onChange={(e) => set("alert_type", e.target.value)}
                 />
             </div>
-            <Input label="Target Price" type="number" value={form.target_value}
+            <Input
+                label="Target Price"
+                type="number"
+                value={form.target_value}
                 onChange={(e) => set("target_value", parseFloat(e.target.value))}
             />
-            <Input label="Custom Message (optional)" value={form.message}
+            <Input
+                label="Custom Message (optional)"
+                value={form.message}
                 placeholder="Alert message..."
                 onChange={(e) => set("message", e.target.value)}
             />
@@ -47,14 +54,21 @@ export default function AlertForm({ onSubmit, loading }) {
                     { key: "repeat", label: "Repeat" },
                 ].map(({ key, label }) => (
                     <label key={key} className="flex items-center gap-2 text-sm text-dark-300">
-                        <input type="checkbox" checked={form[key]}
-                            onChange={(e) => set(key, e.target.checked)} />
+                        <input
+                            type="checkbox"
+                            checked={form[key]}
+                            onChange={(e) => set(key, e.target.checked)}
+                        />
                         {label}
                     </label>
                 ))}
             </div>
-            <Button variant="primary" loading={loading}
-                onClick={() => onSubmit(form)} className="w-full">
+            <Button
+                variant="primary"
+                loading={loading}
+                onClick={() => onSubmit(form)}
+                className="w-full"
+            >
                 Create Alert
             </Button>
         </div>

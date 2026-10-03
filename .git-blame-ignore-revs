@@ -4,3 +4,5 @@
 # NOTE: only valid while commits are kept (merge commit / rebase, not squash).
 # style: apply isort and black to the backend
 1cc8becdeda33ce643927df09e95b21c7791d0bc
+# style(frontend): apply Prettier
+8e3b917fde18892913976dd470293c49b789899b

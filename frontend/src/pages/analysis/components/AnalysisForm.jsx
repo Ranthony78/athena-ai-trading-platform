@@ -17,8 +17,7 @@ export default function AnalysisForm({ onSubmit, loading }) {
         persist: true,
     });
 
-    const set = (key, val) =>
-        setForm((f) => ({ ...f, [key]: val }));
+    const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
     return (
         <Card title="Analysis Settings">

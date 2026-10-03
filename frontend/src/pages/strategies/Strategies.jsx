@@ -4,7 +4,11 @@ import { Card, Spinner, EmptyState, Badge } from "../../components/common";
 import { strategiesAPI } from "../../api/strategies";
 
 export default function Strategies() {
-    const { data: strategies, isLoading, isError } = useQuery({
+    const {
+        data: strategies,
+        isLoading,
+        isError,
+    } = useQuery({
         queryKey: ["strategies"],
         queryFn: () => strategiesAPI.getStrategies(),
         select: (res) => res.data.data,
@@ -19,7 +23,8 @@ export default function Strategies() {
                 <div className="flex items-start gap-3">
                     <Badge variant="gray">Reference only</Badge>
                     <p className="text-sm text-dark-400">
-                        These legacy templates are not run by AI analysis and cannot generate new signals from this page.
+                        These legacy templates are not run by AI analysis and cannot generate new
+                        signals from this page.
                     </p>
                 </div>
             </Card>
@@ -28,7 +33,9 @@ export default function Strategies() {
                 <Spinner text="Loading archived strategies..." />
             ) : isError ? (
                 <Card>
-                    <p className="text-sm text-red-400">Could not load archived strategy details.</p>
+                    <p className="text-sm text-red-400">
+                        Could not load archived strategy details.
+                    </p>
                 </Card>
             ) : !strategies?.length ? (
                 <EmptyState
@@ -41,7 +48,9 @@ export default function Strategies() {
                         <Card key={strategy.id}>
                             <div className="flex items-start justify-between gap-3 mb-3">
                                 <div>
-                                    <h2 className="text-sm font-semibold text-dark-100">{strategy.name}</h2>
+                                    <h2 className="text-sm font-semibold text-dark-100">
+                                        {strategy.name}
+                                    </h2>
                                     <p className="text-xs text-dark-500 mt-1">
                                         {strategy.strategy_type} · {strategy.timeframe}
                                     </p>

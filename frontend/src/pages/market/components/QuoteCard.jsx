@@ -8,18 +8,21 @@ export default function QuoteCard({ quote, selected, onClick }) {
         <div
             onClick={onClick}
             className={`card cursor-pointer transition-all duration-150
-        ${selected
-                    ? "border-primary-500 bg-primary-900/10"
-                    : "hover:border-dark-600"
-                }`}
+        ${selected ? "border-primary-500 bg-primary-900/10" : "hover:border-dark-600"}`}
         >
             <div className="flex items-start justify-between mb-3">
                 <p className="text-xs font-semibold text-dark-400 uppercase tracking-wider">
                     {quote.symbol}
                 </p>
-                <span className={`flex items-center gap-1 text-xs font-medium
-          ${isPos ? "text-green-400" : "text-red-400"}`}>
-                    {isPos ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                <span
+                    className={`flex items-center gap-1 text-xs font-medium
+          ${isPos ? "text-green-400" : "text-red-400"}`}
+                >
+                    {isPos ? (
+                        <TrendingUp className="w-3 h-3" />
+                    ) : (
+                        <TrendingDown className="w-3 h-3" />
+                    )}
                     {formatPercent(quote.change_percent)}
                 </span>
             </div>
@@ -44,9 +47,7 @@ export default function QuoteCard({ quote, selected, onClick }) {
             </div>
 
             {quote.volume > 0 && (
-                <p className="text-xs text-dark-600 mt-2">
-                    Vol: {abbreviateNumber(quote.volume)}
-                </p>
+                <p className="text-xs text-dark-600 mt-2">Vol: {abbreviateNumber(quote.volume)}</p>
             )}
         </div>
     );

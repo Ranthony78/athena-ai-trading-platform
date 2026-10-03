@@ -20,8 +20,7 @@ export default function Preferences() {
 
     const { mutate: update, isPending } = useMutation({
         mutationFn: (data) => notificationsAPI.updatePreferences(data),
-        onSuccess: () =>
-            queryClient.invalidateQueries({ queryKey: ["notification-prefs"] }),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notification-prefs"] }),
     });
 
     if (isLoading) return <Spinner />;
@@ -32,9 +31,12 @@ export default function Preferences() {
     const toggle = (label, key) => (
         <label className="flex items-center justify-between py-2">
             <span className="text-sm text-dark-200">{label}</span>
-            <input type="checkbox" checked={form[key] || false}
+            <input
+                type="checkbox"
+                checked={form[key] || false}
                 onChange={(e) => set(key, e.target.checked)}
-                className="w-4 h-4" />
+                className="w-4 h-4"
+            />
         </label>
     );
 
@@ -49,8 +51,11 @@ export default function Preferences() {
                     {form.telegram_enabled && (
                         <div className="mt-3">
                             <label className="label">Telegram Chat ID</label>
-                            <input className="input" value={form.telegram_chat_id || ""}
-                                onChange={(e) => set("telegram_chat_id", e.target.value)} />
+                            <input
+                                className="input"
+                                value={form.telegram_chat_id || ""}
+                                onChange={(e) => set("telegram_chat_id", e.target.value)}
+                            />
                         </div>
                     )}
                 </Card>
@@ -68,8 +73,7 @@ export default function Preferences() {
                 </Card>
             </div>
 
-            <Button variant="primary" loading={isPending}
-                onClick={() => update(form)}>
+            <Button variant="primary" loading={isPending} onClick={() => update(form)}>
                 Save Preferences
             </Button>
         </PageWrapper>

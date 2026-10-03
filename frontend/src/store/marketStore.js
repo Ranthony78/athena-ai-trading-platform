@@ -12,8 +12,7 @@ const useMarketStore = create((set, get) => ({
             quotes: { ...state.quotes, [symbol]: quote },
         })),
 
-    setQuotes: (quotes) =>
-        set({ quotes }),
+    setQuotes: (quotes) => set({ quotes }),
 
     setSession: (session) =>
         set({
@@ -21,14 +20,11 @@ const useMarketStore = create((set, get) => ({
             isLive: session?.is_live || false,
         }),
 
-    setSelectedSymbol: (symbol) =>
-        set({ selectedSymbol: symbol }),
+    setSelectedSymbol: (symbol) => set({ selectedSymbol: symbol }),
 
-    setSelectedTimeframe: (timeframe) =>
-        set({ selectedTimeframe: timeframe }),
+    setSelectedTimeframe: (timeframe) => set({ selectedTimeframe: timeframe }),
 
-    getQuote: (symbol) =>
-        get().quotes[symbol] || null,
+    getQuote: (symbol) => get().quotes[symbol] || null,
 }));
 
 export default useMarketStore;

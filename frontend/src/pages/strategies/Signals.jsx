@@ -28,7 +28,9 @@ export default function Signals() {
             key: "strength",
             label: "Strength",
             render: (val) => (
-                <Badge variant={val === "STRONG" ? "green" : val === "MODERATE" ? "yellow" : "gray"}>
+                <Badge
+                    variant={val === "STRONG" ? "green" : val === "MODERATE" ? "yellow" : "gray"}
+                >
                     {val}
                 </Badge>
             ),

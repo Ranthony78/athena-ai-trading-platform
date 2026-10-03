@@ -55,8 +55,10 @@ export default function Portfolio() {
                     <div className="grid grid-cols-3 gap-4">
                         {links.map((link) => (
                             <a key={link.href} href={link.href}>
-                                <Card className="hover:border-primary-500 cursor-pointer
-                                 transition-colors text-center">
+                                <Card
+                                    className="hover:border-primary-500 cursor-pointer
+                                 transition-colors text-center"
+                                >
                                     <p className="text-sm font-medium text-primary-400">
                                         {link.label} →
                                     </p>
@@ -76,9 +78,9 @@ export default function Portfolio() {
                 <div className="flex gap-3">
                     <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
                     <p className="text-sm text-dark-300">
-                        This will permanently clear your balance, positions,
-                        orders, and trade history, and restore your account
-                        to its starting ₹10.00 L balance. This cannot be undone.
+                        This will permanently clear your balance, positions, orders, and trade
+                        history, and restore your account to its starting ₹10.00 L balance. This
+                        cannot be undone.
                     </p>
                 </div>
 
@@ -91,12 +93,7 @@ export default function Portfolio() {
                     >
                         Cancel
                     </Button>
-                    <Button
-                        variant="danger"
-                        size="sm"
-                        loading={isPending}
-                        onClick={() => reset()}
-                    >
+                    <Button variant="danger" size="sm" loading={isPending} onClick={() => reset()}>
                         Reset Everything
                     </Button>
                 </div>

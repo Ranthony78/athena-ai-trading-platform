@@ -11,12 +11,7 @@ export const TIMEFRAMES = [
     { value: "1d", label: "1 Day" },
 ];
 
-export const INDICES = [
-    "NIFTY",
-    "BANKNIFTY",
-    "FINNIFTY",
-    "MIDCPNIFTY",
-];
+export const INDICES = ["NIFTY", "BANKNIFTY", "FINNIFTY", "MIDCPNIFTY"];
 
 export const EXCHANGES = [
     { value: "NSE", label: "NSE" },

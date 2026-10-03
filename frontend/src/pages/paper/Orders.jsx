@@ -12,16 +12,23 @@ export default function Orders() {
     const [showModal, setShowModal] = useState(false);
     const [searchParams, setSearchParams] = useSearchParams();
     const queryClient = useQueryClient();
-    const initialValues = useMemo(() => ({
-        symbol: searchParams.get("symbol") || undefined,
-        instrument_id: Number(searchParams.get("instrument_id")) || undefined,
-        analysis_session_id: Number(searchParams.get("analysis_session_id")) || undefined,
-        quantity: Number(searchParams.get("quantity")) || undefined,
-        transaction_type: searchParams.get("transaction_type") || undefined,
-    }), [searchParams]);
+    const initialValues = useMemo(
+        () => ({
+            symbol: searchParams.get("symbol") || undefined,
+            instrument_id: Number(searchParams.get("instrument_id")) || undefined,
+            analysis_session_id: Number(searchParams.get("analysis_session_id")) || undefined,
+            quantity: Number(searchParams.get("quantity")) || undefined,
+            transaction_type: searchParams.get("transaction_type") || undefined,
+        }),
+        [searchParams]
+    );
 
     useEffect(() => {
-        if (initialValues.instrument_id && initialValues.analysis_session_id && initialValues.symbol) {
+        if (
+            initialValues.instrument_id &&
+            initialValues.analysis_session_id &&
+            initialValues.symbol
+        ) {
             setShowModal(true);
         }
     }, [initialValues]);
@@ -47,9 +54,7 @@ export default function Orders() {
         {
             key: "transaction_type",
             label: "Type",
-            render: (val) => (
-                <Badge variant={val === "BUY" ? "green" : "red"}>{val}</Badge>
-            ),
+            render: (val) => <Badge variant={val === "BUY" ? "green" : "red"}>{val}</Badge>,
         },
         { key: "order_type", label: "Order" },
         { key: "quantity", label: "Qty" },
@@ -67,10 +72,9 @@ export default function Orders() {
             key: "status",
             label: "Status",
             render: (val) => (
-                <Badge variant={
-                    val === "COMPLETE" ? "green" :
-                        val === "CANCELLED" ? "gray" : "yellow"
-                }>
+                <Badge
+                    variant={val === "COMPLETE" ? "green" : val === "CANCELLED" ? "gray" : "yellow"}
+                >
                     {val}
                 </Badge>
             ),
@@ -87,12 +91,7 @@ export default function Orders() {
             title="Orders"
             subtitle="Today's paper trading orders"
             actions={
-                <Button
-                    variant="primary"
-                    size="sm"
-                    icon={Plus}
-                    onClick={() => setShowModal(true)}
-                >
+                <Button variant="primary" size="sm" icon={Plus} onClick={() => setShowModal(true)}>
                     Place Order
                 </Button>
             }
@@ -101,11 +100,7 @@ export default function Orders() {
                 {isLoading ? (
                     <Spinner />
                 ) : (
-                    <Table
-                        columns={columns}
-                        data={orders || []}
-                        emptyTitle="No orders today"
-                    />
+                    <Table columns={columns} data={orders || []} emptyTitle="No orders today" />
                 )}
             </Card>
 

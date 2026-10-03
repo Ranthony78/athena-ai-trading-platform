@@ -5,7 +5,12 @@ import { Alert, Card, Select, Input, Button, Spinner } from "../../components/co
 import { marketAPI } from "../../api/market";
 import { useSession } from "../../hooks/useMarket";
 import { INDICES, TIMEFRAMES } from "../../utils/constants";
-import { formatNumber, formatDate, formatDateTime, formatRelativeTime } from "../../utils/formatters";
+import {
+    formatNumber,
+    formatDate,
+    formatDateTime,
+    formatRelativeTime,
+} from "../../utils/formatters";
 
 export default function Historical() {
     const [symbol, setSymbol] = useState("NIFTY");
@@ -24,11 +29,12 @@ export default function Historical() {
 
     const { data, isLoading, isError, refetch, isFetching } = useQuery({
         queryKey: ["historical", symbol, timeframe, limit, isMarketLive],
-        queryFn: () => marketAPI.getHistorical(symbol, {
-            timeframe,
-            limit,
-            ...(isMarketLive && isIntraday ? { current_session: 1 } : {}),
-        }),
+        queryFn: () =>
+            marketAPI.getHistorical(symbol, {
+                timeframe,
+                limit,
+                ...(isMarketLive && isIntraday ? { current_session: 1 } : {}),
+            }),
         select: (res) => ({ candles: res.data.data || [], message: res.data.message || "" }),
         enabled: !!symbol,
     });
@@ -93,32 +99,48 @@ export default function Historical() {
                         />
                     ) : !futures?.available ? (
                         <p className="text-sm text-dark-400">
-                            {futures?.reason || "NIFTY futures data is unavailable from the configured provider."}
+                            {futures?.reason ||
+                                "NIFTY futures data is unavailable from the configured provider."}
                         </p>
                     ) : (
                         <div>
                             <div className="flex flex-wrap items-center justify-between gap-3">
                                 <div>
-                                    <p className="font-mono text-sm font-semibold text-dark-100">{futures.trading_symbol}</p>
+                                    <p className="font-mono text-sm font-semibold text-dark-100">
+                                        {futures.trading_symbol}
+                                    </p>
                                     <p className="mt-1 text-xs text-dark-400">
                                         Expiry {formatDate(futures.expiry)}
                                         {" · "}Source {futures.source}
                                     </p>
                                 </div>
-                                <div className={"text-xs font-semibold " + (quoteAgeSeconds === null ? "text-dark-400" : isMarketLive ? futuresQuoteIsFresh ? "text-green-300" : "text-amber-300" : "text-dark-400")}>
+                                <div
+                                    className={
+                                        "text-xs font-semibold " +
+                                        (quoteAgeSeconds === null
+                                            ? "text-dark-400"
+                                            : isMarketLive
+                                              ? futuresQuoteIsFresh
+                                                  ? "text-green-300"
+                                                  : "text-amber-300"
+                                              : "text-dark-400")
+                                    }
+                                >
                                     {quoteAgeSeconds === null
                                         ? "Quote freshness unavailable"
                                         : isMarketLive && !futuresQuoteIsFresh
-                                            ? "Delayed · quote " + formatRelativeTime(quoteTimestamp)
-                                            : isMarketLive
-                                                ? "Quote updated " + formatRelativeTime(quoteTimestamp)
-                                                : "Last quote " + formatRelativeTime(quoteTimestamp)}
+                                          ? "Delayed · quote " + formatRelativeTime(quoteTimestamp)
+                                          : isMarketLive
+                                            ? "Quote updated " + formatRelativeTime(quoteTimestamp)
+                                            : "Last quote " + formatRelativeTime(quoteTimestamp)}
                                 </div>
                             </div>
                             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
                                 <div className="rounded-lg border border-dark-700 bg-dark-900 px-3 py-3">
                                     <p className="text-xs text-dark-500">Futures LTP</p>
-                                    <p className="mt-1 font-mono text-lg font-semibold text-dark-100">{formatNumber(futures.ltp)}</p>
+                                    <p className="mt-1 font-mono text-lg font-semibold text-dark-100">
+                                        {formatNumber(futures.ltp)}
+                                    </p>
                                 </div>
                                 <div className="rounded-lg border border-dark-700 bg-dark-900 px-3 py-3">
                                     <p className="text-xs text-dark-500">Today’s futures volume</p>
@@ -130,7 +152,9 @@ export default function Historical() {
                                 </div>
                                 <div className="rounded-lg border border-dark-700 bg-dark-900 px-3 py-3">
                                     <p className="text-xs text-dark-500">Futures session VWAP</p>
-                                    <p className="mt-1 font-mono text-lg font-semibold text-dark-100">{formatNumber(futures.vwap)}</p>
+                                    <p className="mt-1 font-mono text-lg font-semibold text-dark-100">
+                                        {formatNumber(futures.vwap)}
+                                    </p>
                                 </div>
                             </div>
                             {futures.last_trade_time && (
@@ -143,7 +167,9 @@ export default function Historical() {
                                 <p className="mt-3 text-xs text-dark-400">{futures.reason}</p>
                             )}
                             <p className="mt-3 text-xs text-dark-500">
-                                Volume is the contract’s cumulative session volume. VWAP is Zerodha’s futures average price; neither is NIFTY spot volume or spot VWAP.
+                                Volume is the contract’s cumulative session volume. VWAP is
+                                Zerodha’s futures average price; neither is NIFTY spot volume or
+                                spot VWAP.
                             </p>
                         </div>
                     )}
@@ -164,12 +190,17 @@ export default function Historical() {
                     <div>
                         {isMarketLive && isIntraday && data?.message && (
                             <div className="p-4 pb-0">
-                                <Alert type="info" message={`${data.message} The current interval may still be forming.`} />
+                                <Alert
+                                    type="info"
+                                    message={`${data.message} The current interval may still be forming.`}
+                                />
                             </div>
                         )}
                         {candles.length > 0 && candles.every((c) => Number(c.volume) <= 0) && (
                             <p className="px-4 pt-3 text-xs text-dark-400" role="note">
-                                {symbol} is an index and has no directly traded volume. Zerodha reports zero for index candles, so the table shows N/A. Check related futures or options volume for traded activity.
+                                {symbol} is an index and has no directly traded volume. Zerodha
+                                reports zero for index candles, so the table shows N/A. Check
+                                related futures or options volume for traded activity.
                             </p>
                         )}
                         <div className="overflow-x-auto">
@@ -198,14 +229,18 @@ export default function Historical() {
                                                 {formatNumber(c.close)}
                                             </td>
                                             <td className="font-mono text-dark-400">
-                                                {Number(c.volume) > 0 ? Number(c.volume).toLocaleString("en-IN") : "N/A"}
+                                                {Number(c.volume) > 0
+                                                    ? Number(c.volume).toLocaleString("en-IN")
+                                                    : "N/A"}
                                             </td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
                             {candles.length === 0 && (
-                                <p className="p-6 text-center text-sm text-dark-400">No candles are available for this symbol and interval.</p>
+                                <p className="p-6 text-center text-sm text-dark-400">
+                                    No candles are available for this symbol and interval.
+                                </p>
                             )}
                         </div>
                     </div>

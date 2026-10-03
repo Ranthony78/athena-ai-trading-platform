@@ -1,14 +1,12 @@
 import { create } from "zustand";
 
-const useNotificationStore = create((set, get) => ({
+const useNotificationStore = create((set) => ({
     notifications: [],
     unreadCount: 0,
 
-    setNotifications: (notifications) =>
-        set({ notifications }),
+    setNotifications: (notifications) => set({ notifications }),
 
-    setUnreadCount: (count) =>
-        set({ unreadCount: count }),
+    setUnreadCount: (count) => set({ unreadCount: count }),
 
     addNotification: (notification) =>
         set((state) => ({

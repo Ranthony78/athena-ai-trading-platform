@@ -76,28 +76,31 @@ export default function OptionChain() {
         queryFn: () => marketAPI.getOptionChain(symbol, params),
         enabled: Boolean(expiry),
         select: (res) => ({ rows: res.data.data ?? [], message: res.data.message }),
-        refetchInterval: () => engineQuery.data?.provider === "zerodha" && engineQuery.data?.is_live ? 15_000 : false,
+        refetchInterval: () =>
+            engineQuery.data?.provider === "zerodha" && engineQuery.data?.is_live ? 15_000 : false,
     });
     const summaryQuery = useQuery({
         queryKey: ["option-chain-summary", symbol, expiry],
         queryFn: () => marketAPI.getOptionChainSummary(symbol, params),
         enabled: Boolean(expiry),
         select: (res) => res.data.data ?? null,
-        refetchInterval: () => engineQuery.data?.provider === "zerodha" && engineQuery.data?.is_live ? 30_000 : false,
+        refetchInterval: () =>
+            engineQuery.data?.provider === "zerodha" && engineQuery.data?.is_live ? 30_000 : false,
     });
     const marketReadQuery = useQuery({
         queryKey: ["market-read", symbol],
         queryFn: () => marketAPI.getMarketRead(symbol),
         select: (res) => res.data.data ?? null,
         staleTime: 30_000,
-        refetchInterval: () => engineQuery.data?.provider === "zerodha" && engineQuery.data?.is_live ? 30_000 : false,
+        refetchInterval: () =>
+            engineQuery.data?.provider === "zerodha" && engineQuery.data?.is_live ? 30_000 : false,
     });
 
-    const chain = chainQuery.data?.rows ?? [];
+    const chain = useMemo(() => chainQuery.data?.rows ?? [], [chainQuery.data?.rows]);
     const summary = summaryQuery.data;
     const sortedStrikes = useMemo(
         () => [...new Set(chain.map((row) => Number(row.strike)))].sort((a, b) => a - b),
-        [chain],
+        [chain]
     );
     const visibleStrikes = useMemo(() => {
         if (strikeWindow === "all" || !sortedStrikes.length) return sortedStrikes;
@@ -105,7 +108,8 @@ export default function OptionChain() {
         if (reference === null || reference === undefined) return sortedStrikes;
         let atmIndex = 0;
         sortedStrikes.forEach((strike, index) => {
-            if (Math.abs(strike - reference) < Math.abs(sortedStrikes[atmIndex] - reference)) atmIndex = index;
+            if (Math.abs(strike - reference) < Math.abs(sortedStrikes[atmIndex] - reference))
+                atmIndex = index;
         });
         const radius = Number(strikeWindow);
         return sortedStrikes.slice(Math.max(0, atmIndex - radius), atmIndex + radius + 1);
@@ -125,32 +129,37 @@ export default function OptionChain() {
     const providerLabel = engineQuery.isPending
         ? "Checking"
         : engineQuery.isError
-            ? "Unavailable"
-            : provider === "zerodha"
-                ? "Zerodha"
-                : provider === "mock"
-                    ? "Mock"
-                    : "Unknown";
+          ? "Unavailable"
+          : provider === "zerodha"
+            ? "Zerodha"
+            : provider === "mock"
+              ? "Mock"
+              : "Unknown";
     const refreshDescription = engineQuery.isPending
         ? "Checking market-data status…"
         : engineQuery.isError
-            ? "Status unavailable · refresh manually"
-            : provider !== "zerodha"
-                ? "Manual refresh · mock provider has no live chain"
-                : engineQuery.data?.is_live
-                    ? "Auto-refreshes during market hours"
-                    : "Market closed · refresh manually";
+          ? "Status unavailable · refresh manually"
+          : provider !== "zerodha"
+            ? "Manual refresh · mock provider has no live chain"
+            : engineQuery.data?.is_live
+              ? "Auto-refreshes during market hours"
+              : "Market closed · refresh manually";
     const error = chainQuery.isError || summaryQuery.isError || expiriesQuery.isError;
     const hasExpiry = Boolean(expiry);
     const emptyMessage = chainQuery.isError
-        ? (chainQuery.error?.response?.data?.message ?? "Unable to fetch option quotes. Check the Zerodha connection and quote access.")
+        ? (chainQuery.error?.response?.data?.message ??
+          "Unable to fetch option quotes. Check the Zerodha connection and quote access.")
         : isMock
-            ? "The mock provider does not supply option-chain quotes. Configure Zerodha market data to view actual quotes."
-            : chainQuery.data?.message && chainQuery.data.message !== "Success"
-                ? chainQuery.data.message
-                : "No option quotes were returned. Check the instrument catalog and market-data connection.";
+          ? "The mock provider does not supply option-chain quotes. Configure Zerodha market data to view actual quotes."
+          : chainQuery.data?.message && chainQuery.data.message !== "Success"
+            ? chainQuery.data.message
+            : "No option quotes were returned. Check the instrument catalog and market-data connection.";
     const updatedAt = chainQuery.dataUpdatedAt
-        ? new Date(chainQuery.dataUpdatedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+        ? new Date(chainQuery.dataUpdatedAt).toLocaleTimeString("en-IN", {
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+          })
         : "Not loaded";
 
     return (
@@ -158,45 +167,111 @@ export default function OptionChain() {
             title="Options Workspace"
             subtitle="Explore the selected expiry, strikes, and chain analytics. Read-only market data; no order actions are available here."
             actions={
-                <Button variant="secondary" size="sm" icon={RefreshCw} loading={chainQuery.isFetching || summaryQuery.isFetching} onClick={refresh}>
+                <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={RefreshCw}
+                    loading={chainQuery.isFetching || summaryQuery.isFetching}
+                    onClick={refresh}
+                >
                     Refresh
                 </Button>
             }
         >
-            <Alert type="info" title="Read-only workspace" message="Viewing option data does not enable live trading or place orders." />
+            <Alert
+                type="info"
+                title="Read-only workspace"
+                message="Viewing option data does not enable live trading or place orders."
+            />
 
             <Card className="!p-4">
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                    <Select label="Underlying" options={INDICES.map((item) => ({ value: item, label: item }))} value={symbol} onChange={(event) => { setSymbol(event.target.value); setExpiry(""); }} />
+                    <Select
+                        label="Underlying"
+                        options={INDICES.map((item) => ({ value: item, label: item }))}
+                        value={symbol}
+                        onChange={(event) => {
+                            setSymbol(event.target.value);
+                            setExpiry("");
+                        }}
+                    />
                     <Select
                         label="Expiry"
-                        options={expiries.map((item) => ({ value: item.expiry, label: new Date(`${item.expiry}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) }))}
+                        options={expiries.map((item) => ({
+                            value: item.expiry,
+                            label: new Date(`${item.expiry}T00:00:00`).toLocaleDateString("en-IN", {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                            }),
+                        }))}
                         value={expiry}
                         onChange={(event) => setExpiry(event.target.value)}
                         disabled={!expiries.length || expiriesQuery.isLoading}
                     />
-                    <Select label="Strike range" options={WINDOWS} value={strikeWindow} onChange={(event) => setStrikeWindow(event.target.value)} />
+                    <Select
+                        label="Strike range"
+                        options={WINDOWS}
+                        value={strikeWindow}
+                        onChange={(event) => setStrikeWindow(event.target.value)}
+                    />
                     <div className="flex flex-col justify-end gap-2 pb-1">
                         <div className="flex items-center gap-2">
                             <Activity className="h-4 w-4 text-dark-400" />
                             <span className="text-xs text-dark-400">Data provider</span>
-                            <Badge variant={provider === "zerodha" ? "green" : provider === "mock" ? "yellow" : "gray"}>{providerLabel}</Badge>
+                            <Badge
+                                variant={
+                                    provider === "zerodha"
+                                        ? "green"
+                                        : provider === "mock"
+                                          ? "yellow"
+                                          : "gray"
+                                }
+                            >
+                                {providerLabel}
+                            </Badge>
                         </div>
-                        <p className="text-xs text-dark-400">Updated {updatedAt} · {refreshDescription}</p>
+                        <p className="text-xs text-dark-400">
+                            Updated {updatedAt} · {refreshDescription}
+                        </p>
                     </div>
                 </div>
             </Card>
 
             {error && (
-                <Alert type="error" title="Some data could not be loaded" message="Refresh to retry. If this continues, check the market-data provider and instrument list." />
+                <Alert
+                    type="error"
+                    title="Some data could not be loaded"
+                    message="Refresh to retry. If this continues, check the market-data provider and instrument list."
+                />
             )}
 
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-                <Metric label="Spot price" value={formatNumber(summary?.spot_price)} detail={symbol} />
-                <Metric label="ATM strike" value={formatNumber(summary?.atm_strike, 0)} detail={expiry || "Select an expiry"} />
-                <Metric label="Put / call OI" value={displayRatio(summary?.pcr_oi)} detail="PCR by open interest" />
-                <Metric label="Put / call volume" value={displayRatio(summary?.pcr_volume)} detail="PCR by traded volume" />
-                <Metric label="Max pain" value={formatNumber(summary?.max_pain, 0)} detail="For selected expiry" />
+                <Metric
+                    label="Spot price"
+                    value={formatNumber(summary?.spot_price)}
+                    detail={symbol}
+                />
+                <Metric
+                    label="ATM strike"
+                    value={formatNumber(summary?.atm_strike, 0)}
+                    detail={expiry || "Select an expiry"}
+                />
+                <Metric
+                    label="Put / call OI"
+                    value={displayRatio(summary?.pcr_oi)}
+                    detail="PCR by open interest"
+                />
+                <Metric
+                    label="Put / call volume"
+                    value={displayRatio(summary?.pcr_volume)}
+                    detail="PCR by traded volume"
+                />
+                <Metric
+                    label="Max pain"
+                    value={formatNumber(summary?.max_pain, 0)}
+                    detail="For selected expiry"
+                />
             </div>
 
             <MarketReadPanel
@@ -210,17 +285,29 @@ export default function OptionChain() {
                 isError={marketReadQuery.isError}
             />
 
-            <Card title="Option chain" subtitle={`${symbol}${expiry ? ` · Expiry ${expiry}` : " · Choose an available expiry"}`} padding={false}>
+            <Card
+                title="Option chain"
+                subtitle={`${symbol}${expiry ? ` · Expiry ${expiry}` : " · Choose an available expiry"}`}
+                padding={false}
+            >
                 {chainQuery.isLoading || expiriesQuery.isLoading ? (
-                    <div className="p-10"><Spinner text="Loading option-chain data..." /></div>
+                    <div className="p-10">
+                        <Spinner text="Loading option-chain data..." />
+                    </div>
                 ) : expiriesQuery.isError ? (
                     <div className="p-8 text-center">
-                        <p className="font-medium text-dark-200">Expiry dates could not be loaded</p>
-                        <p className="mt-1 text-sm text-dark-400">Refresh to retry the instrument catalog request.</p>
+                        <p className="font-medium text-dark-200">
+                            Expiry dates could not be loaded
+                        </p>
+                        <p className="mt-1 text-sm text-dark-400">
+                            Refresh to retry the instrument catalog request.
+                        </p>
                     </div>
                 ) : !hasExpiry ? (
                     <div className="p-8 text-center">
-                        <p className="font-medium text-dark-200">No upcoming expiry dates available</p>
+                        <p className="font-medium text-dark-200">
+                            No upcoming expiry dates available
+                        </p>
                         <p className="mt-1 text-sm text-dark-400">
                             {allExpiries.length
                                 ? `Expired contracts are hidden. Refresh the NFO instrument list to load upcoming ${symbol} expiries.`
@@ -232,22 +319,40 @@ export default function OptionChain() {
                         <p className="font-medium text-dark-200">No option-chain quotes returned</p>
                         <p className="mt-1 text-sm text-dark-400">{emptyMessage}</p>
                         {engineQuery.data?.session === "CLOSED" && !isMock && (
-                            <p className="mt-1 text-sm text-dark-400">The scheduled market session is closed. Quotes may be from the last session; verify fresh prices during market hours.</p>
+                            <p className="mt-1 text-sm text-dark-400">
+                                The scheduled market session is closed. Quotes may be from the last
+                                session; verify fresh prices during market hours.
+                            </p>
                         )}
                     </div>
                 ) : (
                     <>
                         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-dark-700/70 px-4 py-3">
                             <div className="text-xs text-dark-400">
-                                <span>{visibleStrikes.length} of {sortedStrikes.length} strikes · ATM row highlighted</span>
-                                <span className="ml-2">PCR and max pain describe this expiry; they are not forecasts.</span>
+                                <span>
+                                    {visibleStrikes.length} of {sortedStrikes.length} strikes · ATM
+                                    row highlighted
+                                </span>
+                                <span className="ml-2">
+                                    PCR and max pain describe this expiry; they are not forecasts.
+                                </span>
                             </div>
                             <label className="flex cursor-pointer items-center gap-2 text-xs text-dark-300">
-                                <input type="checkbox" className="accent-fuchsia-400" checked={showGreeks} onChange={(event) => setShowGreeks(event.target.checked)} />
+                                <input
+                                    type="checkbox"
+                                    className="accent-fuchsia-400"
+                                    checked={showGreeks}
+                                    onChange={(event) => setShowGreeks(event.target.checked)}
+                                />
                                 Show Greeks
                             </label>
                         </div>
-                        <OptionChainTable chain={chain} strikes={visibleStrikes} atmStrike={summary?.atm_strike} showGreeks={showGreeks} />
+                        <OptionChainTable
+                            chain={chain}
+                            strikes={visibleStrikes}
+                            atmStrike={summary?.atm_strike}
+                            showGreeks={showGreeks}
+                        />
                     </>
                 )}
             </Card>

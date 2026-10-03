@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 
 const useAuthStore = create(
     persist(
-        (set, get) => ({
+        (set) => ({
             user: null,
             accessToken: null,
             refreshToken: null,
@@ -25,8 +25,7 @@ const useAuthStore = create(
                     isAuthenticated: false,
                 }),
 
-            setAccessToken: (token) =>
-                set({ accessToken: token }),
+            setAccessToken: (token) => set({ accessToken: token }),
 
             // Refresh rotates the refresh token (the old one is blacklisted),
             // so both must be stored together.
@@ -36,8 +35,7 @@ const useAuthStore = create(
                     refreshToken: refresh || state.refreshToken,
                 })),
 
-            setUser: (user) =>
-                set({ user }),
+            setUser: (user) => set({ user }),
         }),
         {
             name: "athena-auth",

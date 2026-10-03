@@ -4,15 +4,11 @@ import api from "./axios";
 // rule-based run endpoints were retired in favour of the AI Workspace
 // (the backend answers /strategies/run/ and /run-all/ with 410 Gone).
 export const strategiesAPI = {
-    getStrategies: () =>
-        api.get("/strategies/"),
+    getStrategies: () => api.get("/strategies/"),
 
-    getStrategy: (id) =>
-        api.get(`/strategies/${id}/`),
+    getStrategy: (id) => api.get(`/strategies/${id}/`),
 
-    getSignals: (params) =>
-        api.get("/strategies/signals/", { params }),
+    getSignals: (params) => api.get("/strategies/signals/", { params }),
 
-    getSignalsBySymbol: (symbol) =>
-        api.get(`/strategies/signals/${symbol}/`),
+    getSignalsBySymbol: (symbol) => api.get(`/strategies/signals/${symbol}/`),
 };

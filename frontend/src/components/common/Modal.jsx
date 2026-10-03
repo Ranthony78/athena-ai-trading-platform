@@ -1,13 +1,7 @@
 import { X } from "lucide-react";
 import { useEffect } from "react";
 
-export default function Modal({
-    isOpen,
-    onClose,
-    title,
-    children,
-    size = "md",
-}) {
+export default function Modal({ isOpen, onClose, title, children, size = "md" }) {
     const sizes = {
         sm: "max-w-md",
         md: "max-w-lg",
@@ -28,10 +22,7 @@ export default function Modal({
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             {/* Overlay */}
-            <div
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                onClick={onClose}
-            />
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
             {/* Modal */}
             <div className={`relative w-full ${sizes[size]} card z-10`}>

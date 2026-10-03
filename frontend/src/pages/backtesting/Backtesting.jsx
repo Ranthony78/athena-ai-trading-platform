@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { PageWrapper } from "../../components/layout";
 import { Card, Table, Badge, Spinner } from "../../components/common";
 import { backtestingAPI } from "../../api/backtesting";
-import { formatDate, formatNumber } from "../../utils/formatters";
+import { formatDate } from "../../utils/formatters";
 
 export default function Backtesting() {
     const { data: runs, isLoading } = useQuery({
@@ -33,11 +33,15 @@ export default function Backtesting() {
             label: "Result",
             render: (v, row) =>
                 row.status === "COMPLETE" ? (
-                    <a href={`/backtest/${v}`}
-                        className="text-xs text-primary-400 hover:text-primary-300">
+                    <a
+                        href={`/backtest/${v}`}
+                        className="text-xs text-primary-400 hover:text-primary-300"
+                    >
                         View →
                     </a>
-                ) : "—",
+                ) : (
+                    "—"
+                ),
         },
     ];
 
@@ -51,19 +55,25 @@ export default function Backtesting() {
                     <div>
                         <p className="text-sm font-semibold text-dark-100">AI-led research</p>
                         <p className="mt-1 text-xs text-dark-400">
-                            New analysis, No Trade decisions, prediction history, and forecast calibration live in one place.
-                            The rule-based runs below are preserved for reference.
+                            New analysis, No Trade decisions, prediction history, and forecast
+                            calibration live in one place. The rule-based runs below are preserved
+                            for reference.
                         </p>
                     </div>
-                    <Link to="/analysis" className="inline-flex shrink-0 items-center gap-2 text-sm font-medium text-primary-400 hover:text-primary-300">
-                        <Brain className="h-4 w-4" /> Open AI Workspace <ArrowRight className="h-4 w-4" />
+                    <Link
+                        to="/analysis"
+                        className="inline-flex shrink-0 items-center gap-2 text-sm font-medium text-primary-400 hover:text-primary-300"
+                    >
+                        <Brain className="h-4 w-4" /> Open AI Workspace{" "}
+                        <ArrowRight className="h-4 w-4" />
                     </Link>
                 </div>
             </Card>
             <Card padding={false}>
-                {isLoading ? <Spinner /> : (
-                    <Table columns={columns} data={runs || []}
-                        emptyTitle="No archived backtests" />
+                {isLoading ? (
+                    <Spinner />
+                ) : (
+                    <Table columns={columns} data={runs || []} emptyTitle="No archived backtests" />
                 )}
             </Card>
         </PageWrapper>

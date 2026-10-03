@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Search, Plus } from "lucide-react";
+import { Search } from "lucide-react";
 import { PageWrapper } from "../../components/layout";
-import { Card, Button, Badge, Spinner, EmptyState } from "../../components/common";
+import { Button, Spinner, EmptyState } from "../../components/common";
 import ArticleCard from "./components/ArticleCard";
 import { knowledgeAPI } from "../../api/knowledge";
 
@@ -23,14 +23,9 @@ export default function Knowledge() {
         enabled: search.length >= 2,
     });
 
-    const CATEGORIES = [
-        "CONCEPT", "STRATEGY", "INDICATOR",
-        "OPTION", "PSYCHOLOGY", "RISK",
-    ];
+    const CATEGORIES = ["CONCEPT", "STRATEGY", "INDICATOR", "OPTION", "PSYCHOLOGY", "RISK"];
 
-    const displayArticles = search.length >= 2
-        ? searchResults?.articles || []
-        : articles || [];
+    const displayArticles = search.length >= 2 ? searchResults?.articles || [] : articles || [];
 
     return (
         <PageWrapper
@@ -39,18 +34,24 @@ export default function Knowledge() {
             actions={
                 <div className="flex gap-2">
                     <a href="/knowledge/rules">
-                        <Button variant="secondary" size="sm">Rules</Button>
+                        <Button variant="secondary" size="sm">
+                            Rules
+                        </Button>
                     </a>
                     <a href="/knowledge/prompts">
-                        <Button variant="secondary" size="sm">Prompts</Button>
+                        <Button variant="secondary" size="sm">
+                            Prompts
+                        </Button>
                     </a>
                 </div>
             }
         >
             {/* Search */}
             <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2
-                           w-4 h-4 text-dark-500" />
+                <Search
+                    className="absolute left-3 top-1/2 -translate-y-1/2
+                           w-4 h-4 text-dark-500"
+                />
                 <input
                     className="input pl-10"
                     placeholder="Search articles, rules, prompts..."

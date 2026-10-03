@@ -2,14 +2,25 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Shield, Plus } from "lucide-react";
 import { PageWrapper } from "../../components/layout";
-import { Card, Badge, Button, Modal, Input, Select, Spinner, EmptyState } from "../../components/common";
+import {
+    Card,
+    Badge,
+    Button,
+    Modal,
+    Input,
+    Select,
+    Spinner,
+    EmptyState,
+} from "../../components/common";
 import { knowledgeAPI } from "../../api/knowledge";
 
 export default function Rules() {
     const [showModal, setShowModal] = useState(false);
     const [form, setForm] = useState({
-        title: "", description: "",
-        rule_type: "SYSTEM", priority: "HIGH",
+        title: "",
+        description: "",
+        rule_type: "SYSTEM",
+        priority: "HIGH",
     });
     const queryClient = useQueryClient();
 
@@ -29,8 +40,7 @@ export default function Rules() {
 
     const { mutate: recordBroken } = useMutation({
         mutationFn: (id) => knowledgeAPI.recordRuleBroken(id),
-        onSuccess: () =>
-            queryClient.invalidateQueries({ queryKey: ["trading-rules"] }),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["trading-rules"] }),
     });
 
     return (
@@ -38,15 +48,19 @@ export default function Rules() {
             title="Trading Rules"
             subtitle="Your personal rulebook"
             actions={
-                <Button variant="primary" size="sm" icon={Plus}
-                    onClick={() => setShowModal(true)}>
+                <Button variant="primary" size="sm" icon={Plus} onClick={() => setShowModal(true)}>
                     Add Rule
                 </Button>
             }
         >
-            {isLoading ? <Spinner /> : !rules?.length ? (
-                <EmptyState icon={Shield} title="No rules yet"
-                    description="Define your trading rules" />
+            {isLoading ? (
+                <Spinner />
+            ) : !rules?.length ? (
+                <EmptyState
+                    icon={Shield}
+                    title="No rules yet"
+                    description="Define your trading rules"
+                />
             ) : (
                 <div className="space-y-3">
                     {rules.map((rule) => (
@@ -64,19 +78,27 @@ export default function Rules() {
                                             {rule.description}
                                         </p>
                                         <div className="flex gap-2 mt-2">
-                                            <Badge variant={
-                                                rule.priority === "CRITICAL" ? "red" :
-                                                    rule.priority === "HIGH" ? "yellow" : "gray"
-                                            }>
+                                            <Badge
+                                                variant={
+                                                    rule.priority === "CRITICAL"
+                                                        ? "red"
+                                                        : rule.priority === "HIGH"
+                                                          ? "yellow"
+                                                          : "gray"
+                                                }
+                                            >
                                                 {rule.priority}
                                             </Badge>
                                             <Badge variant="blue">{rule.rule_type}</Badge>
                                         </div>
                                     </div>
                                 </div>
-                                <Button variant="ghost" size="sm"
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
                                     onClick={() => recordBroken(rule.id)}
-                                    className="text-red-400 hover:text-red-300">
+                                    className="text-red-400 hover:text-red-300"
+                                >
                                     Broken ({rule.times_broken})
                                 </Button>
                             </div>
@@ -87,27 +109,47 @@ export default function Rules() {
 
             <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Add Rule">
                 <div className="space-y-4">
-                    <Input label="Rule Title" value={form.title}
-                        onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))} />
+                    <Input
+                        label="Rule Title"
+                        value={form.title}
+                        onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                    />
                     <div>
                         <label className="label">Description</label>
-                        <textarea className="input h-20 resize-none" value={form.description}
-                            onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} />
+                        <textarea
+                            className="input h-20 resize-none"
+                            value={form.description}
+                            onChange={(e) =>
+                                setForm((f) => ({ ...f, description: e.target.value }))
+                            }
+                        />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                        <Select label="Type"
-                            options={["ENTRY", "EXIT", "RISK", "PSYCHOLOGY", "SYSTEM"].map(v => ({ value: v, label: v }))}
+                        <Select
+                            label="Type"
+                            options={["ENTRY", "EXIT", "RISK", "PSYCHOLOGY", "SYSTEM"].map((v) => ({
+                                value: v,
+                                label: v,
+                            }))}
                             value={form.rule_type}
-                            onChange={(e) => setForm(f => ({ ...f, rule_type: e.target.value }))}
+                            onChange={(e) => setForm((f) => ({ ...f, rule_type: e.target.value }))}
                         />
-                        <Select label="Priority"
-                            options={["CRITICAL", "HIGH", "MEDIUM", "LOW"].map(v => ({ value: v, label: v }))}
+                        <Select
+                            label="Priority"
+                            options={["CRITICAL", "HIGH", "MEDIUM", "LOW"].map((v) => ({
+                                value: v,
+                                label: v,
+                            }))}
                             value={form.priority}
-                            onChange={(e) => setForm(f => ({ ...f, priority: e.target.value }))}
+                            onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))}
                         />
                     </div>
-                    <Button variant="primary" loading={isPending}
-                        onClick={() => create(form)} className="w-full">
+                    <Button
+                        variant="primary"
+                        loading={isPending}
+                        onClick={() => create(form)}
+                        className="w-full"
+                    >
                         Save Rule
                     </Button>
                 </div>

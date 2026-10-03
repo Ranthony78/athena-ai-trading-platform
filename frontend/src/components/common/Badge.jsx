@@ -7,9 +7,5 @@ export default function Badge({ children, variant = "gray", className = "" }) {
         gray: "badge-gray",
     };
 
-    return (
-        <span className={`${variants[variant]} ${className}`}>
-            {children}
-        </span>
-    );
+    return <span className={`${variants[variant]} ${className}`}>{children}</span>;
 }

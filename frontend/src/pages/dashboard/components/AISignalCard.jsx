@@ -37,12 +37,29 @@ export default function AISignalCard({ signals = [] }) {
             ) : (
                 <div className="space-y-3">
                     {signals.slice(0, 5).map((signal) => (
-                        <div key={signal.id} className="flex items-center justify-between p-3 bg-dark-800 rounded-lg">
+                        <div
+                            key={signal.id}
+                            className="flex items-center justify-between p-3 bg-dark-800 rounded-lg"
+                        >
                             <div className="flex items-center gap-3">
-                                <Badge variant={signal.signal === "BUY" ? "green" : signal.signal === "SELL" ? "red" : "gray"}>{signal.signal}</Badge>
+                                <Badge
+                                    variant={
+                                        signal.signal === "BUY"
+                                            ? "green"
+                                            : signal.signal === "SELL"
+                                              ? "red"
+                                              : "gray"
+                                    }
+                                >
+                                    {signal.signal}
+                                </Badge>
                                 <div>
-                                    <p className="text-sm font-medium text-dark-100">{signal.symbol}</p>
-                                    <p className="text-xs text-dark-500">Confidence: {signal.confidence_score}%</p>
+                                    <p className="text-sm font-medium text-dark-100">
+                                        {signal.symbol}
+                                    </p>
+                                    <p className="text-xs text-dark-500">
+                                        Confidence: {signal.confidence_score}%
+                                    </p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-1 text-dark-500 text-xs">

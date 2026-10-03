@@ -44,8 +44,7 @@ export const getSessionColor = (session) => {
 };
 
 // Clamp value
-export const clamp = (value, min, max) =>
-    Math.min(Math.max(value, min), max);
+export const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
 // Truncate text
 export const truncate = (text, maxLength = 100) => {
@@ -82,9 +81,7 @@ export const sortBy = (array, key, direction = "asc") =>
 // Check if market is open (IST)
 export const isMarketOpen = () => {
     const now = new Date();
-    const ist = new Date(
-        now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
-    );
+    const ist = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
     const day = ist.getDay();
     const hours = ist.getHours();
     const minutes = ist.getMinutes();

@@ -55,31 +55,51 @@ export default function EntryForm({ onSubmit, loading }) {
                 onChange={(e) => set("title", e.target.value)}
             />
             <div className="grid grid-cols-2 gap-4">
-                <Select label="Market Bias" options={BIASES}
+                <Select
+                    label="Market Bias"
+                    options={BIASES}
                     value={form.market_bias}
                     onChange={(e) => set("market_bias", e.target.value)}
                 />
-                <Select label="Mood" options={MOODS}
+                <Select
+                    label="Mood"
+                    options={MOODS}
                     value={form.mood}
                     onChange={(e) => set("mood", e.target.value)}
                 />
             </div>
             <div className="grid grid-cols-3 gap-4">
-                <Input label="Trades" type="number" value={form.trades_taken}
+                <Input
+                    label="Trades"
+                    type="number"
+                    value={form.trades_taken}
                     onChange={(e) => set("trades_taken", parseInt(e.target.value))}
                 />
-                <Input label="Winners" type="number" value={form.winners}
+                <Input
+                    label="Winners"
+                    type="number"
+                    value={form.winners}
                     onChange={(e) => set("winners", parseInt(e.target.value))}
                 />
-                <Input label="Losers" type="number" value={form.losers}
+                <Input
+                    label="Losers"
+                    type="number"
+                    value={form.losers}
                     onChange={(e) => set("losers", parseInt(e.target.value))}
                 />
             </div>
             <div className="grid grid-cols-2 gap-4">
-                <Input label="Total PnL" type="number" value={form.total_pnl}
+                <Input
+                    label="Total PnL"
+                    type="number"
+                    value={form.total_pnl}
                     onChange={(e) => set("total_pnl", parseFloat(e.target.value))}
                 />
-                <Input label="Rating (1-10)" type="number" min="1" max="10"
+                <Input
+                    label="Rating (1-10)"
+                    type="number"
+                    min="1"
+                    max="10"
                     value={form.rating}
                     onChange={(e) => set("rating", parseInt(e.target.value))}
                 />

@@ -1,42 +1,29 @@
 import api from "./axios";
 
 export const zerodhaAPI = {
-    getStatus: () =>
-        api.get("/zerodha/status/"),
+    getStatus: () => api.get("/zerodha/status/"),
 
-    getConfig: () =>
-        api.get("/zerodha/config/"),
+    getConfig: () => api.get("/zerodha/config/"),
 
-    saveConfig: (data) =>
-        api.put("/zerodha/config/", data),
+    saveConfig: (data) => api.put("/zerodha/config/", data),
 
-    getLoginUrl: () =>
-        api.get("/zerodha/login-url/"),
+    getLoginUrl: () => api.get("/zerodha/login-url/"),
 
-    exchangeToken: (request_token) =>
-        api.post("/zerodha/token/", { request_token }),
+    exchangeToken: (request_token) => api.post("/zerodha/token/", { request_token }),
 
-    logout: () =>
-        api.post("/zerodha/logout/"),
+    logout: () => api.post("/zerodha/logout/"),
 
-    getProfile: () =>
-        api.get("/zerodha/profile/"),
+    getProfile: () => api.get("/zerodha/profile/"),
 
-    getFunds: () =>
-        api.get("/zerodha/funds/"),
+    getFunds: () => api.get("/zerodha/funds/"),
 
-    getOrders: () =>
-        api.get("/zerodha/orders/"),
+    getOrders: () => api.get("/zerodha/orders/"),
 
-    placeOrder: (data) =>
-        api.post("/zerodha/orders/", data),
+    placeOrder: (data) => api.post("/zerodha/orders/", data),
 
-    cancelOrder: (orderId) =>
-        api.post(`/zerodha/orders/${orderId}/cancel/`),
+    cancelOrder: (orderId) => api.post(`/zerodha/orders/${orderId}/cancel/`),
 
-    getPositions: () =>
-        api.get("/zerodha/positions/"),
+    getPositions: () => api.get("/zerodha/positions/"),
 
-    getHoldings: () =>
-        api.get("/zerodha/holdings/"),
+    getHoldings: () => api.get("/zerodha/holdings/"),
 };

@@ -32,9 +32,7 @@ export default function Positions() {
         {
             key: "direction",
             label: "Direction",
-            render: (val) => (
-                <Badge variant={val === "LONG" ? "green" : "red"}>{val}</Badge>
-            ),
+            render: (val) => <Badge variant={val === "LONG" ? "green" : "red"}>{val}</Badge>,
         },
         { key: "quantity", label: "Qty" },
         {
@@ -51,8 +49,10 @@ export default function Positions() {
             key: "unrealized_pnl",
             label: "Unrealized PnL",
             render: (val) => (
-                <span className={`font-mono font-semibold
-          ${parseFloat(val) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                <span
+                    className={`font-mono font-semibold
+          ${parseFloat(val) >= 0 ? "text-green-400" : "text-red-400"}`}
+                >
                     {formatCurrency(val)}
                 </span>
             ),
@@ -62,22 +62,24 @@ export default function Positions() {
             label: "PnL %",
             render: (val) => (
                 <span className={parseFloat(val) >= 0 ? "text-green-400" : "text-red-400"}>
-                    {parseFloat(val) >= 0 ? "+" : ""}{parseFloat(val).toFixed(2)}%
+                    {parseFloat(val) >= 0 ? "+" : ""}
+                    {parseFloat(val).toFixed(2)}%
                 </span>
             ),
         },
         {
             key: "instrument_id",
             label: "Paper action",
-            render: (_, row) => row.option_type ? (
-                <button
-                    type="button"
-                    className="text-primary-400 hover:text-primary-300"
-                    onClick={() => closePaperPosition(row)}
-                >
-                    Close paper position
-                </button>
-            ) : null,
+            render: (_, row) =>
+                row.option_type ? (
+                    <button
+                        type="button"
+                        className="text-primary-400 hover:text-primary-300"
+                        onClick={() => closePaperPosition(row)}
+                    >
+                        Close paper position
+                    </button>
+                ) : null,
         },
     ];
 

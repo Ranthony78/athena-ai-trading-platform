@@ -18,7 +18,7 @@ export function useNotifications(params = {}) {
             setNotifications(query.data.notifications || []);
             setUnreadCount(query.data.unread_count || 0);
         }
-    }, [query.data]);
+    }, [query.data, setNotifications, setUnreadCount]);
 
     return query;
 }

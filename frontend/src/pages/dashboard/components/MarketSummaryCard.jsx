@@ -40,19 +40,12 @@ export default function MarketSummaryCard({ quote }) {
     const isPrimary = PRIMARY_SYMBOLS.has(quote.symbol?.toUpperCase());
 
     return (
-        <div
-            className={`card ${isPrimary
-                ? "border-primary-500/40"
-                : "opacity-90"
-                }`}
-        >
+        <div className={`card ${isPrimary ? "border-primary-500/40" : "opacity-90"}`}>
             <div className="flex items-start justify-between">
                 <div>
                     <p className="text-xs text-dark-500 font-medium uppercase tracking-wider">
                         {quote.symbol}
-                        {isPrimary && (
-                            <span className="ml-1.5 text-primary-400">•</span>
-                        )}
+                        {isPrimary && <span className="ml-1.5 text-primary-400">•</span>}
                     </p>
                     <p
                         className={`font-bold text-dark-50 mt-1 font-mono
@@ -74,31 +67,20 @@ export default function MarketSummaryCard({ quote }) {
                 </div>
             </div>
 
-            <RangeBar
-                open={quote.open}
-                high={quote.high}
-                low={quote.low}
-                ltp={quote.ltp}
-            />
+            <RangeBar open={quote.open} high={quote.high} low={quote.low} ltp={quote.ltp} />
 
             <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-dark-800">
                 <div>
                     <p className="text-xs text-dark-600">Open</p>
-                    <p className="text-xs font-mono text-dark-300">
-                        {formatNumber(quote.open)}
-                    </p>
+                    <p className="text-xs font-mono text-dark-300">{formatNumber(quote.open)}</p>
                 </div>
                 <div>
                     <p className="text-xs text-dark-600">High</p>
-                    <p className="text-xs font-mono text-green-400">
-                        {formatNumber(quote.high)}
-                    </p>
+                    <p className="text-xs font-mono text-green-400">{formatNumber(quote.high)}</p>
                 </div>
                 <div>
                     <p className="text-xs text-dark-600">Low</p>
-                    <p className="text-xs font-mono text-red-400">
-                        {formatNumber(quote.low)}
-                    </p>
+                    <p className="text-xs font-mono text-red-400">{formatNumber(quote.low)}</p>
                 </div>
             </div>
         </div>

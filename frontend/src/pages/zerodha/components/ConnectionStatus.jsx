@@ -9,8 +9,8 @@ export default function ConnectionStatus({ status }) {
     const label = !status.is_connected
         ? "Not Connected"
         : status.is_token_valid
-            ? "Connected"
-            : "Reconnect Required";
+          ? "Connected"
+          : "Reconnect Required";
 
     return (
         <Card title="Connection Status">
@@ -21,8 +21,10 @@ export default function ConnectionStatus({ status }) {
                     <XCircle className="w-8 h-8 text-red-400" />
                 )}
                 <div>
-                    <p className={`text-lg font-bold
-            ${isActive ? "text-green-400" : "text-red-400"}`}>
+                    <p
+                        className={`text-lg font-bold
+            ${isActive ? "text-green-400" : "text-red-400"}`}
+                    >
                         {label}
                     </p>
                     {status.zerodha_username && (
@@ -37,9 +39,7 @@ export default function ConnectionStatus({ status }) {
                 <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                         <span className="text-dark-500">Connected At</span>
-                        <span className="text-dark-200">
-                            {formatDateTime(status.connected_at)}
-                        </span>
+                        <span className="text-dark-200">{formatDateTime(status.connected_at)}</span>
                     </div>
                     <div className="flex justify-between">
                         <span className="text-dark-500">Token Valid</span>

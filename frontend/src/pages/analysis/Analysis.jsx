@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { AlertTriangle } from "lucide-react";
 import { PageWrapper } from "../../components/layout";
-import { Card, Button } from "../../components/common";
+import { Card } from "../../components/common";
 import AnalysisForm from "./components/AnalysisForm";
 import SignalCard from "./components/SignalCard";
 import AIResponseView from "./components/AIResponseView";
@@ -43,12 +43,8 @@ function ErrorBanner({ error }) {
             <div className="flex items-start gap-3 p-1">
                 <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
                 <div>
-                    <p className="text-sm font-medium text-red-400">
-                        Analysis failed
-                    </p>
-                    <p className="text-sm text-dark-300 mt-1">
-                        {message}
-                    </p>
+                    <p className="text-sm font-medium text-red-400">Analysis failed</p>
+                    <p className="text-sm text-dark-300 mt-1">{message}</p>
                 </div>
             </div>
         </Card>
