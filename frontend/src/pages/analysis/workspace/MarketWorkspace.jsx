@@ -84,7 +84,10 @@ export default function MarketWorkspace({ symbol, title }) {
             subtitle="Probability-based research on verified market data. Educational only, not trading advice."
             actions={
                 <div className="flex flex-wrap items-center justify-end gap-3">
-                    <Link to="/analysis" className="btn-secondary">
+                    <Link to="/analysis" className="btn-ghost">
+                        All markets
+                    </Link>
+                    <Link to="/analysis/detailed" className="btn-secondary">
                         Detailed report
                     </Link>
                     <button

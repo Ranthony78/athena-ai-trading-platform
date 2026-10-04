@@ -165,7 +165,7 @@ A single scrolling page: price strip (futures VWAP/volume/OI, VIX change, gap, b
 trend check, levels, sentiment and probability, price expectation and the ATM option snapshot. It reads the
 report endpoint (including `key_metrics`) and runs the existing analysis API with paper evaluation off.
 `MarketWorkspace` takes the symbol as a prop and also serves `/analysis/nifty`. Both pages end with an expiry and strike card (expiry, days to expiry, lot size, ATM call, premium-matched put) and an open-interest profile (call and put walls, put/call OI, max pain), fed by the report's `options` block. Every missing value shows "NA"
-with the reason. The older detailed report stays at `/analysis`.
+with the reason. The older detailed report now lives at `/analysis/detailed`; `/analysis` is the Athena AI Workspace overview (one card per market with price, VIX, nearest support/resistance and the last analysis, each linking to its workspace).
 
 ### Not built yet
 - Black-76 IV with a put-call-parity forward, IV velocity, OI change, volume spikes, spread tightening, the six
