@@ -41,7 +41,7 @@ def sync_intraday_candles():
     close that gap, following the exact same market-hours-check pattern
     as track_signal_outcomes.
     """
-    from datetime import date
+    from django.utils import timezone
 
     from apps.zerodha.repositories.zerodha_repository import ZerodhaConfigRepository
 
@@ -61,7 +61,7 @@ def sync_intraday_candles():
         return "skipped (no valid Zerodha connection)"
 
     user = config.user
-    today_str = date.today().isoformat()
+    today_str = timezone.localdate().isoformat()
     service = CandleService(user=user)
     results = {}
 
