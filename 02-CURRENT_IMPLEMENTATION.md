@@ -124,6 +124,31 @@ characters in the password; `?sslmode=require` is supported) or `DB_ENGINE=postg
 Connections are reused for 60 seconds and health-checked. Errors never include the password. Setting these in
 `.env` switches the running app on its next restart, so do that only as part of the cutover.
 
+### Moving from SQLite to PostgreSQL (rehearsed 2026-10-05, not yet cut over)
+
+The test suite (400 tests) passes on both databases. A full rehearsal copied the dev database into an empty
+PostgreSQL database: 44 tables, 0 row-count differences, identical checksums, user ids and timestamps (to the
+microsecond) preserved, and new rows get fresh ids. The copy tool is `scripts/copy_sqlite_to_postgres.py`
+(logic in `shared/db_copy.py`); dumpdata/loaddata is NOT used because it rounds timestamps to milliseconds and
+renumbers users. It opens SQLite read-only, refuses to run unless the target is a migrated, empty PostgreSQL
+database, and runs in one transaction. It takes about 20 seconds for the dev data.
+
+Things the rehearsal found and fixed: `Instrument.symbol` widened from 50 to 100 characters (4 ETF names were
+longer, SQLite ignores the limit but PostgreSQL does not, and the daily instrument import would have failed);
+instrument ordering now puts empty values first and breaks ties by trading symbol, so lists come out in the same
+order on both databases; the indicators API no longer crashes on NaN. Known harmless difference: PostgreSQL on
+Windows sorts text ignoring spaces and dashes, so about 0.6% of instrument rows (obscure fund names) sort slightly
+differently.
+
+Cutover (do it outside market hours):
+1. Stop the Django server, Celery worker and Celery beat. Back up `backend/db.sqlite3`.
+2. In `.env` set `DATABASE_URL=postgres://athena:PASSWORD@localhost:5432/athena_db` (a strong password).
+3. `cd backend`, then `python manage.py migrate` (builds the schema in the empty PostgreSQL database).
+4. `python scripts/copy_sqlite_to_postgres.py`, and check it prints "done" with no STOPPED message.
+5. Start everything and sign in; reconnect Zerodha (tokens are copied, but check the status).
+Rollback: delete the `DATABASE_URL` line and restart. The SQLite file is untouched by all of this. Run
+`python manage.py migrate` on SQLite as well if you keep using it.
+
 **Related operational note:** during this work, a real Anthropic API key
 and Groq API key were found hardcoded in an early git commit
 (`backend/config/settings/base.py`), caught by GitHub's push protection

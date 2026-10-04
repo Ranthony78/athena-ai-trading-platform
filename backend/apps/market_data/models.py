@@ -56,8 +56,10 @@ class Instrument(BaseModel):
         db_index=True,
     )
 
+    # 100, not 50: some ETF names are longer than 50 characters. SQLite ignores
+    # the limit but PostgreSQL enforces it.
     symbol = models.CharField(
-        max_length=50,
+        max_length=100,
         db_index=True,
         help_text="Underlying symbol — e.g. NIFTY, RELIANCE. Not unique for derivatives.",
     )
@@ -114,7 +116,14 @@ class Instrument(BaseModel):
 
     class Meta:
         db_table = "market_instruments"
-        ordering = ["symbol", "expiry", "strike"]
+        # Explicit NULL placement and a final tie-breaker, so the order is the
+        # same on SQLite (NULLs first) and PostgreSQL (NULLs last by default).
+        ordering = [
+            "symbol",
+            models.F("expiry").asc(nulls_first=True),
+            models.F("strike").asc(nulls_first=True),
+            "trading_symbol",
+        ]
         # trading_symbol is unique within an exchange
         unique_together = [("exchange", "trading_symbol")]
         indexes = [

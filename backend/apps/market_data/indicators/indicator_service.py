@@ -1,4 +1,5 @@
 import logging
+import math
 from typing import Any
 
 import pandas as pd
@@ -12,6 +13,21 @@ from .volatility import ATR, BollingerBands
 from .volume import OBV, VWAP
 
 logger = logging.getLogger(__name__)
+
+
+def json_safe(value):
+    """
+    Replace NaN and infinity with None, recursively. Indicators have no value
+    for their first few candles (pandas gives NaN), and JSON cannot carry NaN,
+    so returning it made the indicators API fail with a server error.
+    """
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    if isinstance(value, dict):
+        return {key: json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [json_safe(item) for item in value]
+    return value
 
 
 class IndicatorService:
@@ -88,7 +104,7 @@ class IndicatorService:
                 logger.error(f"Indicator error [{indicator}]: {e}")
                 results[indicator] = None
 
-        return results
+        return json_safe(results)
 
     # ------------------------------------------------------------------
     # Individual indicator dispatch
