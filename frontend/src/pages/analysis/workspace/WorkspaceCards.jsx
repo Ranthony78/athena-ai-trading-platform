@@ -1,6 +1,4 @@
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { marketAPI } from "../../../api/market";
 import { Minus, TrendingDown, TrendingUp } from "lucide-react";
 import { Badge, Card } from "../../../components/common";
 import { isNumber, lakh, num, percent, signed, toLines, toNumber, whole } from "./format";
@@ -833,22 +831,13 @@ function breakevenText(name, row) {
     return isNumber(row.breakeven_points) ? signed(row.breakeven_points, 0) : "NA";
 }
 
-export function ProfitProbabilityCard({ symbol, horizon, mode }) {
-    const { data, isLoading, error } = useQuery({
-        queryKey: ["profit-probability", symbol, horizon, mode],
-        queryFn: () => marketAPI.getProfitProbability(symbol, { horizon, mode }),
-        select: (res) => res.data.data,
-        retry: false,
-        staleTime: 60000,
-    });
-    const reason = error?.response?.data?.message;
-
+export function ProfitProbabilityCard({ horizon, probability: data, loading, reason }) {
     return (
         <Card
             title="Profit probability by structure"
             subtitle={`Share of past sessions in which an ATM option bought now and held ${horizon} minutes would have made money after costs`}
         >
-            {isLoading ? (
+            {loading ? (
                 <Na>Calculating from stored sessions…</Na>
             ) : !data ? (
                 <Na>Unavailable: {reason || "the option data could not be loaded."}</Na>
@@ -915,6 +904,79 @@ export function ProfitProbabilityCard({ symbol, horizon, mode }) {
                             <li key={line}>{line}</li>
                         ))}
                     </ul>
+                </>
+            )}
+        </Card>
+    );
+}
+
+// ------------------------------------------------------------ Filter engine
+
+const FILTER_STATUS = {
+    pass: { label: "Pass", variant: "green" },
+    fail: { label: "Fail", variant: "red" },
+    not_evaluable: { label: "Not evaluable", variant: "yellow" },
+    not_applicable: { label: "N/A", variant: "gray" },
+};
+
+export function FilterEngineCard({ engine, loading, reason }) {
+    const result = engine?.engine;
+
+    return (
+        <Card
+            title="Filter engine"
+            subtitle="Six strict filters · at least four must pass · unknown or not applicable never counts as a pass"
+        >
+            {loading ? (
+                <Na>Evaluating the filters…</Na>
+            ) : !result ? (
+                <Na>Unavailable: {reason || "the option data could not be loaded."}</Na>
+            ) : (
+                <>
+                    <div
+                        className={`mb-3 rounded-lg border px-3 py-2 text-sm ${
+                            result.verdict === "NO_TRADE"
+                                ? "border-dark-700 bg-dark-800/60 text-dark-200"
+                                : "border-green-500/30 bg-green-500/5 text-green-200"
+                        }`}
+                    >
+                        <strong>{result.passed} / 6 passed</strong>
+                        {" · "}
+                        {result.verdict_text}
+                    </div>
+                    <ul className="space-y-2">
+                        {result.filters.map((filter) => {
+                            const status = FILTER_STATUS[filter.status] || FILTER_STATUS.fail;
+                            return (
+                                <li
+                                    key={filter.key}
+                                    className="flex flex-wrap items-start justify-between gap-2 rounded-lg bg-dark-800/60 px-3 py-2"
+                                    title={filter.rule}
+                                >
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-sm text-dark-100">
+                                            <span className="font-mono text-dark-400">
+                                                {filter.key} ·{" "}
+                                            </span>
+                                            {filter.name}
+                                            {filter.threshold_source === "proposed" && (
+                                                <span className="ml-2 text-[11px] uppercase tracking-wide text-amber-300">
+                                                    Athena threshold
+                                                </span>
+                                            )}
+                                        </p>
+                                        <p className="mt-0.5 text-xs text-dark-400">
+                                            {filter.detail}
+                                        </p>
+                                    </div>
+                                    <Badge variant={status.variant}>{status.label}</Badge>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                    <p className="mt-2 text-xs text-dark-500">
+                        {result.note} Analysis only; this never places or prepares an order.
+                    </p>
                 </>
             )}
         </Card>

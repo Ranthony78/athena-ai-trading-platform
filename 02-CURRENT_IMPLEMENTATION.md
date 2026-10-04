@@ -222,6 +222,26 @@ replaces the judgment-based Call/Put/Straddle percentages and the Monte Carlo ed
 prompt. It is a historical frequency under stated assumptions, not a forecast. Uses stored 15-minute candles, so
 Bank Nifty needs its candle backfill first.
 
+### Filter engine
+
+`GET /api/market/options-engine/<symbol>/?horizon=15|30|60&mode=LIVE|NEXT_SESSION` returns the six filters,
+the verdict and the profit probabilities from one set of live inputs; the workspaces show it as the Filter
+engine card, and the AI prompt carries a one-line summary. At least 4 of 6 must pass; not evaluable and not
+applicable never count as passes. Thresholds are in `EngineParameters` (`filter_engine_service.py`).
+
+| Filter | Rule | Source |
+|---|---|---|
+| A | Value of the IV change over the window (IV velocity x straddle vega) must exceed 0.6 x theta over the same window, and IV must be rising | reference |
+| B | VIX one-session move >= 0.9 x the required move; passes if any structure qualifies (straddle uses its nearer side) | reference |
+| C | ATM call or put OI changes by >= 5% over the window (spike or unwind) | Athena proposal |
+| D | Realized / implied volatility >= 0.9 (10-session realized) | Athena proposal |
+| E | Every evaluable ATM leg's spread narrowed >= 10% | Athena proposal |
+| F | Entry before 14:00 IST while the market is open; N/A when closed or next-session | reference |
+
+Verdict is NO_TRADE below 4 passes, otherwise CONDITIONS_MET with the historically strongest structure named only
+if profit probability gives a 5-point lead. It is analysis only: no order, basket or sizing is produced. Replaying
+the reference run (falling IV, closed market) gives 3 of 6, matching the reference.
+
 ### Not built yet
 - Black-76 IV with a put-call-parity forward, IV velocity, OI change, volume spikes, spread tightening, the six
   filters and the 4-of-6 decision (waiting on the source prompts).

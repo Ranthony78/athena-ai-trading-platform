@@ -8,6 +8,7 @@ import { analysisAPI } from "../../../api/analysis";
 import { marketAPI } from "../../../api/market";
 import {
     ExpectationCard,
+    FilterEngineCard,
     GapAnalysisCard,
     LevelsCard,
     CoreCalculationsCard,
@@ -64,6 +65,15 @@ export default function MarketWorkspace({ symbol, title }) {
         queryFn: () => marketAPI.getAnalysisReport(symbol),
         select: (res) => res.data.data,
     });
+
+    const engine = useQuery({
+        queryKey: ["options-engine", symbol, horizon, mode],
+        queryFn: () => marketAPI.getOptionsEngine(symbol, { horizon, mode }),
+        select: (res) => res.data.data,
+        retry: false,
+        staleTime: 60000,
+    });
+    const engineReason = engine.error?.response?.data?.message;
 
     const analysis = useMutation({
         mutationFn: () =>
@@ -175,7 +185,17 @@ export default function MarketWorkspace({ symbol, title }) {
                     </div>
                     <TimeBlocksCard report={report} />
                     <CoreCalculationsCard report={report} />
-                    <ProfitProbabilityCard symbol={symbol} horizon={horizon} mode={mode} />
+                    <FilterEngineCard
+                        engine={engine.data}
+                        loading={engine.isLoading}
+                        reason={engineReason}
+                    />
+                    <ProfitProbabilityCard
+                        horizon={horizon}
+                        probability={engine.data?.profit_probability}
+                        loading={engine.isLoading}
+                        reason={engineReason}
+                    />
                     <div className="grid gap-6 xl:grid-cols-2">
                         <OptionsSetupCard report={report} />
                         <OiProfileCard report={report} />

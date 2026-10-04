@@ -48,4 +48,6 @@ export const marketAPI = {
 
     getProfitProbability: (symbol, params) =>
         api.get(`/market/profit-probability/${symbol}/`, { params }),
+
+    getOptionsEngine: (symbol, params) => api.get(`/market/options-engine/${symbol}/`, { params }),
 };

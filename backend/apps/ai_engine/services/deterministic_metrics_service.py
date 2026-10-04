@@ -64,6 +64,21 @@ class DeterministicMetricsService:
             options,
             cls._number(vix.get("ltp")),
         )
+        snapshot_signals = safe(
+            "snapshot signals", SnapshotSignalsService.compute, symbol
+        )
+        probability = (
+            safe(
+                "profit probability",
+                ProfitProbabilityService.from_core,
+                symbol,
+                core,
+                horizon_minutes,
+                analysis_mode,
+            )
+            if core and horizon_minutes
+            else None
+        )
         return {
             "daily_levels": safe("daily levels", DailyLevelsService.levels, symbol),
             "gap_retrace": safe(
@@ -88,26 +103,42 @@ class DeterministicMetricsService:
             "futures": safe("futures", FuturesService.snapshot, symbol, user),
             "oi_walls": (options or {}).get("oi_walls"),
             "core_calculations": core,
-            "profit_probability": (
+            "profit_probability": probability,
+            "filter_engine": (
                 safe(
-                    "profit probability",
-                    ProfitProbabilityService.from_core,
-                    symbol,
+                    "filter engine",
+                    cls._filters,
                     core,
-                    horizon_minutes,
+                    snapshot_signals,
                     analysis_mode,
+                    probability,
                 )
-                if core and horizon_minutes
+                if core
                 else None
             ),
             "gap_history": safe(
                 "gap history", AnalysisReportService._get_gap_analysis, symbol, user
             ),
             "time_blocks": safe("time blocks", TimeBlockService.build, symbol),
-            "snapshot_signals": safe(
-                "snapshot signals", SnapshotSignalsService.compute, symbol
-            ),
+            "snapshot_signals": snapshot_signals,
         }
+
+    @staticmethod
+    def _filters(core, signals, analysis_mode, probability):
+        from django.utils import timezone
+
+        from apps.market_data.engine.market_state import MarketState
+        from apps.market_data.services.filter_engine_service import evaluate
+
+        market_open = bool(MarketState.session_info().get("is_live"))
+        return evaluate(
+            core,
+            signals,
+            timezone.now(),
+            market_open,
+            analysis_mode,
+            profit_probability=probability,
+        )
 
     @staticmethod
     def _number(value) -> Optional[float]:
@@ -141,6 +172,11 @@ class DeterministicMetricsService:
         oi_pe = (signals.get("oi_change") or {}).get("PE") or {}
         spike_ce = (signals.get("volume_spike") or {}).get("CE") or {}
         spike_pe = (signals.get("volume_spike") or {}).get("PE") or {}
+        engine = metrics.get("filter_engine") or {}
+        engine_text = "".join(
+            f"; {f['key']} {f['status'].replace('_', ' ')}"
+            for f in engine.get("filters", [])
+        )
         profit = metrics.get("profit_probability") or {}
         structures = profit.get("structures") or {}
 
@@ -187,6 +223,9 @@ class DeterministicMetricsService:
                 f"held {val(profit.get('horizon_minutes'))} min would have been profitable after "
                 f"costs (IV held, {val(profit.get('sessions'))} sessions): call {freq('call')}%, "
                 f"put {freq('put')}%, straddle {freq('straddle')}%",
+                f"- Filter engine (analysis only, {val(engine.get('required'))} of 6 needed; unknown or "
+                f"not-applicable filters do not count): {val(engine.get('passed'))} of 6 passed"
+                f"{engine_text}. Verdict: {val(engine.get('verdict_text'))}",
                 f"- Time blocks (descriptive history): {val(block_text)}",
             ]
         )

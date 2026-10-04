@@ -225,3 +225,55 @@ class ProfitProbabilityLineTests(SimpleTestCase):
             )
             self.assertEqual(with_horizon["profit_probability"], {"structures": {}})
             self.assertEqual(called.call_args.args[2:], (30, "LIVE"))
+
+
+class FilterEngineLineTests(SimpleTestCase):
+
+    ENGINE = {
+        "filter_engine": {
+            "passed": 3,
+            "required": 4,
+            "verdict_text": "No trade: 3 of 6 filters passed; 4 are required.",
+            "filters": [
+                {"key": "A", "status": "fail"},
+                {"key": "B", "status": "pass"},
+                {"key": "E", "status": "not_evaluable"},
+                {"key": "F", "status": "not_applicable"},
+            ],
+        }
+    }
+
+    def test_prompt_line_lists_each_filter_and_the_verdict(self):
+        text = DeterministicMetricsService.as_prompt_text(self.ENGINE)
+        for expected in (
+            "3 of 6 passed",
+            "A fail",
+            "B pass",
+            "E not evaluable",
+            "F not applicable",
+            "No trade: 3 of 6 filters passed",
+        ):
+            self.assertIn(expected, text)
+
+    def test_missing_engine_prints_na(self):
+        text = DeterministicMetricsService.as_prompt_text({})
+        self.assertIn("NA of 6 passed", text)
+        self.assertNotIn("None", text)
+
+    def test_engine_runs_only_with_core_figures(self):
+        from unittest.mock import patch
+
+        evaluate = "apps.market_data.services.filter_engine_service.evaluate"
+        session = "apps.market_data.engine.market_state.MarketState.session_info"
+        with quiet(), patch(evaluate, return_value={"passed": 0}) as called:
+            self.assertIsNone(build()["filter_engine"])
+            called.assert_not_called()
+
+        with (
+            quiet(**{CORE: {"forward": 1.0}}),
+            patch(evaluate, return_value={"passed": 2}) as called,
+            patch(session, return_value={"is_live": False}),
+        ):
+            result = build(options={"core_rows": [1]}, analysis_mode="NEXT_SESSION")
+            self.assertEqual(result["filter_engine"], {"passed": 2})
+            self.assertEqual(called.call_args.args[3:5], (False, "NEXT_SESSION"))
