@@ -127,6 +127,47 @@ stage" this file previously described.
 
 ---
 
+## Analysis Data Layer (Nifty / Bank Nifty)
+
+Computed by code and handed to the AI as read-only context. The model
+narrates these; it does not produce them. Every metric is `None` ("NA" in
+the prompt) when its data is missing; nothing is estimated.
+
+| Metric | Source | Where | Shows NA when |
+|---|---|---|---|
+| Pivots / CPR | Previous completed **daily** candle (IST) | `DailyLevelsService` | No prior daily candle stored |
+| Gap retrace % | Previous close, open, live price | `SessionMetrics.gap_retrace` | Any input missing; gap under 0.10% is "FLAT" |
+| VIX change % / intraday high | VIX quote (`close`, `ltp`, `high`) | `SessionMetrics.pct_change` | VIX quote unavailable |
+| Up/down-bar volume | Last 20 primary-timeframe candles | `SessionMetrics.volume_confirmation` | Under 5 bars or no volume (index candles carry none) |
+| Futures VWAP / volume / OI | Front-month FUT live quote | `FuturesService.snapshot` | Mock provider, no user, or unusable quote |
+| Option OI walls | Highest CE OI above / PE OI below spot | `StrikeSelectionService.oi_walls` | No option chain or no OI |
+| Premium-matched put | Closest PE premium to a call, within 15% | `StrikeSelectionService.premium_matched_put` | No close match (not yet used by the pipeline) |
+| EMA50 per timeframe | Report multi-timeframe block | `AnalysisReportService` | Under 50 candles |
+| Breadth | Constituent quotes: Nifty 50 or Bank Nifty (12) | `MarketBreadthService.get_breadth(user, index)` | Under 80% of constituents quoted = low confidence |
+
+- The pivot fix: pivots used to come from the previous 15-minute candle; they now use the previous day.
+  The per-row `PIVOT` / `CPR` indicator series are unchanged and remain previous-candle values.
+- The Bank Nifty constituent list is a snapshot and must be checked against NSE's published list.
+- The metrics are returned as `deterministic_metrics` in the analysis result.
+- Not changed: the `volatility_setup_service` all-must-pass gate, the validator's probability overwrites,
+  and NEXT_SESSION being forced to NO_SETUP.
+
+### Option snapshots
+
+`OptionSnapshot` (`market_option_snapshots`) stores raw price, bid/ask, volume and OI for ATM +/- 10 strikes of
+the nearest expiry for NIFTY and BANKNIFTY. `snapshot_option_chain` runs every 5 minutes in market hours and
+needs Celery beat plus a valid Zerodha token for the day; `purge_option_snapshots` removes rows older than 20 days.
+History only exists from the day this is deployed.
+
+### Not built yet
+- Black-76 IV with a put-call-parity forward, IV velocity, OI change, volume spikes, spread tightening, the six
+  filters and the 4-of-6 decision (waiting on the source prompts).
+- UI cards for these metrics and an options-engine page.
+- Futures in the intraday candle sync; the Kite historical `oi` flag is untested on a live account.
+- Never to be built: order or basket templates, Monte Carlo "edge" scores, uncalibrated judgment probabilities.
+
+---
+
 ## Operational Concerns for Current Work
 
 ### Development Safety
