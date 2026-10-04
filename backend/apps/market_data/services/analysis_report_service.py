@@ -37,6 +37,7 @@ class AnalysisReportService:
             "support_resistance": cls._safe(cls._get_support_resistance, symbol),
             "multi_timeframe": cls._safe(cls._get_multi_timeframe, symbol) or {},
             "options": cls._safe(cls._get_options, symbol, user),
+            "key_metrics": cls._safe(cls._get_key_metrics, symbol, user),
             "last_analysis": cls._safe(cls._get_last_analysis, symbol),
         }
 
@@ -70,6 +71,53 @@ class AnalysisReportService:
         from .market_service import MarketService
 
         return MarketService(user=user).quote(symbol)
+
+    @staticmethod
+    def _get_key_metrics(symbol: str, user) -> dict:
+        """
+        Facts for the workspace price strip: front-month futures VWAP,
+        volume and OI, India VIX with its change, the opening-gap retrace
+        and index breadth. Each part is None when it cannot be verified.
+        """
+        from .futures_service import FuturesService
+        from .market_breadth_service import MarketBreadthService
+        from .market_service import MarketService
+        from .session_metrics_service import SessionMetrics
+
+        def part(fn, *args):
+            try:
+                return fn(*args)
+            except Exception as e:
+                logger.error(
+                    f"AnalysisReportService key metric [{getattr(fn, "__name__", "part")}]: {e}"
+                )
+                return None
+
+        def vix_part():
+            quote = MarketService(user=user).quote("VIX") if user else None
+            if not quote or not quote.get("ltp"):
+                return None
+            return {
+                "ltp": quote.get("ltp"),
+                "change_pct": SessionMetrics.pct_change(
+                    quote.get("close"), quote.get("ltp")
+                ),
+                "high": quote.get("high") or None,
+            }
+
+        def gap_part():
+            quote = MarketService(user=user).quote(symbol) if user else None
+            quote = quote or {}
+            return SessionMetrics.gap_retrace(
+                quote.get("close"), quote.get("open"), quote.get("ltp")
+            )
+
+        return {
+            "futures": part(FuturesService.snapshot, symbol, user),
+            "vix": part(vix_part),
+            "gap": part(gap_part),
+            "breadth": part(MarketBreadthService.get_breadth, user, symbol),
+        }
 
     @staticmethod
     def _get_support_resistance(symbol: str) -> dict:
