@@ -104,10 +104,11 @@ class AnalysisReportService:
                 data = IndicatorService.calculate(
                     symbol=symbol,
                     timeframe=tf,
-                    indicators=["EMA_20", "RSI_14"],
-                    limit=60,
+                    indicators=["EMA_20", "EMA_50", "RSI_14"],
+                    limit=120,
                 )
                 ema_vals = [v for v in (data.get("EMA_20") or []) if v is not None]
+                ema50_vals = [v for v in (data.get("EMA_50") or []) if v is not None]
                 rsi_vals = [v for v in (data.get("RSI_14") or []) if v is not None]
 
                 if not ema_vals or not rsi_vals or not instrument:
@@ -136,6 +137,11 @@ class AnalysisReportService:
                 results[tf] = {
                     "trend": trend,
                     "ema_20": latest_ema,
+                    # EMAs are seeded from the first candle, so with fewer than
+                    # 50 candles the value is not a real 50-period EMA.
+                    "ema_50": (
+                        round(ema50_vals[-1], 2) if len(ema50_vals) >= 50 else None
+                    ),
                     "rsi_14": round(rsi_vals[-1], 2),
                 }
             except Exception as e:

@@ -150,3 +150,61 @@ class StrikeSelectionService:
         except Exception as e:
             logger.error(f"StrikeSelectionService error [{symbol}, {direction}]: {e}")
             return None
+
+    # ------------------------------------------------------------------
+    # Pure helpers over option-chain rows (no I/O). Rows are the dicts
+    # returned by OptionChainService.get_chain().
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def premium_matched_put(
+        rows: list[dict], call_premium: float, max_gap_pct: float = 15.0
+    ) -> Optional[dict]:
+        """
+        The PE whose premium is closest to `call_premium`, for building a
+        premium-balanced pair against a call. None when no priced PE is
+        within `max_gap_pct` percent of the call premium: a poor match is
+        reported as absent rather than presented as balanced.
+        """
+        if not call_premium or call_premium <= 0:
+            return None
+        puts = [
+            row
+            for row in rows
+            if row.get("option_type") == "PE" and (row.get("ltp") or 0) > 0
+        ]
+        if not puts:
+            return None
+        best = min(puts, key=lambda row: abs(row["ltp"] - call_premium))
+        gap_pct = abs(best["ltp"] - call_premium) / call_premium * 100
+        if gap_pct > max_gap_pct:
+            return None
+        return {**best, "premium_gap_pct": round(gap_pct, 2)}
+
+    @staticmethod
+    def oi_walls(rows: list[dict], spot: float) -> dict:
+        """
+        Highest open interest on each side of spot: the call wall above
+        (resistance) and the put wall below (support). Either is None when
+        that side has no OI; an OI of zero is not a wall.
+        """
+        if not spot or spot <= 0:
+            return {"call_wall": None, "put_wall": None}
+
+        def strongest(option_type, on_side):
+            side = [
+                row
+                for row in rows
+                if row.get("option_type") == option_type
+                and (row.get("oi") or 0) > 0
+                and on_side(row.get("strike") or 0)
+            ]
+            if not side:
+                return None
+            top = max(side, key=lambda row: row["oi"])
+            return {"strike": top["strike"], "oi": top["oi"]}
+
+        return {
+            "call_wall": strongest("CE", lambda strike: strike >= spot),
+            "put_wall": strongest("PE", lambda strike: 0 < strike <= spot),
+        }
