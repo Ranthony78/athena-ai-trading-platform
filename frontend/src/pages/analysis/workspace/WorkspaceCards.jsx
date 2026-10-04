@@ -734,3 +734,76 @@ export function GapAnalysisCard({ report }) {
         </Card>
     );
 }
+
+// ------------------------------------------------------------ Time blocks
+
+const BIAS_VARIANT = { "Leans up": "green", "Leans down": "red" };
+
+export function TimeBlocksCard({ report }) {
+    const blocks = report?.time_blocks?.blocks || [];
+    const usable = blocks.some((block) => block.bias);
+    const thin = blocks.some((block) => block.bias && block.low_confidence);
+
+    return (
+        <Card
+            title="Time-block analysis"
+            subtitle="How each part of the day has behaved over the stored sessions"
+        >
+            {!usable ? (
+                <Na>
+                    Unavailable: fewer than 5 complete sessions of 15-minute candles are stored for
+                    this market.
+                </Na>
+            ) : (
+                <>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm">
+                            <thead className="text-xs uppercase tracking-wide text-dark-500">
+                                <tr>
+                                    <th className="py-2 pr-3 font-medium">Window</th>
+                                    <th className="py-2 pr-3 font-medium">Tendency</th>
+                                    <th className="py-2 pr-3 font-medium">Volatility</th>
+                                    <th className="py-2 pr-3 font-medium">Trend strength</th>
+                                    <th className="py-2 pr-3 font-medium">Avg range</th>
+                                    <th className="py-2 font-medium">Sessions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="text-dark-200">
+                                {blocks.map((block) => (
+                                    <tr key={block.window} className="border-t border-dark-800">
+                                        <td className="py-2 pr-3 font-mono">{block.window}</td>
+                                        <td className="py-2 pr-3">
+                                            {block.bias ? (
+                                                <Badge variant={BIAS_VARIANT[block.bias] || "gray"}>
+                                                    {block.bias}
+                                                </Badge>
+                                            ) : (
+                                                "NA"
+                                            )}
+                                        </td>
+                                        <td className="py-2 pr-3">{block.volatility || "NA"}</td>
+                                        <td className="py-2 pr-3">
+                                            {block.trend_strength || "NA"}
+                                        </td>
+                                        <td className="py-2 pr-3 font-mono">
+                                            {isNumber(block.avg_range_pct)
+                                                ? `${num(block.avg_range_pct)}%`
+                                                : "NA"}
+                                        </td>
+                                        <td className="py-2 font-mono">{block.sessions}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    <p className="mt-2 text-xs text-dark-500">
+                        {report.time_blocks.basis}
+                        {thin
+                            ? " Some windows rest on fewer than 10 sessions: low confidence."
+                            : ""}
+                    </p>
+                </>
+            )}
+        </Card>
+    );
+}

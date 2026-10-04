@@ -183,6 +183,16 @@ same gap category closed against their own open, reported as continued / reverse
 frequencies from stored daily candles (at least 10 matching sessions, otherwise no base rate), not judgment
 estimates. The base rate excludes today's date only.
 
+### Time-block analysis
+
+`time_blocks` in the report: four windows (09:15-10:30, 10:30-12:00, 12:00-13:30, 13:30-15:30) summarised over
+the last 20 stored sessions of 15-minute candles: average range, how often the window finished up, and how
+directional it was. Labels are descriptive: tendency (leans up / leans down / no consistent lean, needing 60% of
+sessions and the same sign of average move), volatility (relative to the other windows) and trend strength
+(thresholds are documented constants in `time_block_service.py`, not calibrated). A window needs 5 complete
+sessions to be labelled and 10 to avoid the low-confidence flag. Windows are skipped on days with under 80% of
+their candles. History depth depends on how many 15-minute candles have been backfilled.
+
 ### Not built yet
 - Black-76 IV with a put-call-parity forward, IV velocity, OI change, volume spikes, spread tightening, the six
   filters and the 4-of-6 decision (waiting on the source prompts).

@@ -41,6 +41,7 @@ class AnalysisReportService:
             "key_metrics": cls._safe(cls._get_key_metrics, symbol, user),
             "core_calculations": cls._safe(cls._get_core_calculations, symbol, user),
             "gap_analysis": cls._safe(cls._get_gap_analysis, symbol, user),
+            "time_blocks": cls._safe(cls._get_time_blocks, symbol),
             "last_analysis": cls._safe(cls._get_last_analysis, symbol),
         }
 
@@ -74,6 +75,12 @@ class AnalysisReportService:
         from .market_service import MarketService
 
         return MarketService(user=user).quote(symbol)
+
+    @staticmethod
+    def _get_time_blocks(symbol: str) -> Optional[dict]:
+        from .time_block_service import TimeBlockService
+
+        return TimeBlockService.build(symbol)
 
     @staticmethod
     def _get_gap_analysis(symbol: str, user) -> Optional[dict]:
