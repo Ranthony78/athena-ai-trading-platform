@@ -201,6 +201,14 @@ date it used (`through`) and a `stale` flag when that is over 7 days old. On the
 about 100 days of 15-minute candles (fine), but Bank Nifty stops at 7 August 2026 and needs a backfill
 (`backfill_candles`) before its pivots and time blocks are current.
 
+### What the AI prompt sees
+
+The "Computed Metrics" block in the analysis prompt (and `deterministic_metrics` in the result) now also carries
+the Black-76 figures, required moves, straddle Greeks, VIX one-session move, realized vol, historical gap
+outcomes, ATM OI change and volume spike from snapshots, and the time blocks. The core figures are computed from
+option rows the prompt already fetched (`core_rows`, ATM +/- 5 strikes), so no second chain request is made.
+Everything is read-only context; missing values print as NA.
+
 ### Not built yet
 - Black-76 IV with a put-call-parity forward, IV velocity, OI change, volume spikes, spread tightening, the six
   filters and the 4-of-6 decision (waiting on the source prompts).

@@ -27,9 +27,19 @@ class DeterministicMetricsService:
         candles: list[dict],
         options: Optional[dict] = None,
     ) -> dict:
+        from apps.market_data.services.analysis_report_service import (
+            AnalysisReportService,
+        )
+        from apps.market_data.services.core_calculations_service import (
+            CoreCalculationsService,
+        )
         from apps.market_data.services.daily_levels_service import DailyLevelsService
         from apps.market_data.services.futures_service import FuturesService
         from apps.market_data.services.session_metrics_service import SessionMetrics
+        from apps.market_data.services.snapshot_signals_service import (
+            SnapshotSignalsService,
+        )
+        from apps.market_data.services.time_block_service import TimeBlockService
 
         quote = quote or {}
         vix = vix or {}
@@ -65,7 +75,28 @@ class DeterministicMetricsService:
             ),
             "futures": safe("futures", FuturesService.snapshot, symbol, user),
             "oi_walls": (options or {}).get("oi_walls"),
+            "core_calculations": safe(
+                "core calculations",
+                CoreCalculationsService.from_context,
+                symbol,
+                options,
+                cls._number(vix.get("ltp")),
+            ),
+            "gap_history": safe(
+                "gap history", AnalysisReportService._get_gap_analysis, symbol, user
+            ),
+            "time_blocks": safe("time blocks", TimeBlockService.build, symbol),
+            "snapshot_signals": safe(
+                "snapshot signals", SnapshotSignalsService.compute, symbol
+            ),
         }
+
+    @staticmethod
+    def _number(value) -> Optional[float]:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
 
     @staticmethod
     def as_prompt_text(metrics: Optional[dict]) -> str:
@@ -82,6 +113,22 @@ class DeterministicMetricsService:
         call_wall = walls.get("call_wall") or {}
         put_wall = walls.get("put_wall") or {}
         based_on = (metrics.get("daily_levels") or {}).get("based_on") or {}
+        core = metrics.get("core_calculations") or {}
+        move = core.get("required_move") or {}
+        greeks = core.get("straddle_greeks") or {}
+        velocity = core.get("iv_velocity") or {}
+        history = (metrics.get("gap_history") or {}).get("historical") or {}
+        signals = metrics.get("snapshot_signals") or {}
+        oi_ce = (signals.get("oi_change") or {}).get("CE") or {}
+        oi_pe = (signals.get("oi_change") or {}).get("PE") or {}
+        spike_ce = (signals.get("volume_spike") or {}).get("CE") or {}
+        spike_pe = (signals.get("volume_spike") or {}).get("PE") or {}
+        blocks = (metrics.get("time_blocks") or {}).get("blocks") or []
+        block_text = "; ".join(
+            f"{b['window']}: {val(b.get('bias'))}, volatility {val(b.get('volatility'))}, "
+            f"trend {val(b.get('trend_strength'))} ({b.get('sessions')} sessions)"
+            for b in blocks
+        )
         return "\n".join(
             [
                 f"- Pivot/CPR based on session: {val(based_on.get('date'))}",
@@ -96,5 +143,22 @@ class DeterministicMetricsService:
                 f"- Option OI walls: call {val(call_wall.get('strike'))} "
                 f"(OI {val(call_wall.get('oi'))}), put {val(put_wall.get('strike'))} "
                 f"(OI {val(put_wall.get('oi'))})",
+                f"- Black-76 (parity forward {val(core.get('forward'))}): implied volatility "
+                f"{val(core.get('implied_vol'))}%, synthetic straddle {val(core.get('straddle'))}, "
+                f"IV velocity {val(velocity.get('change_per_window'))} pts per "
+                f"{val(velocity.get('window_minutes'))} min",
+                f"- Required move to recover premium: call {val(move.get('call'))}, "
+                f"put {val(move.get('put'))}, straddle +{val(move.get('straddle_up'))} / "
+                f"{val(move.get('straddle_down'))}; VIX-implied one-session move "
+                f"{val(core.get('vix_session_move'))} pts; realized vol {val(core.get('realized_vol'))}%",
+                f"- Straddle theta/day {val(greeks.get('theta_per_day'))}, gamma "
+                f"{val(greeks.get('gamma'))}, vega per vol point {val(greeks.get('vega_per_vol_point'))}",
+                f"- Past sessions with a similar gap closed: continued "
+                f"{val(history.get('continuation_pct'))}%, reversed {val(history.get('reversal_pct'))}%, "
+                f"flat {val(history.get('flat_pct'))}% ({val(history.get('sample_size'))} sessions)",
+                f"- ATM OI change over 15 min: call {val(oi_ce.get('change_pct'))}%, "
+                f"put {val(oi_pe.get('change_pct'))}%; latest-interval volume vs median: call "
+                f"{val(spike_ce.get('ratio'))}x, put {val(spike_pe.get('ratio'))}x",
+                f"- Time blocks (descriptive history): {val(block_text)}",
             ]
         )

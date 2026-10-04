@@ -134,3 +134,37 @@ class VixAndRealizedVolTests(SimpleTestCase):
     def test_too_few_or_bad_closes_are_none(self):
         self.assertIsNone(realized_vol([100.0] * 10))
         self.assertIsNone(realized_vol([100.0] * 10 + [0]))
+
+
+class FromContextTests(SimpleTestCase):
+    """Figures built from the option data the analysis prompt already fetched."""
+
+    def options(self, rows):
+        return {
+            "spot_price": SPOT,
+            "atm_strike": STRIKE,
+            "expiry": EXPIRY.isoformat(),
+            "core_rows": rows,
+        }
+
+    def run_from_context(self, options, vix=14.46):
+        from unittest.mock import patch
+
+        from .services.core_calculations_service import CoreCalculationsService
+
+        with (
+            patch.object(CoreCalculationsService, "_daily_closes", return_value=[]),
+            patch.object(CoreCalculationsService, "_iv_velocity", return_value=None),
+            patch("django.utils.timezone.now", return_value=NOW),
+        ):
+            return CoreCalculationsService.from_context("NIFTY", options, vix)
+
+    def test_computes_from_prompt_rows_without_another_chain_request(self):
+        result = self.run_from_context(self.options(chain(22453.0, 0.1227)))
+
+        self.assertAlmostEqual(result["implied_vol"], 12.27, delta=0.2)
+        self.assertAlmostEqual(result["vix_session_move"], 204.2, delta=0.1)
+
+    def test_missing_options_or_rows_is_none(self):
+        self.assertIsNone(self.run_from_context(None))
+        self.assertIsNone(self.run_from_context(self.options([])))

@@ -150,16 +150,59 @@ def compute(
 
 class CoreCalculationsService:
 
+    @staticmethod
+    def _daily_closes(symbol: str) -> list[float]:
+        from ..repositories.candle_repository import CandleRepository
+        from ..repositories.instrument_repository import InstrumentRepository
+
+        instrument = InstrumentRepository.get_by_symbol(symbol)
+        if not instrument:
+            return []
+        candles = CandleRepository.get_by_instrument_and_timeframe(
+            instrument, "1d", limit=REALIZED_VOL_SESSIONS + 5
+        )
+        return [float(c.close) for c in reversed(list(candles))]
+
+    @staticmethod
+    def _iv_velocity(symbol: str) -> Optional[dict]:
+        from .snapshot_signals_service import SnapshotSignalsService
+
+        try:
+            return SnapshotSignalsService.compute(symbol)["iv_velocity"]
+        except Exception as e:
+            logger.error(f"CoreCalculations IV velocity error: {e}")
+            return None
+
+    @classmethod
+    def from_context(
+        cls, symbol: str, options: Optional[dict], vix: Optional[float]
+    ) -> Optional[dict]:
+        """
+        Same figures as build(), from option data already fetched for the
+        analysis prompt (its `core_rows`), so no second chain request is made.
+        """
+        from django.utils import timezone
+
+        if not options or not options.get("core_rows") or not options.get("expiry"):
+            return None
+        return compute(
+            spot=options.get("spot_price"),
+            atm_strike=options.get("atm_strike"),
+            expiry=date.fromisoformat(str(options["expiry"])),
+            now=timezone.now(),
+            rows=options["core_rows"],
+            vix=vix,
+            daily_closes=cls._daily_closes(symbol),
+            iv_velocity=cls._iv_velocity(symbol),
+        )
+
     @classmethod
     def build(cls, symbol: str, user) -> Optional[dict]:
         """Inputs from the live chain, VIX quote, daily candles and snapshots."""
         from django.utils import timezone
 
-        from ..repositories.candle_repository import CandleRepository
-        from ..repositories.instrument_repository import InstrumentRepository
         from .market_service import MarketService
         from .option_chain_service import OptionChainService
-        from .snapshot_signals_service import SnapshotSignalsService
 
         if not user:
             return None
@@ -176,20 +219,6 @@ class CoreCalculationsService:
         except (TypeError, ValueError):
             vix = None
 
-        closes = []
-        instrument = InstrumentRepository.get_by_symbol(symbol)
-        if instrument:
-            candles = CandleRepository.get_by_instrument_and_timeframe(
-                instrument, "1d", limit=REALIZED_VOL_SESSIONS + 5
-            )
-            closes = [float(c.close) for c in reversed(list(candles))]
-
-        try:
-            velocity = SnapshotSignalsService.compute(symbol)["iv_velocity"]
-        except Exception as e:
-            logger.error(f"CoreCalculations IV velocity error: {e}")
-            velocity = None
-
         return compute(
             spot=summary.get("spot_price"),
             atm_strike=strike,
@@ -197,6 +226,6 @@ class CoreCalculationsService:
             now=timezone.now(),
             rows=rows,
             vix=vix,
-            daily_closes=closes,
-            iv_velocity=velocity,
+            daily_closes=cls._daily_closes(symbol),
+            iv_velocity=cls._iv_velocity(symbol),
         )

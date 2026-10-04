@@ -6,6 +6,12 @@ from .services.deterministic_metrics_service import DeterministicMetricsService
 
 DAILY = "apps.market_data.services.daily_levels_service.DailyLevelsService.levels"
 FUT = "apps.market_data.services.futures_service.FuturesService.snapshot"
+GAP = "apps.market_data.services.analysis_report_service.AnalysisReportService._get_gap_analysis"
+BLOCKS = "apps.market_data.services.time_block_service.TimeBlockService.build"
+SIGNALS = (
+    "apps.market_data.services.snapshot_signals_service.SnapshotSignalsService.compute"
+)
+CORE = "apps.market_data.services.core_calculations_service.CoreCalculationsService.from_context"
 
 
 def build(**kwargs):
@@ -15,10 +21,29 @@ def build(**kwargs):
     return DeterministicMetricsService.build(**{**defaults, **kwargs})
 
 
+def quiet(**overrides):
+    """Patch every data source the builder reads; override the ones under test."""
+    from contextlib import ExitStack
+
+    values = {
+        DAILY: None,
+        FUT: None,
+        GAP: None,
+        BLOCKS: None,
+        SIGNALS: None,
+        CORE: None,
+    }
+    values.update(overrides)
+    stack = ExitStack()
+    for target, value in values.items():
+        stack.enter_context(patch(target, return_value=value))
+    return stack
+
+
 class BuildTests(SimpleTestCase):
 
     def test_everything_missing_is_none_not_an_error(self):
-        with patch(DAILY, return_value=None), patch(FUT, return_value=None):
+        with quiet():
             metrics = build()
         self.assertTrue(
             all(
@@ -37,7 +62,7 @@ class BuildTests(SimpleTestCase):
     def test_values_are_computed(self):
         quote = {"ltp": 101, "open": 102, "close": 100}
         vix = {"ltp": 12.0, "close": 10.0, "high": 12.5}
-        with patch(DAILY, return_value=None), patch(FUT, return_value=None):
+        with quiet():
             metrics = build(
                 quote=quote, vix=vix, options={"oi_walls": {"call_wall": 1}}
             )
@@ -47,13 +72,23 @@ class BuildTests(SimpleTestCase):
         self.assertEqual(metrics["oi_walls"], {"call_wall": 1})
 
     def test_one_failing_section_does_not_break_the_rest(self):
-        with (
-            patch(DAILY, side_effect=RuntimeError("boom")),
-            patch(FUT, return_value={"ltp": 5}),
-        ):
+        with quiet(**{FUT: {"ltp": 5}}), patch(DAILY, side_effect=RuntimeError("boom")):
             metrics = build()
         self.assertIsNone(metrics["daily_levels"])
         self.assertEqual(metrics["futures"], {"ltp": 5})
+
+    def test_new_sections_are_gathered_and_isolated(self):
+        core = {"forward": 22453.0, "implied_vol": 12.27}
+        with (
+            quiet(**{CORE: core, BLOCKS: {"blocks": []}}),
+            patch(SIGNALS, side_effect=RuntimeError("no history")),
+        ):
+            metrics = build(options={"core_rows": [1]}, vix={"ltp": 14.5})
+
+        self.assertEqual(metrics["core_calculations"], core)
+        self.assertEqual(metrics["time_blocks"], {"blocks": []})
+        self.assertIsNone(metrics["snapshot_signals"])
+        self.assertIsNone(metrics["gap_history"])
 
 
 class PromptTextTests(SimpleTestCase):
@@ -70,3 +105,71 @@ class PromptTextTests(SimpleTestCase):
         )
         self.assertIn("NIFTYFUT", text)
         self.assertIn("VWAP 24050.0", text)
+
+
+class NewPromptLinesTests(SimpleTestCase):
+
+    METRICS = {
+        "core_calculations": {
+            "forward": 22453.0,
+            "implied_vol": 12.27,
+            "straddle": 260.55,
+            "required_move": {
+                "call": 135.0,
+                "put": -125.6,
+                "straddle_up": 238.6,
+                "straddle_down": -282.5,
+            },
+            "straddle_greeks": {
+                "theta_per_day": -25.35,
+                "gamma": 0.00244,
+                "vega_per_vol_point": 20.7,
+            },
+            "iv_velocity": {"change_per_window": -1.62, "window_minutes": 15},
+            "vix_session_move": 204.2,
+            "realized_vol": 14.05,
+        },
+        "gap_history": {
+            "historical": {
+                "continuation_pct": 55.0,
+                "reversal_pct": 37.0,
+                "flat_pct": 8.0,
+                "sample_size": 40,
+            }
+        },
+        "snapshot_signals": {
+            "oi_change": {"CE": {"change_pct": -47.0}, "PE": {"change_pct": -39.0}},
+            "volume_spike": {"CE": {"ratio": 3.0}, "PE": None},
+        },
+        "time_blocks": {
+            "blocks": [
+                {
+                    "window": "09:15 – 10:30",
+                    "bias": "Leans down",
+                    "volatility": "High",
+                    "trend_strength": "Moderate",
+                    "sessions": 14,
+                }
+            ]
+        },
+    }
+
+    def test_values_appear_in_the_prompt_text(self):
+        text = DeterministicMetricsService.as_prompt_text(self.METRICS)
+        for expected in (
+            "parity forward 22453.0",
+            "implied volatility 12.27%",
+            "call 135.0, put -125.6",
+            "continued 55.0%",
+            "call -47.0%",
+            "call 3.0x, put NA",
+            "09:15 – 10:30: Leans down",
+            "Straddle theta/day -25.35",
+        ):
+            self.assertIn(expected, text)
+
+    def test_missing_sections_print_na_not_none(self):
+        text = DeterministicMetricsService.as_prompt_text({})
+        self.assertIn("implied volatility NA%", text)
+        self.assertIn("Time blocks (descriptive history): NA", text)
+        self.assertNotIn("None", text)

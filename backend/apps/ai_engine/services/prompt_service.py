@@ -698,10 +698,30 @@ Rules:
                 "oi_walls": StrikeSelectionService.oi_walls(
                     chain, summary.get("spot_price")
                 ),
+                # Prices around the money, enough for the parity forward and
+                # Black-76 figures without storing the whole chain.
+                "core_rows": PromptService._rows_near_atm(chain, summary["atm_strike"]),
             }
         except Exception as e:
             logger.error(f"PromptService option analysis error [{symbol}]: {e}")
             return None
+
+    @staticmethod
+    def _rows_near_atm(chain: list, atm_strike: float, each_side: int = 5) -> list:
+        strikes = sorted({r["strike"] for r in chain if r.get("strike")})
+        if atm_strike not in strikes:
+            return []
+        index = strikes.index(atm_strike)
+        wanted = set(strikes[max(0, index - each_side) : index + each_side + 1])
+        return [
+            {
+                "strike": r["strike"],
+                "option_type": r.get("option_type"),
+                "ltp": r.get("ltp"),
+            }
+            for r in chain
+            if r.get("strike") in wanted
+        ]
 
     @staticmethod
     def _safe_iv_vs_hv(symbol: str, options: Optional[dict]) -> Optional[dict]:
