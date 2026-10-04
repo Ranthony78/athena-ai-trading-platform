@@ -83,6 +83,27 @@ order.
   blocks when disabled, gate allows when enabled, and the existing
   401-on-expired-token behavior is unaffected by the gate.
 
+### Update: in-app arming (replaces "only the environment can turn it on")
+
+The environment is no longer the only way to allow real orders, because other users need to do it without editing
+`.env`. `ZerodhaOrderListAPIView.post()` now calls `LiveTradingService.can_place(user)` and refuses with 403
+unless **all** of these hold (market hours and the per-order `confirm_live_order` are still checked after):
+
+1. **Not locked.** `LIVE_TRADING_LOCKED=True` in the server environment forces everything off, whatever the
+   database says. This is the emergency stop and can only be set on the server.
+2. **Master switch on.** An administrator (`is_staff`) turns "Allow live orders on this installation" on in
+   Settings (stored in `LiveTradingControl`, off by default), or the older `LIVE_TRADING_ENABLED=True` flag is set.
+   Turning it off cancels every user's arming at once and an old arming does not revive when it is turned back on.
+3. **The user is armed.** In Settings the user reads the risk notice, ticks a box and types
+   `I UNDERSTAND THE RISKS`. Arming needs a valid Zerodha session, is refused after 15:30 IST, and **lapses at
+   15:30 IST the same day**, so it must be redone every day.
+
+The Live orders panel in Settings is hidden until the user has a working Zerodha connection. Arm, disarm and master
+changes are recorded in `LiveTradingAuditEvent`. The dashboard's "Real-order permission" tile and the order forms
+read `live_orders_enabled`, which now means "this user may send real orders right now". The notice text
+(`DISCLAIMER_LINES` in `live_trading_service.py`) is a draft and should be reviewed by someone qualified before
+other people use it. Tests: `apps/zerodha/test_live_trading.py` (the safety rules were mutation-checked).
+
 **Related operational note:** during this work, a real Anthropic API key
 and Groq API key were found hardcoded in an early git commit
 (`backend/config/settings/base.py`), caught by GitHub's push protection

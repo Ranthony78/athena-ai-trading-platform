@@ -375,7 +375,7 @@ export default function ZerodhaConnect() {
 
             <Alert
                 type={status?.live_orders_enabled ? "warning" : "info"}
-                message={`Server live-order permission is currently ${liveOrderPermission}. Connecting your Kite account does not change this setting.`}
+                message={`Live-order permission is currently ${liveOrderPermission === "enabled" ? "armed for today" : liveOrderPermission === "disabled" ? "off" : "unknown"}. Connecting your Kite account does not change it; arm or disarm it in Settings.`}
             />
 
             {isActive && (

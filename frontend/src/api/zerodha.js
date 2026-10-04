@@ -26,4 +26,12 @@ export const zerodhaAPI = {
     getPositions: () => api.get("/zerodha/positions/"),
 
     getHoldings: () => api.get("/zerodha/holdings/"),
+
+    getLiveTrading: () => api.get("/zerodha/live-trading/"),
+
+    armLiveTrading: (phrase) => api.post("/zerodha/live-trading/arm/", { phrase }),
+
+    disarmLiveTrading: () => api.post("/zerodha/live-trading/disarm/"),
+
+    setLiveTradingMaster: (enabled) => api.post("/zerodha/live-trading/master/", { enabled }),
 };

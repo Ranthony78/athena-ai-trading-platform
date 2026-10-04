@@ -113,13 +113,21 @@ class MarketDataRegressionTests(SimpleTestCase):
 
         self.assertFalse(development.LIVE_TRADING_ENABLED)
 
-    @override_settings(LIVE_TRADING_ENABLED=False)
     def test_disabled_order_endpoint_never_calls_broker(self):
+        # The permission rules themselves are tested in
+        # apps.zerodha.test_live_trading; here a denial must stop the request
+        # before any broker object is created.
         from apps.zerodha.api.views import ZerodhaOrderListAPIView
 
         request = APIRequestFactory().post("/api/zerodha/orders/", {}, format="json")
         force_authenticate(request, user=SimpleNamespace(is_authenticated=True))
-        with patch("apps.zerodha.api.views.KiteService") as broker:
+        with (
+            patch(
+                "apps.zerodha.api.views.LiveTradingService.can_place",
+                return_value=(False, "blocked"),
+            ),
+            patch("apps.zerodha.api.views.KiteService") as broker,
+        ):
             response = ZerodhaOrderListAPIView.as_view()(request)
             self.assertEqual(response.status_code, 403)
             broker.assert_not_called()

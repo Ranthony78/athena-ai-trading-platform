@@ -1,5 +1,6 @@
 import { PageWrapper } from "../../components/layout";
 import { Card } from "../../components/common";
+import LiveTradingPanel from "./components/LiveTradingPanel";
 import { User, Bell, Link2, Cpu } from "lucide-react";
 
 const settingsLinks = [
@@ -60,6 +61,7 @@ export default function Settings() {
                     </a>
                 ))}
             </div>
+            <LiveTradingPanel />
         </PageWrapper>
     );
 }

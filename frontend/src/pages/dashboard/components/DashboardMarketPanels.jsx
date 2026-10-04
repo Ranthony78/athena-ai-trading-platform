@@ -165,7 +165,7 @@ function LiveOrderReview({
                 {!brokerStatus?.live_orders_enabled && (
                     <Alert
                         type="info"
-                        message="Live orders are disabled by the server. This order cannot be submitted."
+                        message={`${brokerStatus?.live_trading?.blocked_reason || "Live orders are not armed."} This order cannot be submitted.`}
                     />
                 )}
                 {(!brokerStatus?.is_connected || !brokerStatus?.is_token_valid) && (
@@ -528,8 +528,8 @@ export default function DashboardMarketPanels({
                 </div>
                 {!brokerStatus?.live_orders_enabled && (
                     <p className="mt-2 text-xs text-dark-500">
-                        Live order submission is disabled by the server. The button stays
-                        unavailable until the server permits it.
+                        Live order submission is not armed. The button stays unavailable until live
+                        orders are armed in Settings.
                     </p>
                 )}
                 {brokerStatus?.live_orders_enabled && !marketIsLive && (
