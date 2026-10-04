@@ -13,6 +13,7 @@ from apps.market_data.services.historical_distribution_service import (
     HistoricalDistributionService,
 )
 
+from .deterministic_metrics_service import DeterministicMetricsService
 from .rule_evidence_service import RuleEvidenceService
 
 logger = logging.getLogger(__name__)
@@ -240,7 +241,7 @@ Rules:
             PromptService._safe_conditional_probability(symbol, context["gap"])
         )
         context["vix"] = PromptService._safe_get_vix(user)
-        context["breadth"] = PromptService._safe_get_breadth(user)
+        context["breadth"] = PromptService._safe_get_breadth(user, symbol)
         context["news_sentiment"] = PromptService._safe_get_news_sentiment()
         from .learning_service import LearningService
         from .market_drivers_service import MarketDriversService
@@ -299,6 +300,26 @@ Rules:
         context["multi_timeframe"] = PromptService._safe_multi_timeframe(symbol)
 
         context["options"] = PromptService._safe_option_analysis(symbol, user)
+        context["deterministic_metrics"] = DeterministicMetricsService.build(
+            symbol=symbol,
+            user=user,
+            quote=context.get("quote"),
+            vix=context.get("vix"),
+            candles=[
+                {k: float(c[k]) for k in ("open", "close", "volume")}
+                for c in candle_list
+            ],
+            options=context["options"],
+        )
+        # Pivot/CPR on the primary timeframe are previous-candle values;
+        # replace them with the previous daily session's levels so the
+        # prompt and the validator's support/resistance agree.
+        daily = (context["deterministic_metrics"] or {}).get("daily_levels")
+        indicators = context.setdefault("indicators", {})
+        for key, source in (("PIVOT", "pivot"), ("CPR", "cpr")):
+            indicators[key] = (
+                {k: round(v, 2) for k, v in daily[source].items()} if daily else {}
+            )
         context["iv_vs_hv"] = PromptService._safe_iv_vs_hv(symbol, context["options"])
         context["rule_evidence"] = RuleEvidenceService.build(
             symbol=symbol,
@@ -356,7 +377,7 @@ Rules:
             return None
 
     @staticmethod
-    def _safe_get_breadth(user) -> Optional[dict]:
+    def _safe_get_breadth(user, symbol: str = "NIFTY") -> Optional[dict]:
         """
         Real Nifty 50 advance/decline breadth from live constituent
         quotes. See MarketBreadthService for the constituent list and
@@ -367,7 +388,7 @@ Rules:
                 MarketBreadthService,
             )
 
-            return MarketBreadthService.get_breadth(user)
+            return MarketBreadthService.get_breadth(user, index=symbol)
         except Exception as e:
             logger.error(f"PromptService breadth error: {e}")
             return None
@@ -635,6 +656,9 @@ Rules:
             from apps.market_data.services.option_chain_service import (
                 OptionChainService,
             )
+            from apps.market_data.services.strike_selection_service import (
+                StrikeSelectionService,
+            )
 
             service = OptionChainService(user=user)
             summary = service.get_chain_summary(symbol)
@@ -671,6 +695,9 @@ Rules:
                 "max_pain": summary.get("max_pain"),
                 "atm_call": atm_call,
                 "atm_put": atm_put,
+                "oi_walls": StrikeSelectionService.oi_walls(
+                    chain, summary.get("spot_price")
+                ),
             }
         except Exception as e:
             logger.error(f"PromptService option analysis error [{symbol}]: {e}")
@@ -729,6 +756,9 @@ Rules:
         historical = context.get("historical_stats")
         market_drivers = context.get("market_drivers") or {}
         analysis_mode = context.get("analysis_mode", "LIVE")
+        deterministic_text = DeterministicMetricsService.as_prompt_text(
+            context.get("deterministic_metrics")
+        )
 
         macd = indicators.get("MACD", {}) or {}
         bb = indicators.get("BB_20", {}) or {}
@@ -1067,6 +1097,12 @@ Note: this is keyword-matched sentiment, not a dedicated RBI entity score — tr
 ## 10. ATM Option Analysis
 
 {options_text}
+
+---
+
+## 10b. Computed Metrics (code-calculated, read-only)
+
+{deterministic_text}
 
 ---
 
