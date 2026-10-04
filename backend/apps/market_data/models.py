@@ -259,3 +259,37 @@ class Candle(BaseModel):
 
     def __str__(self) -> str:
         return f"{self.instrument.trading_symbol} {self.timeframe} @ {self.candle_time}"
+
+
+class OptionSnapshot(BaseModel):
+    """
+    Raw option-chain values captured on a schedule, so intraday history
+    (OI change, IV velocity, volume spikes, spread) can be derived later.
+    Raw quote values only: nothing calculated is stored here.
+    """
+
+    underlying = models.CharField(max_length=50, db_index=True)
+    instrument = models.ForeignKey(
+        Instrument,
+        on_delete=models.CASCADE,
+        related_name="snapshots",
+    )
+    captured_at = models.DateTimeField(db_index=True)
+
+    spot = models.DecimalField(max_digits=12, decimal_places=2)
+    ltp = models.DecimalField(max_digits=12, decimal_places=2)
+    bid = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    ask = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    volume = models.BigIntegerField(default=0)
+    oi = models.BigIntegerField(default=0)
+
+    class Meta:
+        db_table = "market_option_snapshots"
+        ordering = ["-captured_at"]
+        indexes = [
+            models.Index(fields=["underlying", "captured_at"]),
+            models.Index(fields=["instrument", "captured_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.instrument.trading_symbol} @ {self.captured_at}"
