@@ -310,6 +310,8 @@ Rules:
                 for c in candle_list
             ],
             options=context["options"],
+            horizon_minutes=forecast_horizon_minutes,
+            analysis_mode=context["analysis_mode"],
         )
         # Pivot/CPR on the primary timeframe are previous-candle values;
         # replace them with the previous daily session's levels so the

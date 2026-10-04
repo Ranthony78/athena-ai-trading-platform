@@ -26,6 +26,8 @@ class DeterministicMetricsService:
         vix: Optional[dict],
         candles: list[dict],
         options: Optional[dict] = None,
+        horizon_minutes: Optional[int] = None,
+        analysis_mode: str = "LIVE",
     ) -> dict:
         from apps.market_data.services.analysis_report_service import (
             AnalysisReportService,
@@ -35,6 +37,9 @@ class DeterministicMetricsService:
         )
         from apps.market_data.services.daily_levels_service import DailyLevelsService
         from apps.market_data.services.futures_service import FuturesService
+        from apps.market_data.services.profit_probability_service import (
+            ProfitProbabilityService,
+        )
         from apps.market_data.services.session_metrics_service import SessionMetrics
         from apps.market_data.services.snapshot_signals_service import (
             SnapshotSignalsService,
@@ -52,6 +57,13 @@ class DeterministicMetricsService:
                 return None
 
         spot = quote.get("ltp")
+        core = safe(
+            "core calculations",
+            CoreCalculationsService.from_context,
+            symbol,
+            options,
+            cls._number(vix.get("ltp")),
+        )
         return {
             "daily_levels": safe("daily levels", DailyLevelsService.levels, symbol),
             "gap_retrace": safe(
@@ -75,12 +87,18 @@ class DeterministicMetricsService:
             ),
             "futures": safe("futures", FuturesService.snapshot, symbol, user),
             "oi_walls": (options or {}).get("oi_walls"),
-            "core_calculations": safe(
-                "core calculations",
-                CoreCalculationsService.from_context,
-                symbol,
-                options,
-                cls._number(vix.get("ltp")),
+            "core_calculations": core,
+            "profit_probability": (
+                safe(
+                    "profit probability",
+                    ProfitProbabilityService.from_core,
+                    symbol,
+                    core,
+                    horizon_minutes,
+                    analysis_mode,
+                )
+                if core and horizon_minutes
+                else None
             ),
             "gap_history": safe(
                 "gap history", AnalysisReportService._get_gap_analysis, symbol, user
@@ -123,6 +141,12 @@ class DeterministicMetricsService:
         oi_pe = (signals.get("oi_change") or {}).get("PE") or {}
         spike_ce = (signals.get("volume_spike") or {}).get("CE") or {}
         spike_pe = (signals.get("volume_spike") or {}).get("PE") or {}
+        profit = metrics.get("profit_probability") or {}
+        structures = profit.get("structures") or {}
+
+        def freq(name):
+            return val((structures.get(name) or {}).get("historical_pct"))
+
         blocks = (metrics.get("time_blocks") or {}).get("blocks") or []
         block_text = "; ".join(
             f"{b['window']}: {val(b.get('bias'))}, volatility {val(b.get('volatility'))}, "
@@ -159,6 +183,10 @@ class DeterministicMetricsService:
                 f"- ATM OI change over 15 min: call {val(oi_ce.get('change_pct'))}%, "
                 f"put {val(oi_pe.get('change_pct'))}%; latest-interval volume vs median: call "
                 f"{val(spike_ce.get('ratio'))}x, put {val(spike_pe.get('ratio'))}x",
+                f"- Historical share of past sessions in which an ATM option bought now and "
+                f"held {val(profit.get('horizon_minutes'))} min would have been profitable after "
+                f"costs (IV held, {val(profit.get('sessions'))} sessions): call {freq('call')}%, "
+                f"put {freq('put')}%, straddle {freq('straddle')}%",
                 f"- Time blocks (descriptive history): {val(block_text)}",
             ]
         )

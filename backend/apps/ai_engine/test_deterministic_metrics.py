@@ -173,3 +173,55 @@ class NewPromptLinesTests(SimpleTestCase):
         self.assertIn("implied volatility NA%", text)
         self.assertIn("Time blocks (descriptive history): NA", text)
         self.assertNotIn("None", text)
+
+
+class ProfitProbabilityLineTests(SimpleTestCase):
+
+    PROFIT = {
+        "profit_probability": {
+            "horizon_minutes": 30,
+            "sessions": 96,
+            "structures": {
+                "call": {"historical_pct": 31.2},
+                "put": {"historical_pct": 33.3},
+                "straddle": {"historical_pct": 24.0},
+            },
+        }
+    }
+
+    def test_values_and_horizon_appear_in_the_prompt_text(self):
+        text = DeterministicMetricsService.as_prompt_text(self.PROFIT)
+        for expected in (
+            "held 30 min",
+            "96 sessions",
+            "call 31.2%",
+            "put 33.3%",
+            "straddle 24.0%",
+        ):
+            self.assertIn(expected, text)
+
+    def test_missing_probability_prints_na(self):
+        text = DeterministicMetricsService.as_prompt_text({})
+        self.assertIn("call NA%, put NA%, straddle NA%", text)
+
+    def test_it_is_only_requested_with_core_figures_and_a_horizon(self):
+        from unittest.mock import patch
+
+        target = (
+            "apps.market_data.services.profit_probability_service."
+            "ProfitProbabilityService.from_core"
+        )
+        with quiet(), patch(target, return_value={"structures": {}}) as called:
+            no_horizon = build(options={"core_rows": [1]})
+            self.assertIsNone(no_horizon["profit_probability"])
+            called.assert_not_called()
+
+        with (
+            quiet(**{CORE: {"forward": 1.0}}),
+            patch(target, return_value={"structures": {}}) as called,
+        ):
+            with_horizon = build(
+                options={"core_rows": [1]}, horizon_minutes=30, analysis_mode="LIVE"
+            )
+            self.assertEqual(with_horizon["profit_probability"], {"structures": {}})
+            self.assertEqual(called.call_args.args[2:], (30, "LIVE"))

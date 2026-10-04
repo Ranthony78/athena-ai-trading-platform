@@ -1,4 +1,6 @@
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { marketAPI } from "../../../api/market";
 import { Minus, TrendingDown, TrendingUp } from "lucide-react";
 import { Badge, Card } from "../../../components/common";
 import { isNumber, lakh, num, percent, signed, toLines, toNumber, whole } from "./format";
@@ -808,6 +810,111 @@ export function TimeBlocksCard({ report }) {
                             so these patterns may not reflect recent sessions.
                         </p>
                     )}
+                </>
+            )}
+        </Card>
+    );
+}
+
+// ------------------------------------------------------ Profit probability
+
+const STRUCTURES = [
+    ["call", "Call buy"],
+    ["put", "Put buy"],
+    ["straddle", "Long straddle"],
+];
+
+function breakevenText(name, row) {
+    if (name === "straddle") {
+        return isNumber(row.breakeven_up_points) && isNumber(row.breakeven_down_points)
+            ? `${signed(row.breakeven_up_points, 0)} / ${signed(row.breakeven_down_points, 0)}`
+            : "NA";
+    }
+    return isNumber(row.breakeven_points) ? signed(row.breakeven_points, 0) : "NA";
+}
+
+export function ProfitProbabilityCard({ symbol, horizon, mode }) {
+    const { data, isLoading, error } = useQuery({
+        queryKey: ["profit-probability", symbol, horizon, mode],
+        queryFn: () => marketAPI.getProfitProbability(symbol, { horizon, mode }),
+        select: (res) => res.data.data,
+        retry: false,
+        staleTime: 60000,
+    });
+    const reason = error?.response?.data?.message;
+
+    return (
+        <Card
+            title="Profit probability by structure"
+            subtitle={`Share of past sessions in which an ATM option bought now and held ${horizon} minutes would have made money after costs`}
+        >
+            {isLoading ? (
+                <Na>Calculating from stored sessions…</Na>
+            ) : !data ? (
+                <Na>Unavailable: {reason || "the option data could not be loaded."}</Na>
+            ) : !data.available ? (
+                <Na>Unavailable: {data.reason}</Na>
+            ) : (
+                <>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm">
+                            <thead className="text-xs uppercase tracking-wide text-dark-500">
+                                <tr>
+                                    <th className="py-2 pr-3 font-medium">Structure</th>
+                                    <th className="py-2 pr-3 font-medium">Break-even move</th>
+                                    <th className="py-2 pr-3 font-medium">Past sessions</th>
+                                    <th className="py-2 pr-3 font-medium">IV ±2 pts</th>
+                                    <th className="py-2 font-medium">Formula check</th>
+                                </tr>
+                            </thead>
+                            <tbody className="text-dark-200">
+                                {STRUCTURES.map(([name, label]) => {
+                                    const row = data.structures[name] || {};
+                                    return (
+                                        <tr key={name} className="border-t border-dark-800">
+                                            <td className="py-2 pr-3">
+                                                {label}
+                                                {data.highest === name && (
+                                                    <Badge variant="green" className="ml-2">
+                                                        Highest
+                                                    </Badge>
+                                                )}
+                                            </td>
+                                            <td className="py-2 pr-3 font-mono">
+                                                {breakevenText(name, row)}
+                                            </td>
+                                            <td className="py-2 pr-3 font-mono font-semibold">
+                                                {isNumber(row.historical_pct)
+                                                    ? `${num(row.historical_pct, 1)}%`
+                                                    : "NA"}
+                                            </td>
+                                            <td className="py-2 pr-3 font-mono">
+                                                {row.iv_range_pct
+                                                    ? `${num(row.iv_range_pct[0], 0)}–${num(row.iv_range_pct[1], 0)}%`
+                                                    : "NA"}
+                                            </td>
+                                            <td className="py-2 font-mono">
+                                                {isNumber(row.model_pct)
+                                                    ? `${num(row.model_pct, 1)}%`
+                                                    : "NA"}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                    <p className="mt-2 text-xs text-dark-500">
+                        {data.highest
+                            ? "Highest has a lead of at least 5 points over the runner-up. "
+                            : "No clear leader: the top two are within 5 points. "}
+                        Based on {data.sessions} matched sessions.
+                    </p>
+                    <ul className="mt-1 list-disc space-y-0.5 pl-5 text-xs text-dark-500">
+                        {data.assumptions.map((line) => (
+                            <li key={line}>{line}</li>
+                        ))}
+                    </ul>
                 </>
             )}
         </Card>

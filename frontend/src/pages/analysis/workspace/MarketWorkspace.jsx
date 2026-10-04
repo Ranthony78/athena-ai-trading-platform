@@ -16,6 +16,7 @@ import {
     OptionsSetupCard,
     OutlookCard,
     PriceStrip,
+    ProfitProbabilityCard,
     TimeBlocksCard,
     TrendCheck,
     VerdictPanel,
@@ -174,6 +175,7 @@ export default function MarketWorkspace({ symbol, title }) {
                     </div>
                     <TimeBlocksCard report={report} />
                     <CoreCalculationsCard report={report} />
+                    <ProfitProbabilityCard symbol={symbol} horizon={horizon} mode={mode} />
                     <div className="grid gap-6 xl:grid-cols-2">
                         <OptionsSetupCard report={report} />
                         <OiProfileCard report={report} />

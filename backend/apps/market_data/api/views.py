@@ -12,6 +12,7 @@ from ..services.instrument_service import InstrumentService
 from ..services.market_service import MarketService
 from ..services.option_chain_service import OptionChainService
 from ..services.outcome_stats_service import OutcomeStatsService
+from ..services.profit_probability_service import ProfitProbabilityService
 from ..services.quote_service import QuoteService
 from .serializers import (
     BulkQuoteRequestSerializer,
@@ -737,3 +738,41 @@ class OutcomeStatsBySymbolAPIView(APIView):
         except Exception as e:
             logger.error(f"OutcomeStatsBySymbolAPIView error: {e}")
             return ApiResponse.error(message="Failed to fetch symbol outcome stats.")
+
+
+class ProfitProbabilityAPIView(APIView):
+    """
+    GET /api/market/profit-probability/<symbol>/?horizon=30&mode=LIVE
+    Historical frequency of profit for buying the ATM call, put or straddle
+    and exiting after the horizon. Descriptive, not a forecast.
+    """
+
+    permission_classes = [IsAuthenticated]
+    VALID_HORIZONS = (15, 30, 60)
+
+    def get(self, request, symbol: str):
+        try:
+            horizon = int(request.query_params.get("horizon", 15))
+        except (TypeError, ValueError):
+            horizon = 0
+        if horizon not in self.VALID_HORIZONS:
+            return ApiResponse.error(
+                message=f"horizon must be one of {', '.join(map(str, self.VALID_HORIZONS))}."
+            )
+        mode = request.query_params.get("mode", "LIVE")
+        if mode not in ("LIVE", "NEXT_SESSION"):
+            mode = "LIVE"
+        try:
+            data = ProfitProbabilityService.build(
+                symbol.upper(), request.user, horizon, mode
+            )
+            if data is None:
+                return ApiResponse.error(
+                    message="the option chain could not be loaded. Connect Zerodha and refresh the option catalogue."
+                )
+            return ApiResponse.success(data=data)
+        except Exception as e:
+            logger.error(f"ProfitProbabilityAPIView error: {e}")
+            return ApiResponse.error(
+                message="Failed to calculate profit probabilities."
+            )

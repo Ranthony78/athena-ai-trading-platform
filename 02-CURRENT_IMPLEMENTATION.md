@@ -209,6 +209,19 @@ outcomes, ATM OI change and volume spike from snapshots, and the time blocks. Th
 option rows the prompt already fetched (`core_rows`, ATM +/- 5 strikes), so no second chain request is made.
 Everything is read-only context; missing values print as NA.
 
+### Profit probability by structure
+
+`GET /api/market/profit-probability/<symbol>/?horizon=15|30|60&mode=LIVE|NEXT_SESSION`, shown on both workspaces
+and summarised in the AI prompt. For the ATM call, put and straddle it finds the index move at the exit time that
+makes the option(s) worth the entry premium plus costs (Black-76 repricing, time decay, IV held; also shown with
+IV -2/+2 vol points). It then counts how often past sessions, entered at the same time of day and held for the
+same horizon, moved at least that far. A no-drift lognormal formula is shown beside it as a cross-check.
+Brokerage is 20 rupees per order per leg. At least 30 matching sessions are required, otherwise the card says
+so and shows no number. "Highest" is only labelled when the leader is 5 points ahead of the runner-up. This
+replaces the judgment-based Call/Put/Straddle percentages and the Monte Carlo edge scores of the reference
+prompt. It is a historical frequency under stated assumptions, not a forecast. Uses stored 15-minute candles, so
+Bank Nifty needs its candle backfill first.
+
 ### Not built yet
 - Black-76 IV with a put-call-parity forward, IV velocity, OI change, volume spikes, spread tightening, the six
   filters and the 4-of-6 decision (waiting on the source prompts).
