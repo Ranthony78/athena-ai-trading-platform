@@ -5,6 +5,8 @@ from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
+from config.database import database_config
+
 # -----------------------------------------------------
 # Paths
 # -----------------------------------------------------
@@ -130,12 +132,9 @@ ASGI_APPLICATION = "config.asgi.application"
 # Database
 # -----------------------------------------------------
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
-}
+# SQLite by default; PostgreSQL when DATABASE_URL or DB_ENGINE=postgres is set
+# (see config/database.py).
+DATABASES = {"default": database_config(os.environ, BASE_DIR)}
 
 # -----------------------------------------------------
 # Authentication

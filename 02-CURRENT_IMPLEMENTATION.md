@@ -115,6 +115,15 @@ the NIFTY quote and the contract's own quote under 60 seconds old, and the Zerod
 window defaults to a LIMIT order at the current premium for one lot, needs the acknowledgement tick, and sends
 `confirm_live_order`. To test a broker rejection without filling, lower the limit price far below the market.
 
+### Database settings (SQLite by default, PostgreSQL on request)
+
+`DATABASES` is built by `config/database.py` from the environment. With nothing set it is SQLite
+(`backend/db.sqlite3`), as before. Set `DATABASE_URL=postgres://user:password@host:5432/dbname` (percent-encode special
+characters in the password; `?sslmode=require` is supported) or `DB_ENGINE=postgres` with `DB_NAME`, `DB_USER`,
+`DB_PASSWORD`, `DB_HOST`, `DB_PORT` and `DB_SSLMODE` to use PostgreSQL. A URL wins over the separate variables.
+Connections are reused for 60 seconds and health-checked. Errors never include the password. Setting these in
+`.env` switches the running app on its next restart, so do that only as part of the cutover.
+
 **Related operational note:** during this work, a real Anthropic API key
 and Groq API key were found hardcoded in an early git commit
 (`backend/config/settings/base.py`), caught by GitHub's push protection
