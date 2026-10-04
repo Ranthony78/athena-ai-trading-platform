@@ -73,26 +73,21 @@ class AnalysisReportService:
 
     @staticmethod
     def _get_support_resistance(symbol: str) -> dict:
-        from ..indicators.indicator_service import IndicatorService
+        from .daily_levels_service import DailyLevelsService
 
-        data = IndicatorService.calculate(
-            symbol=symbol,
-            timeframe="15m",
-            indicators=["CPR", "PIVOT"],
-            limit=50,
-        )
+        # Pivots/CPR come from the previous completed daily session, not
+        # from the previous 15-minute candle.
+        data = DailyLevelsService.levels(symbol)
+        if not data:
+            return {"cpr": {}, "pivot": {}, "based_on": None}
 
-        def latest(series):
-            if isinstance(series, list):
-                vals = [v for v in series if v is not None]
-                return round(vals[-1], 2) if vals else None
-            return series
+        def rounded(values):
+            return {k: round(v, 2) for k, v in values.items()}
 
-        cpr = data.get("CPR") or {}
-        pivot = data.get("PIVOT") or {}
         return {
-            "cpr": {k: latest(v) for k, v in cpr.items()},
-            "pivot": {k: latest(v) for k, v in pivot.items()},
+            "cpr": rounded(data["cpr"]),
+            "pivot": rounded(data["pivot"]),
+            "based_on": data["based_on"],
         }
 
     @staticmethod

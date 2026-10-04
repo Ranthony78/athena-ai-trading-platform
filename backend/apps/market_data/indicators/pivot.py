@@ -46,6 +46,26 @@ class PivotPoints(BaseIndicator):
             }
         )
 
+    @staticmethod
+    def from_prior_session(high: float, low: float, close: float) -> dict:
+        """
+        Classic pivots for the next session from one completed session's
+        high/low/close. Unlike calculate(), which pivots off the previous
+        *candle* of whatever timeframe it is given, this is the trader's
+        daily pivot set.
+        """
+        high, low, close = float(high), float(low), float(close)
+        pp = (high + low + close) / 3
+        return {
+            "pp": pp,
+            "r1": 2 * pp - low,
+            "r2": pp + (high - low),
+            "r3": high + 2 * (pp - low),
+            "s1": 2 * pp - high,
+            "s2": pp - (high - low),
+            "s3": low - 2 * (high - pp),
+        }
+
     @classmethod
     def compute(cls, candles: list[dict]) -> dict:
         """Convenience class method — returns dict of lists."""
@@ -101,3 +121,12 @@ class CPR(BaseIndicator):
             col: result[col].where(result[col].notna(), None).tolist()
             for col in result.columns
         }
+
+    @staticmethod
+    def from_prior_session(high: float, low: float, close: float) -> dict:
+        """CPR for the next session from one completed session's H/L/C."""
+        high, low, close = float(high), float(low), float(close)
+        pp = (high + low + close) / 3
+        bc = (high + low) / 2
+        tc = (pp - bc) + pp
+        return {"tc": tc, "pp": pp, "bc": bc, "width": abs(tc - bc)}

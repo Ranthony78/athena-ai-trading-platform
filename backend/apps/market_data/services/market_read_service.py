@@ -19,6 +19,7 @@ class MarketReadService:
         from ..indicators.indicator_service import IndicatorService
         from ..repositories.candle_repository import CandleRepository
         from ..repositories.instrument_repository import InstrumentRepository
+        from .daily_levels_service import DailyLevelsService
         from .historical_distribution_service import HistoricalDistributionService
         from .market_service import MarketService
 
@@ -52,7 +53,7 @@ class MarketReadService:
                 IndicatorService.calculate,
                 symbol=symbol,
                 timeframe="15m",
-                indicators=["PIVOT", "CPR", "EMA_20", "RSI_14"],
+                indicators=["EMA_20", "RSI_14"],
                 limit=100,
             )
             or {}
@@ -117,16 +118,15 @@ class MarketReadService:
             else:
                 range_unavailable_reason = "Stored daily candles do not contain enough valid sessions to calculate the historical range reference."
 
-        pivot = (
-            cls._latest_values((indicators or {}).get("PIVOT"))
+        # Daily pivots/CPR from the previous completed session (not the
+        # previous 15-minute candle, which is what the PIVOT/CPR series are).
+        daily_levels = (
+            cls._safe("daily levels", DailyLevelsService.levels, symbol)
             if not intraday_is_stale
-            else {}
+            else None
         )
-        cpr = (
-            cls._latest_values((indicators or {}).get("CPR"))
-            if not intraday_is_stale
-            else {}
-        )
+        pivot = (daily_levels or {}).get("pivot") or {}
+        cpr = (daily_levels or {}).get("cpr") or {}
         levels = (
             cls._levels(pivot, cpr, spot)
             if not intraday_is_stale
@@ -141,7 +141,7 @@ class MarketReadService:
         )
         if not levels.get("available") and not levels.get("unavailable_reason"):
             levels["unavailable_reason"] = (
-                "Stored 15-minute candles did not produce usable pivot or CPR values."
+                "No completed prior-session daily candle is stored, so pivot and CPR levels cannot be calculated."
             )
 
         if intraday_is_stale:
@@ -431,7 +431,7 @@ class MarketReadService:
             "unavailable_reason": (
                 None
                 if candidates
-                else "Stored 15-minute candles did not produce usable pivot or CPR values."
+                else "No completed prior-session daily candle is stored, so pivot and CPR levels cannot be calculated."
             ),
         }
 
