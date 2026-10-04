@@ -17,9 +17,11 @@ from .views import (  # Instruments; Sprint 11 — Market Engine; Sprint 12 — 
     MarketSessionAPIView,
     OptionChainAPIView,
     OptionChainSummaryAPIView,
+    OptionsEngineAPIView,
     OutcomeStatsByStrategyAPIView,
     OutcomeStatsBySymbolAPIView,
     OutcomeStatsSummaryAPIView,
+    ProfitProbabilityAPIView,
     QuoteDetailAPIView,
     QuoteListAPIView,
 )
@@ -115,6 +117,16 @@ urlpatterns = [
         "report/<str:symbol>/",
         AnalysisReportAPIView.as_view(),
         name="analysis-report",
+    ),
+    path(
+        "options-engine/<str:symbol>/",
+        OptionsEngineAPIView.as_view(),
+        name="options-engine",
+    ),
+    path(
+        "profit-probability/<str:symbol>/",
+        ProfitProbabilityAPIView.as_view(),
+        name="profit-probability",
     ),
     # ------------------------------------------------------------------
     # Sprint 11 — Market Engine

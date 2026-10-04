@@ -90,3 +90,17 @@ class PreviousSessionTests(TestCase):
         self.assertIsNone(
             DailyLevelsService.levels("BANKNIFTY", session_date=date(2026, 10, 2))
         )
+
+    # A months-old daily candle must not pass as the previous session.
+    def test_candle_older_than_a_week_gives_none(self):
+        self.add_day(date(2026, 8, 7), HIGH, LOW, CLOSE)
+
+        self.assertIsNone(
+            DailyLevelsService.levels("BANKNIFTY", session_date=date(2026, 10, 5))
+        )
+
+    def test_a_long_weekend_still_counts(self):
+        self.add_day(date(2026, 10, 1), HIGH, LOW, CLOSE)
+
+        result = DailyLevelsService.levels("BANKNIFTY", session_date=date(2026, 10, 6))
+        self.assertEqual(result["based_on"]["date"], "2026-10-01")

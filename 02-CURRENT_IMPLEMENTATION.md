@@ -159,6 +159,89 @@ the nearest expiry for NIFTY and BANKNIFTY. `snapshot_option_chain` runs every 5
 needs Celery beat plus a valid Zerodha token for the day; `purge_option_snapshots` removes rows older than 20 days.
 History only exists from the day this is deployed.
 
+### AI Bank Nifty Workspace (`/analysis/banknifty`)
+
+A single scrolling page: price strip (futures VWAP/volume/OI, VIX change, gap, breadth), Athena's read,
+trend check, levels, sentiment and probability, price expectation and the ATM option snapshot. It reads the
+report endpoint (including `key_metrics`) and runs the existing analysis API with paper evaluation off.
+`MarketWorkspace` takes the symbol as a prop and also serves `/analysis/nifty`. Both pages end with an expiry and strike card (expiry, days to expiry, lot size, ATM call, premium-matched put) and an open-interest profile (call and put walls, put/call OI, max pain), fed by the report's `options` block. Every missing value shows "NA"
+with the reason. The older detailed report now lives at `/analysis/detailed`; `/analysis` is the Athena AI Workspace overview (one card per market with price, VIX, nearest support/resistance and the last analysis, each linking to its workspace).
+
+### Core calculations
+
+`CoreCalculationsService` (report key `core_calculations`, shown as a card on both workspaces): parity forward,
+Black-76 IV for the ATM call and put, synthetic straddle and its share of spot, required move to recover the
+premium (call, put, straddle up and down), straddle theta (per day and per 15 minutes of trading time), gamma and
+vega, the VIX-implied one-session move, 10-session realized volatility, and IV velocity from stored snapshots.
+`compute` is pure and tested against the reference report's numbers. Anything without verified inputs is `None`.
+IV crush risk and the 2-day realized/implied ratio are not calculated yet.
+
+### Gap analysis
+
+`gap_analysis` in the report: today's opening gap, how much price has retraced, and how past sessions with the
+same gap category closed against their own open, reported as continued / reversed / flat. These are historical
+frequencies from stored daily candles (at least 10 matching sessions, otherwise no base rate), not judgment
+estimates. The base rate excludes today's date only.
+
+### Time-block analysis
+
+`time_blocks` in the report: four windows (09:15-10:30, 10:30-12:00, 12:00-13:30, 13:30-15:30) summarised over
+the last 20 stored sessions of 15-minute candles: average range, how often the window finished up, and how
+directional it was. Labels are descriptive: tendency (leans up / leans down / no consistent lean, needing 60% of
+sessions and the same sign of average move), volatility (relative to the other windows) and trend strength
+(thresholds are documented constants in `time_block_service.py`, not calibrated). A window needs 5 complete
+sessions to be labelled and 10 to avoid the low-confidence flag. Windows are skipped on days with under 80% of
+their candles. History depth depends on how many 15-minute candles have been backfilled.
+
+### Data freshness guards
+
+Previous-session pivots and CPR are only produced from a daily candle within 7 days of the session. Older data
+returns nothing instead of being shown as "the previous session". Time-block analysis reports the last candle
+date it used (`through`) and a `stale` flag when that is over 7 days old. On the development database, Nifty has
+about 100 days of 15-minute candles (fine), but Bank Nifty stops at 7 August 2026 and needs a backfill
+(`backfill_candles`) before its pivots and time blocks are current.
+
+### What the AI prompt sees
+
+The "Computed Metrics" block in the analysis prompt (and `deterministic_metrics` in the result) now also carries
+the Black-76 figures, required moves, straddle Greeks, VIX one-session move, realized vol, historical gap
+outcomes, ATM OI change and volume spike from snapshots, and the time blocks. The core figures are computed from
+option rows the prompt already fetched (`core_rows`, ATM +/- 5 strikes), so no second chain request is made.
+Everything is read-only context; missing values print as NA.
+
+### Profit probability by structure
+
+`GET /api/market/profit-probability/<symbol>/?horizon=15|30|60&mode=LIVE|NEXT_SESSION`, shown on both workspaces
+and summarised in the AI prompt. For the ATM call, put and straddle it finds the index move at the exit time that
+makes the option(s) worth the entry premium plus costs (Black-76 repricing, time decay, IV held; also shown with
+IV -2/+2 vol points). It then counts how often past sessions, entered at the same time of day and held for the
+same horizon, moved at least that far. A no-drift lognormal formula is shown beside it as a cross-check.
+Brokerage is 20 rupees per order per leg. At least 30 matching sessions are required, otherwise the card says
+so and shows no number. "Highest" is only labelled when the leader is 5 points ahead of the runner-up. This
+replaces the judgment-based Call/Put/Straddle percentages and the Monte Carlo edge scores of the reference
+prompt. It is a historical frequency under stated assumptions, not a forecast. Uses stored 15-minute candles, so
+Bank Nifty needs its candle backfill first.
+
+### Filter engine
+
+`GET /api/market/options-engine/<symbol>/?horizon=15|30|60&mode=LIVE|NEXT_SESSION` returns the six filters,
+the verdict and the profit probabilities from one set of live inputs; the workspaces show it as the Filter
+engine card, and the AI prompt carries a one-line summary. At least 4 of 6 must pass; not evaluable and not
+applicable never count as passes. Thresholds are in `EngineParameters` (`filter_engine_service.py`).
+
+| Filter | Rule | Source |
+|---|---|---|
+| A | Value of the IV change over the window (IV velocity x straddle vega) must exceed 0.6 x theta over the same window, and IV must be rising | reference |
+| B | VIX one-session move >= 0.9 x the required move; passes if any structure qualifies (straddle uses its nearer side) | reference |
+| C | ATM call or put OI changes by >= 5% over the window (spike or unwind) | Athena proposal |
+| D | Realized / implied volatility >= 0.9 (10-session realized) | Athena proposal |
+| E | Every evaluable ATM leg's spread narrowed >= 10% | Athena proposal |
+| F | Entry before 14:00 IST while the market is open; N/A when closed or next-session | reference |
+
+Verdict is NO_TRADE below 4 passes, otherwise CONDITIONS_MET with the historically strongest structure named only
+if profit probability gives a 5-point lead. It is analysis only: no order, basket or sizing is produced. Replaying
+the reference run (falling IV, closed market) gives 3 of 6, matching the reference.
+
 ### Not built yet
 - Black-76 IV with a put-call-parity forward, IV velocity, OI change, volume spikes, spread tightening, the six
   filters and the 4-of-6 decision (waiting on the source prompts).

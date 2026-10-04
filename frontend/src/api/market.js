@@ -45,4 +45,9 @@ export const marketAPI = {
     calculateIndicators: (data) => api.post("/market/indicators/calculate/", data),
 
     getAnalysisReport: (symbol) => api.get(`/market/report/${symbol}/`),
+
+    getProfitProbability: (symbol, params) =>
+        api.get(`/market/profit-probability/${symbol}/`, { params }),
+
+    getOptionsEngine: (symbol, params) => api.get(`/market/options-engine/${symbol}/`, { params }),
 };

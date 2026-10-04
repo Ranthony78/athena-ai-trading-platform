@@ -26,10 +26,25 @@ class DeterministicMetricsService:
         vix: Optional[dict],
         candles: list[dict],
         options: Optional[dict] = None,
+        horizon_minutes: Optional[int] = None,
+        analysis_mode: str = "LIVE",
     ) -> dict:
+        from apps.market_data.services.analysis_report_service import (
+            AnalysisReportService,
+        )
+        from apps.market_data.services.core_calculations_service import (
+            CoreCalculationsService,
+        )
         from apps.market_data.services.daily_levels_service import DailyLevelsService
         from apps.market_data.services.futures_service import FuturesService
+        from apps.market_data.services.profit_probability_service import (
+            ProfitProbabilityService,
+        )
         from apps.market_data.services.session_metrics_service import SessionMetrics
+        from apps.market_data.services.snapshot_signals_service import (
+            SnapshotSignalsService,
+        )
+        from apps.market_data.services.time_block_service import TimeBlockService
 
         quote = quote or {}
         vix = vix or {}
@@ -42,6 +57,28 @@ class DeterministicMetricsService:
                 return None
 
         spot = quote.get("ltp")
+        core = safe(
+            "core calculations",
+            CoreCalculationsService.from_context,
+            symbol,
+            options,
+            cls._number(vix.get("ltp")),
+        )
+        snapshot_signals = safe(
+            "snapshot signals", SnapshotSignalsService.compute, symbol
+        )
+        probability = (
+            safe(
+                "profit probability",
+                ProfitProbabilityService.from_core,
+                symbol,
+                core,
+                horizon_minutes,
+                analysis_mode,
+            )
+            if core and horizon_minutes
+            else None
+        )
         return {
             "daily_levels": safe("daily levels", DailyLevelsService.levels, symbol),
             "gap_retrace": safe(
@@ -65,7 +102,50 @@ class DeterministicMetricsService:
             ),
             "futures": safe("futures", FuturesService.snapshot, symbol, user),
             "oi_walls": (options or {}).get("oi_walls"),
+            "core_calculations": core,
+            "profit_probability": probability,
+            "filter_engine": (
+                safe(
+                    "filter engine",
+                    cls._filters,
+                    core,
+                    snapshot_signals,
+                    analysis_mode,
+                    probability,
+                )
+                if core
+                else None
+            ),
+            "gap_history": safe(
+                "gap history", AnalysisReportService._get_gap_analysis, symbol, user
+            ),
+            "time_blocks": safe("time blocks", TimeBlockService.build, symbol),
+            "snapshot_signals": snapshot_signals,
         }
+
+    @staticmethod
+    def _filters(core, signals, analysis_mode, probability):
+        from django.utils import timezone
+
+        from apps.market_data.engine.market_state import MarketState
+        from apps.market_data.services.filter_engine_service import evaluate
+
+        market_open = bool(MarketState.session_info().get("is_live"))
+        return evaluate(
+            core,
+            signals,
+            timezone.now(),
+            market_open,
+            analysis_mode,
+            profit_probability=probability,
+        )
+
+    @staticmethod
+    def _number(value) -> Optional[float]:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
 
     @staticmethod
     def as_prompt_text(metrics: Optional[dict]) -> str:
@@ -82,6 +162,33 @@ class DeterministicMetricsService:
         call_wall = walls.get("call_wall") or {}
         put_wall = walls.get("put_wall") or {}
         based_on = (metrics.get("daily_levels") or {}).get("based_on") or {}
+        core = metrics.get("core_calculations") or {}
+        move = core.get("required_move") or {}
+        greeks = core.get("straddle_greeks") or {}
+        velocity = core.get("iv_velocity") or {}
+        history = (metrics.get("gap_history") or {}).get("historical") or {}
+        signals = metrics.get("snapshot_signals") or {}
+        oi_ce = (signals.get("oi_change") or {}).get("CE") or {}
+        oi_pe = (signals.get("oi_change") or {}).get("PE") or {}
+        spike_ce = (signals.get("volume_spike") or {}).get("CE") or {}
+        spike_pe = (signals.get("volume_spike") or {}).get("PE") or {}
+        engine = metrics.get("filter_engine") or {}
+        engine_text = "".join(
+            f"; {f['key']} {f['status'].replace('_', ' ')}"
+            for f in engine.get("filters", [])
+        )
+        profit = metrics.get("profit_probability") or {}
+        structures = profit.get("structures") or {}
+
+        def freq(name):
+            return val((structures.get(name) or {}).get("historical_pct"))
+
+        blocks = (metrics.get("time_blocks") or {}).get("blocks") or []
+        block_text = "; ".join(
+            f"{b['window']}: {val(b.get('bias'))}, volatility {val(b.get('volatility'))}, "
+            f"trend {val(b.get('trend_strength'))} ({b.get('sessions')} sessions)"
+            for b in blocks
+        )
         return "\n".join(
             [
                 f"- Pivot/CPR based on session: {val(based_on.get('date'))}",
@@ -96,5 +203,29 @@ class DeterministicMetricsService:
                 f"- Option OI walls: call {val(call_wall.get('strike'))} "
                 f"(OI {val(call_wall.get('oi'))}), put {val(put_wall.get('strike'))} "
                 f"(OI {val(put_wall.get('oi'))})",
+                f"- Black-76 (parity forward {val(core.get('forward'))}): implied volatility "
+                f"{val(core.get('implied_vol'))}%, synthetic straddle {val(core.get('straddle'))}, "
+                f"IV velocity {val(velocity.get('change_per_window'))} pts per "
+                f"{val(velocity.get('window_minutes'))} min",
+                f"- Required move to recover premium: call {val(move.get('call'))}, "
+                f"put {val(move.get('put'))}, straddle +{val(move.get('straddle_up'))} / "
+                f"{val(move.get('straddle_down'))}; VIX-implied one-session move "
+                f"{val(core.get('vix_session_move'))} pts; realized vol {val(core.get('realized_vol'))}%",
+                f"- Straddle theta/day {val(greeks.get('theta_per_day'))}, gamma "
+                f"{val(greeks.get('gamma'))}, vega per vol point {val(greeks.get('vega_per_vol_point'))}",
+                f"- Past sessions with a similar gap closed: continued "
+                f"{val(history.get('continuation_pct'))}%, reversed {val(history.get('reversal_pct'))}%, "
+                f"flat {val(history.get('flat_pct'))}% ({val(history.get('sample_size'))} sessions)",
+                f"- ATM OI change over 15 min: call {val(oi_ce.get('change_pct'))}%, "
+                f"put {val(oi_pe.get('change_pct'))}%; latest-interval volume vs median: call "
+                f"{val(spike_ce.get('ratio'))}x, put {val(spike_pe.get('ratio'))}x",
+                f"- Historical share of past sessions in which an ATM option bought now and "
+                f"held {val(profit.get('horizon_minutes'))} min would have been profitable after "
+                f"costs (IV held, {val(profit.get('sessions'))} sessions): call {freq('call')}%, "
+                f"put {freq('put')}%, straddle {freq('straddle')}%",
+                f"- Filter engine (analysis only, {val(engine.get('required'))} of 6 needed; unknown or "
+                f"not-applicable filters do not count): {val(engine.get('passed'))} of 6 passed"
+                f"{engine_text}. Verdict: {val(engine.get('verdict_text'))}",
+                f"- Time blocks (descriptive history): {val(block_text)}",
             ]
         )
