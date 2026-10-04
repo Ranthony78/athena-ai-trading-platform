@@ -31,6 +31,8 @@ import math
 from datetime import date
 from typing import Optional
 
+from . import black76
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_RISK_FREE_RATE = 0.06
@@ -114,8 +116,17 @@ class OptionChainService:
 
         time_to_expiry = self._time_to_expiry_years(target_expiry)
 
+        # Black-76 prices off a forward implied by the chain itself; if the
+        # chain has no usable call/put pair the rows fall back to
+        # Black-Scholes and say so in "iv_model".
+        forward = None
+        if getattr(settings, "OPTION_IV_MODEL", "black_scholes") == "black76":
+            forward = black76.parity_forward(
+                raw_chain, spot_price, time_to_expiry, risk_free_rate
+            )
+
         return [
-            self._enrich_row(row, spot_price, time_to_expiry, risk_free_rate)
+            self._enrich_row(row, spot_price, time_to_expiry, risk_free_rate, forward)
             for row in raw_chain
         ]
 
@@ -197,6 +208,7 @@ class OptionChainService:
         spot: float,
         time_to_expiry: float,
         risk_free_rate: float,
+        forward: Optional[float] = None,
     ) -> dict:
         strike = row.get("strike", 0)
         option_type = row.get("option_type")
@@ -205,7 +217,18 @@ class OptionChainService:
         iv = None
         greeks = {"delta": None, "gamma": None, "theta": None, "vega": None}
 
-        if strike and ltp and ltp > 0:
+        if strike and ltp and ltp > 0 and forward:
+            iv = black76.implied_vol(
+                ltp, forward, strike, time_to_expiry, risk_free_rate, option_type
+            )
+            if iv is not None:
+                greeks = (
+                    black76.greeks(
+                        forward, strike, time_to_expiry, risk_free_rate, iv, option_type
+                    )
+                    or greeks
+                )
+        elif strike and ltp and ltp > 0:
             iv = self._implied_volatility(
                 option_price=ltp,
                 spot=spot,
@@ -226,6 +249,7 @@ class OptionChainService:
 
         return {
             **row,
+            "iv_model": "black76" if forward else "black_scholes",
             "iv": round(iv * 100, 2) if iv is not None else 0,
             "delta": round(greeks["delta"], 4) if greeks["delta"] is not None else 0,
             "gamma": round(greeks["gamma"], 6) if greeks["gamma"] is not None else 0,
