@@ -159,6 +159,14 @@ the nearest expiry for NIFTY and BANKNIFTY. `snapshot_option_chain` runs every 5
 needs Celery beat plus a valid Zerodha token for the day; `purge_option_snapshots` removes rows older than 20 days.
 History only exists from the day this is deployed.
 
+### AI Bank Nifty Workspace (`/analysis/banknifty`)
+
+A single scrolling page: price strip (futures VWAP/volume/OI, VIX change, gap, breadth), Athena's read,
+trend check, levels, sentiment and probability, price expectation and the ATM option snapshot. It reads the
+report endpoint (including `key_metrics`) and runs the existing analysis API with paper evaluation off.
+`MarketWorkspace` takes the symbol as a prop, so the Nifty workspace reuses it. Every missing value shows "NA"
+with the reason. The older detailed report stays at `/analysis`.
+
 ### Not built yet
 - Black-76 IV with a put-call-parity forward, IV velocity, OI change, volume spikes, spread tightening, the six
   filters and the 4-of-6 decision (waiting on the source prompts).

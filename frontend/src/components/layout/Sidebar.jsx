@@ -5,6 +5,7 @@ import {
     LayoutDashboard,
     TrendingUp,
     Brain,
+    Landmark,
     Briefcase,
     BookOpen,
     FlaskConical,
@@ -40,7 +41,10 @@ const navItems = [
     },
     {
         group: "Analysis",
-        items: [{ to: "/analysis", icon: Brain, label: "AI Workspace" }],
+        items: [
+            { to: "/analysis", icon: Brain, label: "AI Workspace", end: true },
+            { to: "/analysis/banknifty", icon: Landmark, label: "Bank Nifty Workspace" },
+        ],
     },
     {
         group: "Research",

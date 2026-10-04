@@ -16,6 +16,7 @@ import Historical from "../pages/market/Historical";
 // Analysis
 import AnalysisReport from "../pages/analysis/AnalysisReport";
 import SessionHistory from "../pages/analysis/SessionHistory";
+import MarketWorkspace from "../pages/analysis/workspace/MarketWorkspace";
 
 // Strategies
 import Strategies from "../pages/strategies/Strategies";
@@ -81,6 +82,10 @@ export default function AppRouter() {
                 <Route path="/analysis" element={<AnalysisReport />} />
                 <Route path="/analysis/report" element={<Navigate to="/analysis" replace />} />
                 <Route path="/analysis/history" element={<SessionHistory />} />
+                <Route
+                    path="/analysis/banknifty"
+                    element={<MarketWorkspace symbol="BANKNIFTY" title="AI Bank Nifty Workspace" />}
+                />
 
                 {/* Strategies */}
                 <Route path="/strategies" element={<Strategies />} />
