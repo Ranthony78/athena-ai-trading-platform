@@ -170,8 +170,8 @@ export default function MarketWorkspace({ symbol, title }) {
                             result={result && !resultError ? result : null}
                             spot={report.spot}
                         />
+                        <OptionSnapshotCard report={report} />
                     </div>
-                    <OptionSnapshotCard report={report} />
                     <TimeBlocksCard report={report} />
                     <CoreCalculationsCard report={report} />
                     <div className="grid gap-6 xl:grid-cols-2">

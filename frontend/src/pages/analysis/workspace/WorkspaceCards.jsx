@@ -178,7 +178,7 @@ export function PriceStrip({ symbol, report }) {
                         gap
                             ? gap.direction === "FLAT"
                                 ? "Flat open"
-                                : `${gap.direction} ${signed(gap.gap_points, 0)} · ${gap.retrace_pct}% retraced`
+                                : `${gap.direction === "UP" ? "Up" : "Down"} ${num(Math.abs(gap.gap_points), 0)} pts · ${gap.retrace_pct}% filled`
                             : "NA"
                     }
                 />
@@ -694,7 +694,7 @@ export function GapAnalysisCard({ report }) {
     const label = gap
         ? gap.direction === "FLAT"
             ? "Flat open"
-            : `${gap.direction === "UP" ? "Gap up" : "Gap down"} · ${signed(gap.gap_points, 1)} pts (${percent(gap.gap_pct)})`
+            : `${gap.direction === "UP" ? "Gap up" : "Gap down"} · ${num(Math.abs(gap.gap_points), 1)} pts (${percent(gap.gap_pct)})`
         : null;
 
     return (
@@ -709,7 +709,7 @@ export function GapAnalysisCard({ report }) {
                     <p className="text-sm font-semibold text-dark-100">{label}</p>
                     {gap.direction !== "FLAT" && (
                         <p className="mt-1 text-sm text-dark-300">
-                            Price has given back {gap.retrace_pct}% of the gap so far.
+                            {gap.retrace_pct}% of the gap has been filled so far.
                         </p>
                     )}
                     {history?.available ? (
