@@ -1,6 +1,10 @@
 from django.urls import path
 
 from .views import (
+    LiveTradingArmAPIView,
+    LiveTradingDisarmAPIView,
+    LiveTradingMasterAPIView,
+    LiveTradingStatusAPIView,
     ZerodhaConfigAPIView,
     ZerodhaFundsAPIView,
     ZerodhaHoldingsAPIView,
@@ -42,6 +46,21 @@ urlpatterns = [
         "logout/",
         ZerodhaLogoutAPIView.as_view(),
         name="zerodha-logout",
+    ),
+    # ------------------------------------------------------------------
+    # Live-order permission
+    # ------------------------------------------------------------------
+    path("live-trading/", LiveTradingStatusAPIView.as_view(), name="live-trading"),
+    path("live-trading/arm/", LiveTradingArmAPIView.as_view(), name="live-trading-arm"),
+    path(
+        "live-trading/disarm/",
+        LiveTradingDisarmAPIView.as_view(),
+        name="live-trading-disarm",
+    ),
+    path(
+        "live-trading/master/",
+        LiveTradingMasterAPIView.as_view(),
+        name="live-trading-master",
     ),
     # ------------------------------------------------------------------
     # Account

@@ -315,6 +315,12 @@ MARKET_PROVIDER = os.getenv("MARKET_PROVIDER", "mock").strip().lower()
 # gate independently of the selected market-data provider.
 LIVE_TRADING_ENABLED = os.getenv("LIVE_TRADING_ENABLED", "False") == "True"
 
+# Hard kill switch. When "True", real orders are refused whatever the
+# in-app master switch or any user's arming says. It can only be set from
+# the server environment, so it is the way to shut live trading off for
+# everyone at once.
+LIVE_TRADING_LOCKED = os.getenv("LIVE_TRADING_LOCKED", "False") == "True"
+
 # -----------------------------------------------------
 # Django Channels
 # -----------------------------------------------------

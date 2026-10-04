@@ -11,16 +11,19 @@ the gate.
 import os
 import subprocess
 import sys
+from datetime import timedelta
 from pathlib import Path
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import SimpleTestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from .exceptions import ZerodhaTokenExpiredError
+from .models import LiveTradingArming
 
 User = get_user_model()
 
@@ -46,6 +49,14 @@ class LiveTradingGateTestCase(APITestCase):
         )
         self.client.force_authenticate(user=self.user)
         self.url = reverse("zerodha-orders")
+
+        # Real orders also need this user to have armed them for today.
+        LiveTradingArming.objects.create(
+            user=self.user,
+            armed_at=timezone.now(),
+            expires_at=timezone.now() + timedelta(hours=1),
+            disclaimer_version="test",
+        )
 
         # The view also requires regular market hours; pin the session so
         # these tests don't depend on the wall clock.

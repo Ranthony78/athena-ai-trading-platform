@@ -395,8 +395,8 @@ export default function Dashboard() {
                             : brokerStatus?.live_orders_enabled === undefined
                               ? "Status unavailable"
                               : brokerStatus.live_orders_enabled
-                                ? "Enabled on server"
-                                : "Blocked on server"
+                                ? "Armed for today"
+                                : "Not armed"
                     }
                     detail={
                         brokerStatusLoading
@@ -404,8 +404,9 @@ export default function Dashboard() {
                             : brokerStatus?.live_orders_enabled === undefined
                               ? "Server permission has not been reported"
                               : brokerStatus.live_orders_enabled
-                                ? "Server allows real-order requests"
-                                : "Server currently rejects real-order requests"
+                                ? "You can send real orders while the market is open"
+                                : brokerStatus?.live_trading?.blocked_reason ||
+                                  "Real orders are blocked until you arm them in Settings"
                     }
                     tone={
                         brokerStatus?.live_orders_enabled

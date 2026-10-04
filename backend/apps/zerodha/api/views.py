@@ -12,7 +12,6 @@ existing file.
 
 import logging
 
-from django.conf import settings
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -22,6 +21,7 @@ from shared.api_response import ApiResponse
 from ..exceptions import ZerodhaTokenExpiredError
 from ..services.auth_service import ZerodhaAuthService
 from ..services.kite_service import KiteService
+from ..services.live_trading_service import LiveTradingService
 from .serializers import (
     OrderPlaceSerializer,
     TokenExchangeSerializer,
@@ -50,7 +50,12 @@ class ZerodhaStatusAPIView(APIView):
             status_data = service.get_status()
             # This is the server-side real-order permission gate, not a claim
             # that a broker order or position is currently live.
-            status_data["live_orders_enabled"] = bool(settings.LIVE_TRADING_ENABLED)
+            live = LiveTradingService.state(request.user)
+            # True only when this user may send real orders right now (not
+            # locked, master on, and armed today). Market hours and the
+            # per-order confirmation are still checked when an order is sent.
+            status_data["live_orders_enabled"] = live["can_place"]
+            status_data["live_trading"] = live
             return ApiResponse.success(status_data)
         except Exception as e:
             logger.error(f"ZerodhaStatusAPIView error: {e}")
@@ -231,13 +236,10 @@ class ZerodhaOrderListAPIView(APIView):
             return ApiResponse.error(message="Failed to fetch orders.")
 
     def post(self, request):
-        if not settings.LIVE_TRADING_ENABLED:
+        allowed, reason = LiveTradingService.can_place(request.user)
+        if not allowed:
             return ApiResponse.error(
-                message=(
-                    "Live trading is disabled on this environment. "
-                    "Set LIVE_TRADING_ENABLED=True to allow real "
-                    "Zerodha order placement."
-                ),
+                message=reason,
                 status_code=status.HTTP_403_FORBIDDEN,
             )
 
@@ -365,3 +367,82 @@ class ZerodhaHoldingsAPIView(APIView):
         except Exception as e:
             logger.error(f"ZerodhaHoldingsAPIView error: {e}")
             return ApiResponse.error(message="Failed to fetch holdings.")
+
+
+class LiveTradingStatusAPIView(APIView):
+    """
+    GET /api/zerodha/live-trading/
+    The caller's live-order permission state, the risk notice and the phrase
+    needed to arm.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return ApiResponse.success(LiveTradingService.state(request.user))
+
+
+class LiveTradingArmAPIView(APIView):
+    """
+    POST /api/zerodha/live-trading/arm/   { "phrase": "I UNDERSTAND THE RISKS" }
+    Arm real orders for the rest of today's session.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            data = LiveTradingService.arm(request.user, request.data.get("phrase", ""))
+            return ApiResponse.success(
+                data=data, message="Live orders armed for today."
+            )
+        except ValueError as e:
+            return ApiResponse.error(
+                message=str(e), status_code=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            logger.error(f"LiveTradingArmAPIView error: {e}")
+            return ApiResponse.error(message="Could not arm live orders.")
+
+
+class LiveTradingDisarmAPIView(APIView):
+    """POST /api/zerodha/live-trading/disarm/"""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        return ApiResponse.success(
+            data=LiveTradingService.disarm(request.user),
+            message="Live orders disarmed.",
+        )
+
+
+class LiveTradingMasterAPIView(APIView):
+    """
+    POST /api/zerodha/live-trading/master/   { "enabled": true }
+    Administrators only: allow or stop real orders on this installation.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        enabled = request.data.get("enabled")
+        if not isinstance(enabled, bool):
+            return ApiResponse.error(
+                message="enabled must be true or false.",
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            data = LiveTradingService.set_master(request.user, enabled)
+        except PermissionError as e:
+            return ApiResponse.error(
+                message=str(e), status_code=status.HTTP_403_FORBIDDEN
+            )
+        return ApiResponse.success(
+            data=data,
+            message=(
+                "Live orders enabled."
+                if enabled
+                else "Live orders disabled for everyone."
+            ),
+        )
