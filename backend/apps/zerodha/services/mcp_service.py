@@ -261,9 +261,14 @@ class ZerodhaKiteMCPService:
         interval: str,
         from_date: str,
         to_date: str,
+        oi: bool = False,
     ) -> list[dict]:
         """
         Fetch historical OHLCV candles from Kite Connect.
+
+        With oi=True Kite appends open interest as a 7th element for
+        derivatives (unverified against a live account; the parameter is
+        off by default so existing callers are unchanged).
 
         Args:
             instrument_token: Zerodha instrument token
@@ -275,9 +280,12 @@ class ZerodhaKiteMCPService:
             List of [timestamp, open, high, low, close, volume] rows,
             matching Kite Connect's real response shape.
         """
+        params = {"from": from_date, "to": to_date}
+        if oi:
+            params["oi"] = 1
         data = self._kite_get(
             f"/instruments/historical/{instrument_token}/{interval}",
-            params={"from": from_date, "to": to_date},
+            params=params,
         )
         return data.get("candles", [])
 

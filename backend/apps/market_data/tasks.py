@@ -41,7 +41,7 @@ def sync_intraday_candles():
     close that gap, following the exact same market-hours-check pattern
     as track_signal_outcomes.
     """
-    from datetime import date
+    from django.utils import timezone
 
     from apps.zerodha.repositories.zerodha_repository import ZerodhaConfigRepository
 
@@ -61,7 +61,7 @@ def sync_intraday_candles():
         return "skipped (no valid Zerodha connection)"
 
     user = config.user
-    today_str = date.today().isoformat()
+    today_str = timezone.localdate().isoformat()
     service = CandleService(user=user)
     results = {}
 
@@ -83,6 +83,45 @@ def sync_intraday_candles():
 
     logger.info(f"Intraday candle sync run: {results}")
     return results
+
+
+@shared_task
+def snapshot_option_chain():
+    """
+    Scheduled task: record raw ATM option quotes (price, bid/ask, volume, OI)
+    during market hours so intraday history accumulates for later analysis.
+    Same guards as sync_intraday_candles.
+    """
+    from apps.zerodha.repositories.zerodha_repository import ZerodhaConfigRepository
+
+    from .engine.market_state import MarketState
+    from .services.option_snapshot_service import OptionSnapshotService
+
+    if not MarketState.session_info()["is_live"]:
+        return "skipped (market closed)"
+
+    config = ZerodhaConfigRepository.model.objects.filter(is_connected=True).first()
+    if not config or not config.is_token_valid:
+        logger.warning("No valid Zerodha connection — skipping option snapshot.")
+        return "skipped (no valid Zerodha connection)"
+
+    results = {}
+    for symbol in INTRADAY_SYNC_SYMBOLS:
+        try:
+            results[symbol] = OptionSnapshotService.capture(symbol, config.user)
+        except Exception as e:
+            logger.error(f"snapshot_option_chain failed [{symbol}]: {e}")
+            results[symbol] = f"error: {e}"
+    logger.info(f"Option snapshot run: {results}")
+    return results
+
+
+@shared_task
+def purge_option_snapshots():
+    """Scheduled task: drop option snapshots past the retention window."""
+    from .services.option_snapshot_service import OptionSnapshotService
+
+    return OptionSnapshotService.purge()
 
 
 @shared_task

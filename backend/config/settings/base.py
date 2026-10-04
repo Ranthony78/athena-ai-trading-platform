@@ -371,6 +371,14 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.market_data.tasks.sync_intraday_candles",
         "schedule": 300.0,  # every 5 minutes — matches outcome tracking cadence
     },
+    "snapshot-option-chain": {
+        "task": "apps.market_data.tasks.snapshot_option_chain",
+        "schedule": 300.0,  # every 5 minutes during market hours
+    },
+    "purge-option-snapshots": {
+        "task": "apps.market_data.tasks.purge_option_snapshots",
+        "schedule": 86400.0,  # daily
+    },
 }
 
 # -----------------------------------------------------

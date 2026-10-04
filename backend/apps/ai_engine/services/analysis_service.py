@@ -292,6 +292,9 @@ class AnalysisService:
                 "option_comparison": parsed.get("option_comparison"),
                 "price_expectation": parsed.get("price_expectation"),
                 "session_structure": market_context.get("session_structure"),
+                "deterministic_metrics": _sanitize_for_json(
+                    market_context.get("deterministic_metrics")
+                ),
                 "rule_evidence": _sanitize_for_json(
                     market_context.get("rule_evidence")
                 ),
