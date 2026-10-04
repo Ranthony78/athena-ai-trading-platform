@@ -76,20 +76,47 @@ NIFTY50_CONSTITUENTS = [
     "WIPRO",
 ]
 
-MIN_SAMPLE_FOR_CONFIDENCE = 40  # out of 50 — below this, flag low confidence
+# Bank Nifty has 12 constituents. Snapshot only: NSE Indices rebalances it
+# semi-annually, so verify against the published list
+# (https://www.niftyindices.com/IndexConstituent/ind_niftybanklist.csv)
+# before relying on it. Unresolvable symbols are skipped and reported via
+# sample_size/of_total, never counted.
+BANKNIFTY_CONSTITUENTS = [
+    "AUBANK",
+    "AXISBANK",
+    "BANKBARODA",
+    "FEDERALBNK",
+    "HDFCBANK",
+    "ICICIBANK",
+    "IDFCFIRSTB",
+    "INDUSINDBK",
+    "KOTAKBANK",
+    "PNB",
+    "SBIN",
+    "CANBK",
+]
+
+CONSTITUENTS = {
+    "NIFTY": NIFTY50_CONSTITUENTS,
+    "BANKNIFTY": BANKNIFTY_CONSTITUENTS,
+}
+
+# Minimum share of constituents that must return a quote for a clean reading.
+MIN_SAMPLE_FRACTION = 0.8
 
 
 class MarketBreadthService:
     """
     Computes Nifty 50 advance/decline breadth from live quotes. Never
-    fabricates: if fewer than MIN_SAMPLE_FOR_CONFIDENCE constituents
+    fabricates: if fewer than 80% of constituents
     resolve to real quotes, the result is flagged low-confidence rather
     than presented as a clean 50-stock reading.
     """
 
     @classmethod
-    def get_breadth(cls, user) -> Optional[dict]:
-        if not user:
+    def get_breadth(cls, user, index: str = "NIFTY") -> Optional[dict]:
+        constituents = CONSTITUENTS.get(str(index).upper())
+        if not user or not constituents:
             return None
 
         try:
@@ -101,7 +128,7 @@ class MarketBreadthService:
             # raise inside get_quotes() and kill the whole batch.
             resolvable = [
                 s
-                for s in NIFTY50_CONSTITUENTS
+                for s in constituents
                 if InstrumentRepository.get_by_symbol(s) is not None
             ]
             if not resolvable:
@@ -134,8 +161,9 @@ class MarketBreadthService:
                 "declines": declines,
                 "unchanged": unchanged,
                 "sample_size": sample_size,
-                "of_total": len(NIFTY50_CONSTITUENTS),
-                "low_confidence": sample_size < MIN_SAMPLE_FOR_CONFIDENCE,
+                "of_total": len(constituents),
+                "index": str(index).upper(),
+                "low_confidence": sample_size < len(constituents) * MIN_SAMPLE_FRACTION,
             }
         except Exception as e:
             logger.error(f"MarketBreadthService error: {e}")
