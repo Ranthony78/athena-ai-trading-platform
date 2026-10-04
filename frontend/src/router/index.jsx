@@ -83,6 +83,10 @@ export default function AppRouter() {
                 <Route path="/analysis/report" element={<Navigate to="/analysis" replace />} />
                 <Route path="/analysis/history" element={<SessionHistory />} />
                 <Route
+                    path="/analysis/nifty"
+                    element={<MarketWorkspace symbol="NIFTY" title="AI Nifty Workspace" />}
+                />
+                <Route
                     path="/analysis/banknifty"
                     element={<MarketWorkspace symbol="BANKNIFTY" title="AI Bank Nifty Workspace" />}
                 />

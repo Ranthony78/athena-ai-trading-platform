@@ -53,3 +53,64 @@ class KeyMetricsTests(SimpleTestCase):
 
         self.assertIsNone(result["vix"])
         self.assertIsNone(result["gap"])
+
+
+class OptionsBlockTests(SimpleTestCase):
+
+    def test_options_block_adds_dte_matched_put_and_oi_walls(self):
+        from datetime import date
+
+        chain = [
+            {
+                "strike": 24100.0,
+                "option_type": "CE",
+                "ltp": 150.0,
+                "oi": 900,
+                "lot_size": 65,
+            },
+            {
+                "strike": 24100.0,
+                "option_type": "PE",
+                "ltp": 120.0,
+                "oi": 800,
+                "lot_size": 65,
+            },
+            {
+                "strike": 24200.0,
+                "option_type": "CE",
+                "ltp": 90.0,
+                "oi": 1500,
+                "lot_size": 65,
+            },
+            {
+                "strike": 24000.0,
+                "option_type": "PE",
+                "ltp": 148.0,
+                "oi": 2000,
+                "lot_size": 65,
+            },
+        ]
+        summary = {
+            "atm_strike": 24100.0,
+            "expiry": "2026-10-08",
+            "spot_price": 24100.0,
+            "pcr_oi": 1.2,
+        }
+        service = SimpleNamespace(
+            get_chain_summary=lambda symbol: summary,
+            get_chain=lambda symbol, expiry=None: chain,
+        )
+        with (
+            patch(
+                "apps.market_data.services.option_chain_service.OptionChainService",
+                return_value=service,
+            ),
+            patch("django.utils.timezone.localdate", return_value=date(2026, 10, 5)),
+        ):
+            result = AnalysisReportService._get_options("NIFTY", object())
+
+        self.assertEqual(result["dte"], 3)
+        self.assertEqual(result["lot_size"], 65)
+        self.assertEqual(result["matched_put"]["strike"], 24000.0)
+        self.assertEqual(result["oi_walls"]["call_wall"]["strike"], 24200.0)
+        self.assertEqual(result["oi_walls"]["put_wall"]["strike"], 24000.0)

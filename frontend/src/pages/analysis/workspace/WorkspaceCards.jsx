@@ -489,3 +489,94 @@ export function OptionSnapshotCard({ report }) {
         </Card>
     );
 }
+
+// ------------------------------------------------- Expiry & strike setup
+
+export function OptionsSetupCard({ report }) {
+    const options = report?.options;
+    const call = options?.atm_call;
+    const sameStrikePut = options?.atm_put;
+    const matched = options?.matched_put;
+    const differs = matched && Number(matched.strike) !== Number(options?.atm_strike);
+
+    return (
+        <Card
+            title="Expiry & strike selection"
+            subtitle="Nearest expiry · ATM call · put matched on premium"
+        >
+            {!options ? (
+                <Na>Unavailable: needs a connected Zerodha session and an option catalogue.</Na>
+            ) : (
+                <>
+                    <div className="grid grid-cols-3 gap-2">
+                        <Stat label="Expiry" value={options.expiry || "NA"} />
+                        <Stat
+                            label="Days to expiry"
+                            value={isNumber(options.dte) ? options.dte : "NA"}
+                        />
+                        <Stat label="Lot size" value={whole(options.lot_size)} />
+                    </div>
+                    <div className="mt-2 space-y-2">
+                        <Stat
+                            label={`ATM call · ${whole(options.atm_strike)} CE`}
+                            value={call ? `₹${num(call.ltp)}` : "NA"}
+                            hint={call?.trading_symbol}
+                        />
+                        <Stat
+                            label="Premium-matched put"
+                            value={
+                                matched
+                                    ? `${whole(matched.strike)} PE · ₹${num(matched.ltp)} · ${num(matched.premium_gap_pct, 1)}% off the call`
+                                    : "No put within 15% of the call premium"
+                            }
+                            hint={matched?.trading_symbol}
+                        />
+                        <Stat
+                            label={`Same-strike put · ${whole(options.atm_strike)} PE`}
+                            value={sameStrikePut ? `₹${num(sameStrikePut.ltp)}` : "NA"}
+                        />
+                    </div>
+                    {differs && (
+                        <p className="mt-2 text-xs text-amber-300">
+                            The matched put is at a different strike from the call, so it is a
+                            different structure from a same-strike straddle.
+                        </p>
+                    )}
+                </>
+            )}
+        </Card>
+    );
+}
+
+// ------------------------------------------------------------ OI profile
+
+export function OiProfileCard({ report }) {
+    const options = report?.options;
+    const walls = options?.oi_walls || {};
+    const callWall = walls.call_wall;
+    const putWall = walls.put_wall;
+
+    return (
+        <Card
+            title="Open interest profile"
+            subtitle="Where open contracts are concentrated · not buy or sell orders"
+        >
+            {!options ? (
+                <Na>Unavailable: no option chain for this market.</Na>
+            ) : (
+                <div className="grid grid-cols-2 gap-2">
+                    <Stat
+                        label="Largest call OI (resistance)"
+                        value={callWall ? `${whole(callWall.strike)} · ${lakh(callWall.oi)}` : "NA"}
+                    />
+                    <Stat
+                        label="Largest put OI (support)"
+                        value={putWall ? `${whole(putWall.strike)} · ${lakh(putWall.oi)}` : "NA"}
+                    />
+                    <Stat label="Put / call OI" value={num(options.pcr_oi, 2)} />
+                    <Stat label="Max pain" value={whole(options.max_pain)} />
+                </div>
+            )}
+        </Card>
+    );
+}

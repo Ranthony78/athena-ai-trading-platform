@@ -9,7 +9,9 @@ import { marketAPI } from "../../../api/market";
 import {
     ExpectationCard,
     LevelsCard,
+    OiProfileCard,
     OptionSnapshotCard,
+    OptionsSetupCard,
     OutlookCard,
     PriceStrip,
     TrendCheck,
@@ -163,6 +165,10 @@ export default function MarketWorkspace({ symbol, title }) {
                         />
                     </div>
                     <OptionSnapshotCard report={report} />
+                    <div className="grid gap-6 xl:grid-cols-2">
+                        <OptionsSetupCard report={report} />
+                        <OiProfileCard report={report} />
+                    </div>
                 </>
             )}
         </PageWrapper>

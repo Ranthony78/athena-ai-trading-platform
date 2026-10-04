@@ -229,14 +229,40 @@ class AnalysisReportService:
             None,
         )
 
+        from datetime import date
+
+        from django.utils import timezone
+
+        from .strike_selection_service import StrikeSelectionService
+
+        try:
+            dte = (
+                date.fromisoformat(str(summary.get("expiry"))) - timezone.localdate()
+            ).days
+        except (TypeError, ValueError):
+            dte = None
+
+        matched_put = (
+            StrikeSelectionService.premium_matched_put(chain, atm_call.get("ltp"))
+            if atm_call
+            else None
+        )
+
         return {
             "expiry": summary.get("expiry"),
+            "dte": dte,
+            "lot_size": (atm_call or atm_put or {}).get("lot_size"),
             "atm_strike": summary.get("atm_strike"),
             "pcr_oi": summary.get("pcr_oi"),
             "pcr_volume": summary.get("pcr_volume"),
             "max_pain": summary.get("max_pain"),
             "atm_call": atm_call,
             "atm_put": atm_put,
+            # Put whose premium best matches the ATM call (None if no close match).
+            "matched_put": matched_put,
+            "oi_walls": StrikeSelectionService.oi_walls(
+                chain, summary.get("spot_price")
+            ),
         }
 
     @staticmethod

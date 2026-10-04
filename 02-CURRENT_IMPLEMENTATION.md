@@ -164,7 +164,7 @@ History only exists from the day this is deployed.
 A single scrolling page: price strip (futures VWAP/volume/OI, VIX change, gap, breadth), Athena's read,
 trend check, levels, sentiment and probability, price expectation and the ATM option snapshot. It reads the
 report endpoint (including `key_metrics`) and runs the existing analysis API with paper evaluation off.
-`MarketWorkspace` takes the symbol as a prop, so the Nifty workspace reuses it. Every missing value shows "NA"
+`MarketWorkspace` takes the symbol as a prop and also serves `/analysis/nifty`. Both pages end with an expiry and strike card (expiry, days to expiry, lot size, ATM call, premium-matched put) and an open-interest profile (call and put walls, put/call OI, max pain), fed by the report's `options` block. Every missing value shows "NA"
 with the reason. The older detailed report stays at `/analysis`.
 
 ### Not built yet
