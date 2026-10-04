@@ -411,3 +411,11 @@ ZERODHA_MCP_URL = os.getenv(
     "ZERODHA_MCP_URL",
     "https://mcp.kite.trade/mcp",
 )
+
+# -----------------------------------------------------
+# Option analytics
+# -----------------------------------------------------
+
+# "black_scholes" (default, fixed-rate spot model) or "black76" (forward
+# implied by put-call parity). Anything else falls back to black_scholes.
+OPTION_IV_MODEL = os.getenv("OPTION_IV_MODEL", "black_scholes")
