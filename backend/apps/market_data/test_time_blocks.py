@@ -166,6 +166,16 @@ class BuildTests(TestCase):
         self.assertEqual(first["sessions"], 8)
         self.assertEqual(first["bias"], "Leans up")
         self.assertTrue(first["low_confidence"])
+        self.assertEqual(result["through"], "2026-09-08")
+
+    def test_old_data_is_flagged_stale(self):
+        from unittest.mock import patch
+
+        self.test_reads_stored_15m_candles()
+        with patch("django.utils.timezone.localdate", return_value=date(2026, 9, 12)):
+            self.assertFalse(tb.TimeBlockService.build("BANKNIFTY")["stale"])
+        with patch("django.utils.timezone.localdate", return_value=date(2026, 10, 20)):
+            self.assertTrue(tb.TimeBlockService.build("BANKNIFTY")["stale"])
 
     def test_unknown_symbol_is_none(self):
         self.assertIsNone(tb.TimeBlockService.build("NOSUCH"))

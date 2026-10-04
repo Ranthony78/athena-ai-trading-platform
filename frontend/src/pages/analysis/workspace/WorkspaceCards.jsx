@@ -277,8 +277,8 @@ export function LevelsCard({ report }) {
         >
             {!available ? (
                 <Na>
-                    Unavailable: no completed daily candle is stored for this market, so pivot
-                    levels cannot be calculated.
+                    Unavailable: no recent completed daily candle (within a week) is stored for this
+                    market, so pivot levels cannot be calculated.
                 </Na>
             ) : (
                 <>
@@ -802,6 +802,12 @@ export function TimeBlocksCard({ report }) {
                             ? " Some windows rest on fewer than 10 sessions: low confidence."
                             : ""}
                     </p>
+                    {report.time_blocks.stale && (
+                        <p className="mt-1 text-xs text-amber-300">
+                            Stored candles end on {report.time_blocks.through || "an unknown date"},
+                            so these patterns may not reflect recent sessions.
+                        </p>
+                    )}
                 </>
             )}
         </Card>

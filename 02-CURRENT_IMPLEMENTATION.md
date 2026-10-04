@@ -193,6 +193,14 @@ sessions and the same sign of average move), volatility (relative to the other w
 sessions to be labelled and 10 to avoid the low-confidence flag. Windows are skipped on days with under 80% of
 their candles. History depth depends on how many 15-minute candles have been backfilled.
 
+### Data freshness guards
+
+Previous-session pivots and CPR are only produced from a daily candle within 7 days of the session. Older data
+returns nothing instead of being shown as "the previous session". Time-block analysis reports the last candle
+date it used (`through`) and a `stale` flag when that is over 7 days old. On the development database, Nifty has
+about 100 days of 15-minute candles (fine), but Bank Nifty stops at 7 August 2026 and needs a backfill
+(`backfill_candles`) before its pivots and time blocks are current.
+
 ### Not built yet
 - Black-76 IV with a put-call-parity forward, IV velocity, OI change, volume spikes, spread tightening, the six
   filters and the 4-of-6 decision (waiting on the source prompts).

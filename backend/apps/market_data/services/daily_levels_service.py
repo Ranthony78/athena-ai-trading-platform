@@ -16,6 +16,10 @@ from ..indicators.pivot import CPR, PivotPoints
 from ..repositories.candle_repository import CandleRepository
 from ..repositories.instrument_repository import InstrumentRepository
 
+# A weekend plus a long holiday stretch; anything older is stale data and must
+# not be presented as the previous session.
+MAX_SESSION_AGE_DAYS = 7
+
 
 class DailyLevelsService:
 
@@ -38,6 +42,8 @@ class DailyLevelsService:
             candle_date = timezone.localtime(candle.candle_time).date()
             if candle_date >= session_date:
                 continue
+            if (session_date - candle_date).days > MAX_SESSION_AGE_DAYS:
+                return None
             high, low, close = (
                 float(candle.high),
                 float(candle.low),

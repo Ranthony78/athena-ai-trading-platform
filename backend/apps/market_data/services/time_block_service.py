@@ -23,6 +23,7 @@ CANDLE_MINUTES = 15
 SESSIONS_TO_USE = 20
 MIN_SESSIONS = 5  # below this a window gets no labels at all
 LOW_CONFIDENCE_SESSIONS = 10
+MAX_DATA_AGE_DAYS = 7  # newer data than this is not flagged stale
 MIN_COVERAGE = 0.8  # share of a window's candles that must be present
 
 WINDOWS = [
@@ -145,6 +146,8 @@ class TimeBlockService:
 
     @staticmethod
     def build(symbol: str) -> Optional[dict]:
+        from django.utils import timezone
+
         from ..repositories.candle_repository import CandleRepository
         from ..repositories.instrument_repository import InstrumentRepository
 
@@ -166,8 +169,12 @@ class TimeBlockService:
             for r in rows
         ]
         blocks = analyse(candles)
+        through = max((c["time"].astimezone(IST).date() for c in candles), default=None)
+        age = (timezone.localdate() - through).days if through else None
         return {
             "blocks": blocks,
+            "through": through.isoformat() if through else None,
+            "stale": age is None or age > MAX_DATA_AGE_DAYS,
             "sessions_requested": SESSIONS_TO_USE,
             "basis": (
                 "Descriptive statistics from stored 15-minute candles. Volatility is "
