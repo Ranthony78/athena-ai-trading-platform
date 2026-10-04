@@ -40,6 +40,7 @@ class AnalysisReportService:
             "options": cls._safe(cls._get_options, symbol, user),
             "key_metrics": cls._safe(cls._get_key_metrics, symbol, user),
             "core_calculations": cls._safe(cls._get_core_calculations, symbol, user),
+            "gap_analysis": cls._safe(cls._get_gap_analysis, symbol, user),
             "last_analysis": cls._safe(cls._get_last_analysis, symbol),
         }
 
@@ -73,6 +74,63 @@ class AnalysisReportService:
         from .market_service import MarketService
 
         return MarketService(user=user).quote(symbol)
+
+    @staticmethod
+    def _get_gap_analysis(symbol: str, user) -> Optional[dict]:
+        """
+        Today's opening gap, how much of it price has given back, and how
+        sessions with the same gap category closed relative to their open.
+        Continuation = closed further in the gap's direction. These are
+        historical frequencies, not a forecast.
+        """
+        from django.utils import timezone
+
+        from .historical_distribution_service import HistoricalDistributionService
+        from .market_read_service import MarketReadService
+        from .market_service import MarketService
+        from .session_metrics_service import SessionMetrics
+
+        if not user:
+            return None
+        quote = MarketService(user=user).quote(symbol) or {}
+        gap = SessionMetrics.gap_retrace(
+            quote.get("close"), quote.get("open"), quote.get("ltp")
+        )
+        if not gap:
+            return None
+        result = {"gap": gap, "historical": {"available": False, "reason": None}}
+        if gap["direction"] == "FLAT":
+            result["historical"][
+                "reason"
+            ] = "The open was flat, so there is no gap to study."
+            return result
+
+        bucket = MarketReadService._gap_bucket(quote)
+        stats = HistoricalDistributionService.close_direction_given_gap(
+            symbol, bucket, exclude_date=timezone.localdate()
+        )
+        if not stats or stats.get("error"):
+            result["historical"]["reason"] = (
+                "Fewer than 10 historical sessions had this gap category, "
+                "so no base rate is shown."
+            )
+            return result
+
+        same, opposite = (
+            ("up_pct", "down_pct")
+            if gap["direction"] == "UP"
+            else ("down_pct", "up_pct")
+        )
+        result["historical"] = {
+            "available": True,
+            "gap_bucket": bucket,
+            "continuation_pct": stats[same],
+            "reversal_pct": stats[opposite],
+            "flat_pct": stats["flat_pct"],
+            "sample_size": stats["sample_size"],
+            "low_confidence": stats.get("low_confidence", False),
+        }
+        return result
 
     @staticmethod
     def _get_core_calculations(symbol: str, user) -> Optional[dict]:

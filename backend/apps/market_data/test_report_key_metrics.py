@@ -114,3 +114,52 @@ class OptionsBlockTests(SimpleTestCase):
         self.assertEqual(result["matched_put"]["strike"], 24000.0)
         self.assertEqual(result["oi_walls"]["call_wall"]["strike"], 24200.0)
         self.assertEqual(result["oi_walls"]["put_wall"]["strike"], 24000.0)
+
+
+HIST = "apps.market_data.services.historical_distribution_service.HistoricalDistributionService.close_direction_given_gap"
+
+
+class GapAnalysisTests(SimpleTestCase):
+
+    def run_gap(self, quote, stats=None, user=object()):
+        with (
+            patch(MARKET, return_value=market_with({"NIFTY": quote})),
+            patch(HIST, return_value=stats),
+        ):
+            return AnalysisReportService._get_gap_analysis("NIFTY", user)
+
+    def test_gap_down_continuation_is_the_down_close_share(self):
+        stats = {"up_pct": 37.0, "down_pct": 55.0, "flat_pct": 8.0, "sample_size": 40}
+        result = self.run_gap(
+            {"close": 22620.45, "open": 22543.7, "ltp": 22421.95}, stats
+        )
+
+        self.assertEqual(result["gap"]["direction"], "DOWN")
+        self.assertEqual(result["historical"]["continuation_pct"], 55.0)
+        self.assertEqual(result["historical"]["reversal_pct"], 37.0)
+        self.assertEqual(result["historical"]["gap_bucket"], "gap_down_mild")
+
+    def test_gap_up_continuation_is_the_up_close_share(self):
+        stats = {"up_pct": 60.0, "down_pct": 30.0, "flat_pct": 10.0, "sample_size": 25}
+        result = self.run_gap({"close": 100, "open": 100.5, "ltp": 101}, stats)
+
+        self.assertEqual(result["historical"]["continuation_pct"], 60.0)
+        self.assertEqual(result["historical"]["reversal_pct"], 30.0)
+
+    def test_thin_history_gives_no_base_rate(self):
+        result = self.run_gap(
+            {"close": 100, "open": 100.5, "ltp": 101}, {"error": "insufficient"}
+        )
+        self.assertFalse(result["historical"]["available"])
+        self.assertIn("10", result["historical"]["reason"])
+
+    def test_flat_open_skips_the_history(self):
+        result = self.run_gap({"close": 100, "open": 100.01, "ltp": 100}, {"up_pct": 1})
+        self.assertEqual(result["gap"]["direction"], "FLAT")
+        self.assertFalse(result["historical"]["available"])
+
+    def test_no_user_or_quote_is_none(self):
+        self.assertIsNone(
+            self.run_gap({"close": 100, "open": 100.5, "ltp": 101}, user=None)
+        )
+        self.assertIsNone(self.run_gap({}))

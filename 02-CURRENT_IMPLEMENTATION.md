@@ -176,6 +176,13 @@ vega, the VIX-implied one-session move, 10-session realized volatility, and IV v
 `compute` is pure and tested against the reference report's numbers. Anything without verified inputs is `None`.
 IV crush risk and the 2-day realized/implied ratio are not calculated yet.
 
+### Gap analysis
+
+`gap_analysis` in the report: today's opening gap, how much price has retraced, and how past sessions with the
+same gap category closed against their own open, reported as continued / reversed / flat. These are historical
+frequencies from stored daily candles (at least 10 matching sessions, otherwise no base rate), not judgment
+estimates. The base rate excludes today's date only.
+
 ### Not built yet
 - Black-76 IV with a put-call-parity forward, IV velocity, OI change, volume spikes, spread tightening, the six
   filters and the 4-of-6 decision (waiting on the source prompts).

@@ -8,6 +8,7 @@ import { analysisAPI } from "../../../api/analysis";
 import { marketAPI } from "../../../api/market";
 import {
     ExpectationCard,
+    GapAnalysisCard,
     LevelsCard,
     CoreCalculationsCard,
     OiProfileCard,
@@ -162,6 +163,7 @@ export default function MarketWorkspace({ symbol, title }) {
                     <div className="grid gap-6 xl:grid-cols-2">
                         <TrendCheck report={report} />
                         <LevelsCard report={report} />
+                        <GapAnalysisCard report={report} />
                         <OutlookCard result={result && !resultError ? result : null} />
                         <ExpectationCard
                             result={result && !resultError ? result : null}

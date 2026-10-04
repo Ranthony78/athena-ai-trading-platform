@@ -684,3 +684,53 @@ export function CoreCalculationsCard({ report }) {
         </Card>
     );
 }
+
+// ----------------------------------------------------------- Gap analysis
+
+export function GapAnalysisCard({ report }) {
+    const analysis = report?.gap_analysis;
+    const gap = analysis?.gap;
+    const history = analysis?.historical;
+    const label = gap
+        ? gap.direction === "FLAT"
+            ? "Flat open"
+            : `${gap.direction === "UP" ? "Gap up" : "Gap down"} · ${signed(gap.gap_points, 1)} pts (${percent(gap.gap_pct)})`
+        : null;
+
+    return (
+        <Card
+            title="Gap analysis"
+            subtitle="Opening gap versus the previous close, and how similar gaps have played out"
+        >
+            {!gap ? (
+                <Na>Unavailable: needs a connected Zerodha session and today&apos;s open.</Na>
+            ) : (
+                <>
+                    <p className="text-sm font-semibold text-dark-100">{label}</p>
+                    {gap.direction !== "FLAT" && (
+                        <p className="mt-1 text-sm text-dark-300">
+                            Price has given back {gap.retrace_pct}% of the gap so far.
+                        </p>
+                    )}
+                    {history?.available ? (
+                        <>
+                            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                                <Stat label="Continued" value={`${history.continuation_pct}%`} />
+                                <Stat label="Reversed" value={`${history.reversal_pct}%`} />
+                                <Stat label="Flat" value={`${history.flat_pct}%`} />
+                            </div>
+                            <p className="mt-2 text-xs text-dark-500">
+                                How {history.sample_size} past sessions with a similar gap closed
+                                compared with their own open
+                                {history.low_confidence ? " (limited sample)" : ""}. A historical
+                                frequency, not a forecast.
+                            </p>
+                        </>
+                    ) : (
+                        <p className="mt-3 text-sm text-dark-500">{history?.reason}</p>
+                    )}
+                </>
+            )}
+        </Card>
+    );
+}
