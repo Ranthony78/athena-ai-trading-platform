@@ -104,6 +104,17 @@ read `live_orders_enabled`, which now means "this user may send real orders righ
 (`DISCLAIMER_LINES` in `live_trading_service.py`) is a draft and should be reviewed by someone qualified before
 other people use it. Tests: `apps/zerodha/test_live_trading.py` (the safety rules were mutation-checked).
 
+### Manual order ticket
+
+The Dashboard's "Market Read · NIFTY 50" panel has a "Manual order · NIFTY" strip under the AI-selected contract:
+Call/Put and ITM/ATM/OTM toggles resolve one real contract from the live option chain (ITM and OTM are one strike
+step from the ATM strike), show its symbol, strike, premium, lot size and expiry, and a "Review manual order"
+button opens the same "Review live Zerodha order" window as the AI order. It is BUY-only (the risk is the premium
+paid), has no AI-signal requirement, and uses every other gate: the user must be armed, the market open,
+the NIFTY quote and the contract's own quote under 60 seconds old, and the Zerodha session valid. The review
+window defaults to a LIMIT order at the current premium for one lot, needs the acknowledgement tick, and sends
+`confirm_live_order`. To test a broker rejection without filling, lower the limit price far below the market.
+
 **Related operational note:** during this work, a real Anthropic API key
 and Groq API key were found hardcoded in an early git commit
 (`backend/config/settings/base.py`), caught by GitHub's push protection

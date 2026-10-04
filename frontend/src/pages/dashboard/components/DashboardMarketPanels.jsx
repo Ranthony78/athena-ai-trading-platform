@@ -25,6 +25,25 @@ const fmt = (value, digits = 2) =>
 const nearestExpiry = (items = []) =>
     items.find((item) => item.expiry >= new Date().toISOString().slice(0, 10))?.expiry || "";
 
+// One strike step in/out of the money, from the live chain. ITM is the nearest
+// strike that already has intrinsic value; OTM the nearest that does not.
+export function pickManualContract(chain, atmStrike, side, moneyness) {
+    const atm = Number(atmStrike);
+    if (!Number.isFinite(atm)) return null;
+    const rows = chain.filter((row) => row.option_type === side && Number(row.ltp) > 0);
+    const strikes = rows.map((row) => Number(row.strike)).sort((a, b) => a - b);
+    const below = strikes.filter((strike) => strike < atm);
+    const above = strikes.filter((strike) => strike > atm);
+    const target =
+        moneyness === "ATM"
+            ? atm
+            : (side === "CE") === (moneyness === "ITM")
+              ? below[below.length - 1]
+              : above[0];
+    if (target === undefined) return null;
+    return rows.find((row) => Number(row.strike) === target) || null;
+}
+
 function DataValue({ label, value, detail }) {
     return (
         <div className="rounded-lg border border-dark-700 bg-dark-900/50 p-3">
@@ -57,6 +76,7 @@ function LiveOrderReview({
     chainIsFresh,
     onPlace,
     placing,
+    sourceLabel = "AI-selected contract",
 }) {
     const lotSize = Math.max(1, Number(contract?.lot_size) || 1);
     const [quantity, setQuantity] = useState(String(lotSize));
@@ -100,7 +120,7 @@ function LiveOrderReview({
                 </div>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
-                        <p className="text-xs text-dark-500">AI-selected contract</p>
+                        <p className="text-xs text-dark-500">{sourceLabel}</p>
                         <p className="mt-1 font-mono text-dark-100">
                             {contract?.trading_symbol || "—"}
                         </p>
@@ -239,6 +259,9 @@ export default function DashboardMarketPanels({
     const client = useQueryClient();
     const [expiry, setExpiry] = useState("");
     const [reviewOpen, setReviewOpen] = useState(false);
+    const [reviewSource, setReviewSource] = useState("ai");
+    const [manualSide, setManualSide] = useState("CE");
+    const [manualMoneyness, setManualMoneyness] = useState("ATM");
     const [orderMessage, setOrderMessage] = useState("");
     const [freshnessClock, setFreshnessClock] = useState(Date.now());
     useEffect(() => {
@@ -331,17 +354,22 @@ export default function DashboardMarketPanels({
         (total, position) => total + (Number(position.pnl) || 0),
         0
     );
-    const contractQuoteTime = contract?.quote_timestamp
-        ? new Date(contract.quote_timestamp).getTime()
-        : Number.NaN;
-    const contractQuoteAge = freshnessClock - contractQuoteTime;
-    const chainIsFresh = Boolean(
-        chainQuery.dataUpdatedAt &&
-        freshnessClock - chainQuery.dataUpdatedAt <= 30_000 &&
-        Number.isFinite(contractQuoteTime) &&
-        contractQuoteAge >= 0 &&
-        contractQuoteAge <= 60_000
-    );
+    // A contract is fresh when the chain was refreshed in the last 30 s and the
+    // contract's own trade timestamp is under 60 s old.
+    const chainFreshFor = (row) => {
+        const quoteTime = row?.quote_timestamp
+            ? new Date(row.quote_timestamp).getTime()
+            : Number.NaN;
+        const age = freshnessClock - quoteTime;
+        return Boolean(
+            chainQuery.dataUpdatedAt &&
+            freshnessClock - chainQuery.dataUpdatedAt <= 30_000 &&
+            Number.isFinite(quoteTime) &&
+            age >= 0 &&
+            age <= 60_000
+        );
+    };
+    const chainIsFresh = chainFreshFor(contract);
     const aiSignalTime = ai?.signal_time ? new Date(ai.signal_time).getTime() : Number.NaN;
     const aiSignalAgeMs = freshnessClock - aiSignalTime;
     const aiSignalIsFresh =
@@ -364,6 +392,23 @@ export default function DashboardMarketPanels({
         brokerStatus?.is_token_valid &&
         contract?.trading_symbol
     );
+    const manualContract = useMemo(
+        () => pickManualContract(chain, summary?.atm_strike, manualSide, manualMoneyness),
+        [chain, summary?.atm_strike, manualSide, manualMoneyness]
+    );
+    const manualChainIsFresh = chainFreshFor(manualContract);
+    const manualOrderCanOpen = Boolean(
+        marketIsLive &&
+        quoteFeedIsFresh &&
+        underlyingQuoteIsFresh &&
+        manualChainIsFresh &&
+        brokerStatus?.live_orders_enabled &&
+        brokerStatus?.is_connected &&
+        brokerStatus?.is_token_valid &&
+        manualContract?.trading_symbol
+    );
+    const reviewIsManual = reviewSource === "manual";
+    const reviewContract = reviewIsManual ? manualContract : contract;
     const spot = Number(quote?.ltp ?? summary?.spot_price);
     const vwap = indicators.vwap == null ? Number.NaN : Number(indicators.vwap);
     const ema = indicators.ema_20 == null ? Number.NaN : Number(indicators.ema_20);
@@ -519,12 +564,82 @@ export default function DashboardMarketPanels({
                             disabled={!orderCanOpen || !contract || orderMutation.isPending}
                             onClick={() => {
                                 setOrderMessage("");
+                                setReviewSource("ai");
                                 setReviewOpen(true);
                             }}
                         >
                             Review AI order
                         </Button>
                     </div>
+                </div>
+                <div className="mt-3 rounded-lg border border-dark-700 bg-dark-900/50 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <p className="text-sm font-semibold text-dark-100">
+                                Manual order · NIFTY
+                            </p>
+                            <p className="mt-1 text-xs text-dark-400">
+                                Buy one option you choose yourself. Same checks and the same review
+                                window as an AI order.
+                            </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3">
+                            <div className="inline-flex overflow-hidden rounded-lg border border-dark-600">
+                                {[
+                                    ["CE", "Call"],
+                                    ["PE", "Put"],
+                                ].map(([value, label]) => (
+                                    <button
+                                        key={value}
+                                        type="button"
+                                        aria-pressed={manualSide === value}
+                                        onClick={() => setManualSide(value)}
+                                        className={`px-3 py-1.5 text-sm ${manualSide === value ? "bg-primary-600 text-white" : "bg-dark-800 text-dark-300 hover:bg-dark-700"}`}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="inline-flex overflow-hidden rounded-lg border border-dark-600">
+                                {["ITM", "ATM", "OTM"].map((value) => (
+                                    <button
+                                        key={value}
+                                        type="button"
+                                        aria-pressed={manualMoneyness === value}
+                                        onClick={() => setManualMoneyness(value)}
+                                        className={`px-3 py-1.5 text-sm ${manualMoneyness === value ? "bg-primary-600 text-white" : "bg-dark-800 text-dark-300 hover:bg-dark-700"}`}
+                                    >
+                                        {value}
+                                    </button>
+                                ))}
+                            </div>
+                            <Button
+                                variant="danger"
+                                disabled={!manualOrderCanOpen || orderMutation.isPending}
+                                onClick={() => {
+                                    setOrderMessage("");
+                                    setReviewSource("manual");
+                                    setReviewOpen(true);
+                                }}
+                            >
+                                Review manual order
+                            </Button>
+                        </div>
+                    </div>
+                    <p className="mt-2 font-mono text-xs text-dark-300">
+                        {manualContract
+                            ? `${manualContract.trading_symbol} · strike ${fmt(manualContract.strike, 0)} · premium ₹${fmt(manualContract.ltp)} · lot ${manualContract.lot_size || "?"} · expiry ${manualContract.expiry}`
+                            : "No priced contract found for this choice. The option chain may still be loading."}
+                    </p>
+                    {!manualOrderCanOpen && (
+                        <p className="mt-1 text-xs text-dark-500">
+                            {!brokerStatus?.live_orders_enabled
+                                ? "Arm live orders in Settings first."
+                                : !marketIsLive
+                                  ? "Available only while the market is open (09:15–15:30 IST)."
+                                  : "Waiting for a fresh NIFTY quote and option quote (under 60 seconds old)."}
+                        </p>
+                    )}
                 </div>
                 {!brokerStatus?.live_orders_enabled && (
                     <p className="mt-2 text-xs text-dark-500">
@@ -745,11 +860,12 @@ export default function DashboardMarketPanels({
             <LiveOrderReview
                 open={reviewOpen}
                 onClose={() => setReviewOpen(false)}
-                contract={contract}
+                contract={reviewContract}
+                sourceLabel={reviewIsManual ? "Manual contract" : "AI-selected contract"}
                 brokerStatus={brokerStatus}
                 marketIsLive={marketIsLive}
                 quoteFeedIsFresh={Boolean(quoteFeedIsFresh && underlyingQuoteIsFresh)}
-                chainIsFresh={chainIsFresh}
+                chainIsFresh={reviewIsManual ? manualChainIsFresh : chainIsFresh}
                 placing={orderMutation.isPending}
                 onPlace={(payload) => orderMutation.mutate(payload)}
             />
