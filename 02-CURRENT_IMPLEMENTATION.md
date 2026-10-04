@@ -167,6 +167,15 @@ report endpoint (including `key_metrics`) and runs the existing analysis API wit
 `MarketWorkspace` takes the symbol as a prop and also serves `/analysis/nifty`. Both pages end with an expiry and strike card (expiry, days to expiry, lot size, ATM call, premium-matched put) and an open-interest profile (call and put walls, put/call OI, max pain), fed by the report's `options` block. Every missing value shows "NA"
 with the reason. The older detailed report now lives at `/analysis/detailed`; `/analysis` is the Athena AI Workspace overview (one card per market with price, VIX, nearest support/resistance and the last analysis, each linking to its workspace).
 
+### Core calculations
+
+`CoreCalculationsService` (report key `core_calculations`, shown as a card on both workspaces): parity forward,
+Black-76 IV for the ATM call and put, synthetic straddle and its share of spot, required move to recover the
+premium (call, put, straddle up and down), straddle theta (per day and per 15 minutes of trading time), gamma and
+vega, the VIX-implied one-session move, 10-session realized volatility, and IV velocity from stored snapshots.
+`compute` is pure and tested against the reference report's numbers. Anything without verified inputs is `None`.
+IV crush risk and the 2-day realized/implied ratio are not calculated yet.
+
 ### Not built yet
 - Black-76 IV with a put-call-parity forward, IV velocity, OI change, volume spikes, spread tightening, the six
   filters and the 4-of-6 decision (waiting on the source prompts).

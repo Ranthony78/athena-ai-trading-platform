@@ -16,6 +16,7 @@ or a stat.
 """
 
 import logging
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,7 @@ class AnalysisReportService:
             "multi_timeframe": cls._safe(cls._get_multi_timeframe, symbol) or {},
             "options": cls._safe(cls._get_options, symbol, user),
             "key_metrics": cls._safe(cls._get_key_metrics, symbol, user),
+            "core_calculations": cls._safe(cls._get_core_calculations, symbol, user),
             "last_analysis": cls._safe(cls._get_last_analysis, symbol),
         }
 
@@ -71,6 +73,12 @@ class AnalysisReportService:
         from .market_service import MarketService
 
         return MarketService(user=user).quote(symbol)
+
+    @staticmethod
+    def _get_core_calculations(symbol: str, user) -> Optional[dict]:
+        from .core_calculations_service import CoreCalculationsService
+
+        return CoreCalculationsService.build(symbol, user)
 
     @staticmethod
     def _get_key_metrics(symbol: str, user) -> dict:

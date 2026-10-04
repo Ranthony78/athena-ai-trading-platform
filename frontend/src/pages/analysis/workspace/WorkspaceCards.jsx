@@ -580,3 +580,107 @@ export function OiProfileCard({ report }) {
         </Card>
     );
 }
+
+// ------------------------------------------------------ Core calculations
+
+export function CoreCalculationsCard({ report }) {
+    const core = report?.core_calculations;
+    const available = core && (isNumber(core.forward) || isNumber(core.straddle));
+    const move = core?.required_move || {};
+    const greeks = core?.straddle_greeks;
+    const velocity = core?.iv_velocity;
+    const realized = core?.realized_vol;
+
+    return (
+        <Card
+            title="Core calculations"
+            subtitle={
+                core
+                    ? `Black-76 on the parity forward · ${whole(core.atm_strike)} strike · expiry ${core.expiry}`
+                    : "Option maths from the live chain"
+            }
+        >
+            {!available ? (
+                <Na>
+                    Unavailable: needs a connected Zerodha session and a priced call and put at the
+                    money.
+                </Na>
+            ) : (
+                <>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        <Stat
+                            label="Forward (parity)"
+                            value={num(core.forward, 0)}
+                            hint="The forward price implied by call and put prices around the money."
+                        />
+                        <Stat
+                            label="Implied volatility"
+                            value={isNumber(core.implied_vol) ? `${num(core.implied_vol)}%` : "NA"}
+                            hint="Volatility implied by the option price. It is not a direction forecast."
+                        />
+                        <Stat
+                            label="Synthetic straddle"
+                            value={
+                                isNumber(core.straddle)
+                                    ? `₹${num(core.straddle)} (${num(core.straddle_pct_of_spot)}%)`
+                                    : "NA"
+                            }
+                        />
+                        <Stat
+                            label="IV velocity"
+                            value={
+                                velocity
+                                    ? `${signed(velocity.change_per_window)} pts / ${velocity.window_minutes}m`
+                                    : "NA"
+                            }
+                            hint="Needs about 15 minutes of stored option snapshots."
+                        />
+                        <Stat label="Required move · call" value={signed(move.call, 1)} />
+                        <Stat label="Required move · put" value={signed(move.put, 1)} />
+                        <Stat
+                            label="Required move · straddle"
+                            value={
+                                isNumber(move.straddle_up)
+                                    ? `${signed(move.straddle_up, 1)} / ${signed(move.straddle_down, 1)}`
+                                    : "NA"
+                            }
+                        />
+                        <Stat
+                            label="1-session move (VIX)"
+                            value={
+                                isNumber(core.vix_session_move)
+                                    ? `±${whole(core.vix_session_move)} pts`
+                                    : "NA"
+                            }
+                            hint="One standard deviation over a single session implied by India VIX."
+                        />
+                        <Stat
+                            label="Theta · straddle"
+                            value={
+                                greeks
+                                    ? `${num(greeks.theta_per_day)} / day · ${num(greeks.theta_per_15_min)} / 15 min`
+                                    : "NA"
+                            }
+                        />
+                        <Stat
+                            label="Gamma · straddle"
+                            value={greeks ? num(greeks.gamma, 5) : "NA"}
+                        />
+                        <Stat
+                            label="Vega · straddle"
+                            value={greeks ? `₹${num(greeks.vega_per_vol_point)} / vol pt` : "NA"}
+                        />
+                        <Stat
+                            label={`Realized vol · ${core.realized_vol_sessions} sessions`}
+                            value={isNumber(realized) ? `${num(realized)}%` : "NA"}
+                        />
+                    </div>
+                    <p className="mt-2 text-xs text-dark-500">
+                        Calculated from live quotes, not predictions. Required move is how far the
+                        index must travel from here for the premium to be recovered at expiry.
+                    </p>
+                </>
+            )}
+        </Card>
+    );
+}
