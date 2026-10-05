@@ -54,12 +54,18 @@ def main() -> int:
     dump = subprocess.run(
         [
             find_tool("pg_dump"),
-            "-h", parsed.hostname or "localhost",
-            "-p", str(parsed.port or 5432),
-            "-U", unquote(parsed.username or ""),
-            "-d", parsed.path.lstrip("/"),
-            "-F", "c",
-            "-f", str(out),
+            "-h",
+            parsed.hostname or "localhost",
+            "-p",
+            str(parsed.port or 5432),
+            "-U",
+            unquote(parsed.username or ""),
+            "-d",
+            parsed.path.lstrip("/"),
+            "-F",
+            "c",
+            "-f",
+            str(out),
         ],
         env=env,
         capture_output=True,
@@ -76,7 +82,9 @@ def main() -> int:
     if check.returncode != 0:
         print("backup written but pg_restore cannot read it:", out)
         return 1
-    print(f"{datetime.now():%Y-%m-%d %H:%M} ok {out.name} {out.stat().st_size / 1048576:.1f} MB")
+    print(
+        f"{datetime.now():%Y-%m-%d %H:%M} ok {out.name} {out.stat().st_size / 1048576:.1f} MB"
+    )
 
     # Retention: only files this script names, newest N kept.
     dumps = sorted(args.dest.glob(f"{PREFIX}*.dump"))
