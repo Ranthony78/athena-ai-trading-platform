@@ -20,4 +20,8 @@ export const analysisAPI = {
     getSignals: () => api.get("/ai/signals/"),
 
     getTemplates: () => api.get("/ai/templates/"),
+
+    getPreferences: () => api.get("/ai/preferences/"),
+
+    savePreferences: (data) => api.put("/ai/preferences/", data),
 };

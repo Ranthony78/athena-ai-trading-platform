@@ -13,9 +13,10 @@ service produces:
 
 - Risk-free rate is a fixed constant (see DEFAULT_RISK_FREE_RATE),
   not fetched from a live source.
-- Time to expiry is calendar days / 365, a common simplification.
-  It slightly understates time value for very short-dated (same-week)
-  options versus a trading-day convention.
+- Time to expiry is calendar time in seconds until 15:30 IST on the
+  expiry day, measured from when the quoted prices were current (see
+  snapshot_signals_service.valuation_time). Whole-day counting made
+  expiry-day IV and theta several times too large.
 - European-style Black-Scholes pricing is used, the standard accepted
   approximation for NSE index options (they're European-exercise
   anyway for indices).
@@ -32,6 +33,7 @@ from datetime import date
 from typing import Optional
 
 from . import black76
+from .snapshot_signals_service import _years_to_expiry, valuation_time
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +116,10 @@ class OptionChainService:
             self.status_message = "NFO contracts exist, but the provider returned no option quotes. Check the Zerodha connection and quote access."
             return []
 
-        time_to_expiry = self._time_to_expiry_years(target_expiry)
+        self.valuation_time = valuation_time(spot_quote.get("timestamp"))
+        time_to_expiry = self._time_to_expiry_years(
+            target_expiry, at=self.valuation_time
+        )
 
         # Black-76 prices off a forward implied by the chain itself; if the
         # chain has no usable call/put pair the rows fall back to
@@ -192,11 +197,15 @@ class OptionChainService:
         return list(expiries)
 
     @staticmethod
-    def _time_to_expiry_years(expiry_str: str) -> float:
+    def _time_to_expiry_years(expiry_str: str, at=None) -> float:
+        """Years from `at` (default now) to 15:30 IST on the expiry date, floored at 1 hour."""
+        from django.utils import timezone
+
         expiry_date = date.fromisoformat(str(expiry_str))
-        days = (expiry_date - date.today()).days
-        years = max(days, 0) / 365
-        return max(years, MIN_TIME_TO_EXPIRY_YEARS)
+        return max(
+            _years_to_expiry(expiry_date, at or timezone.now()),
+            MIN_TIME_TO_EXPIRY_YEARS,
+        )
 
     # ------------------------------------------------------------------
     # Per-row enrichment (real Greeks + IV, replacing provider's 0s)

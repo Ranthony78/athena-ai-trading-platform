@@ -393,3 +393,31 @@ class AISignal(BaseModel):
             f"{self.confidence} | "
             f"{self.confidence_score}%"
         )
+
+
+class AnalysisPreference(BaseModel):
+    """Per-user AI analysis preferences (currently just setup strictness)."""
+
+    STRICTNESS_CHOICES = [
+        ("STRICT", "Strict"),
+        ("BALANCED", "Balanced"),
+        ("EXPLORATORY", "Exploratory"),
+    ]
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="analysis_preference",
+    )
+    setup_strictness = models.CharField(
+        max_length=12,
+        choices=STRICTNESS_CHOICES,
+        default="BALANCED",
+        help_text="How readily the AI may return BUY/SELL instead of NO_SETUP. Code-level safety rules always apply.",
+    )
+
+    class Meta:
+        db_table = "ai_analysis_preferences"
+
+    def __str__(self) -> str:
+        return f"{self.user} - {self.setup_strictness}"

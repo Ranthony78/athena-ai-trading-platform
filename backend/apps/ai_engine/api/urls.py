@@ -2,6 +2,7 @@ from django.urls import path
 
 from .views import (
     AISignalListAPIView,
+    AnalysisPreferenceAPIView,
     AnalysisPromptPreviewAPIView,
     AnalysisRunAPIView,
     AnalysisSessionDetailAPIView,
@@ -15,6 +16,11 @@ from .views import (
 urlpatterns = [
     path(
         "provider/", ProviderConnectionAPIView.as_view(), name="ai-provider-connection"
+    ),
+    path(
+        "preferences/",
+        AnalysisPreferenceAPIView.as_view(),
+        name="ai-preferences",
     ),
     path("learning/", LearningReportAPIView.as_view(), name="ai-learning"),
     path("market-drivers/", MarketDriversAPIView.as_view(), name="ai-market-drivers"),

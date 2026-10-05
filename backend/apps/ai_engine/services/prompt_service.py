@@ -15,6 +15,7 @@ from apps.market_data.services.historical_distribution_service import (
 
 from .deterministic_metrics_service import DeterministicMetricsService
 from .rule_evidence_service import RuleEvidenceService
+from .setup_strictness import policy_text as setup_strictness_policy
 
 logger = logging.getLogger(__name__)
 
@@ -80,13 +81,13 @@ class PromptService:
     """
 
     MULTI_TIMEFRAME_SET = ["5m", "15m", "30m"]
-    VERSION = "athena-workspace-v5"
+    VERSION = "athena-workspace-v6"
     CONTRACT = """
 CURRENT OUTPUT CONTRACT (overrides legacy prompt-template instructions):
 - Return one valid JSON object only, with the requested keys. Do not prepend prose or wrap it in Markdown fences.
 - The schema example is a type template, not an answer. Never copy its placeholder values.
 - Never invent input facts. You may make the requested qualitative assessments only from supplied evidence; list their evidence and uncertainty.
-- Discuss the supplied option_buying_audit when interpreting ATM CALL, PUT, or straddle research. Preserve INVALID_UNITS, UNAVAILABLE and REFERENCE_ONLY states; never turn them into pass/fail counts. Compare IV-driven premium impact with theta only in compatible units using supplied vega and IV history. Expiry straddle breakeven is not an intraday expected-profit calculation. Do not invent the requested p9 edge scores, option win rates, expectancy, IV expansion/crush odds or time-block regime probabilities.
+- For ATM CALL, PUT, or straddle research, use the filter engine in Computed Metrics (filters A-F; at least 4 of 6 must pass; NOT EVALUABLE and NOT APPLICABLE never count as passed). Report its verdict as given; never re-score it or treat an unknown filter as passed. Compare IV-driven premium impact with theta only in compatible units using supplied vega and IV history. Expiry straddle breakeven is not an intraday expected-profit calculation. Do not invent the requested p9 edge scores, option win rates, expectancy, IV expansion/crush odds or time-block regime probabilities.
 - Compare analysis assembly time, session clock, latest candle time, and quote time. If they disagree, identify the mismatch in missing_information and do not describe stale data as current.
 - Respect analysis_mode exactly. LIVE analyzes only the current open session and its selected horizon from analysis time. If the market is closed or session status is unavailable, return NO_SETUP and do not turn LIVE into a next-session forecast; tell the user to select NEXT_SESSION for that outlook.
 - NEXT_SESSION is an explicitly requested conditional outlook for the next trading session; its selected horizon is measured from 09:15 IST using eligible dated completed-session evidence. It is planning only: never issue a current-entry BUY/SELL or paper-trade signal.
@@ -108,7 +109,13 @@ CURRENT OUTPUT CONTRACT (overrides legacy prompt-template instructions):
 """
 
     @classmethod
-    def request_config(cls, template=None, provider=None, model_override=None):
+    def request_config(
+        cls,
+        template=None,
+        provider=None,
+        model_override=None,
+        setup_strictness=None,
+    ):
         provider = provider or getattr(settings, "AI_PROVIDER", "mock")
         defaults = {
             "gemini": "gemini-3.5-flash",
@@ -135,7 +142,12 @@ CURRENT OUTPUT CONTRACT (overrides legacy prompt-template instructions):
                 template.system_prompt if template else cls.DEFAULT_SYSTEM_PROMPT
             )
             + "\n"
-            + cls.CONTRACT,
+            + cls.CONTRACT
+            + (
+                "\n" + setup_strictness_policy(setup_strictness)
+                if setup_strictness and setup_strictness_policy(setup_strictness)
+                else ""
+            ),
             "model": model or defaults.get(provider, "mock"),
             "max_tokens": template.max_tokens if template else 6000,
             "temperature": template.temperature if template else 0.3,
@@ -271,7 +283,10 @@ Rules:
 
         latest = candle_list[-1]
         context["latest_candle"] = {
-            "time": str(latest["candle_time"]),
+            # IST, like every other time in the prompt; candle_time is stored in UTC.
+            "time": timezone.localtime(latest["candle_time"]).strftime(
+                "%Y-%m-%d %H:%M IST"
+            ),
             "open": float(latest["open"]),
             "high": float(latest["high"]),
             "low": float(latest["low"]),
@@ -703,6 +718,13 @@ Rules:
                 # Prices around the money, enough for the parity forward and
                 # Black-76 figures without storing the whole chain.
                 "core_rows": PromptService._rows_near_atm(chain, summary["atm_strike"]),
+                # When these prices were current; the Black-76 figures must use
+                # the same clock as the chain's IV (see valuation_time).
+                "valuation_time": (
+                    service.valuation_time.isoformat()
+                    if getattr(service, "valuation_time", None)
+                    else None
+                ),
             }
         except Exception as e:
             logger.error(f"PromptService option analysis error [{symbol}]: {e}")
@@ -772,7 +794,14 @@ Rules:
         news_sentiment = context.get("news_sentiment")
         session_structure = context.get("session_structure")
         iv_vs_hv = context.get("iv_vs_hv")
-        rule_evidence = context.get("rule_evidence") or {}
+        # The older option-buying audit (its own filters A-E) predates the
+        # filter engine in Computed Metrics and contradicts it, so it is left
+        # out of the prompt. It stays in the saved context for the UI.
+        rule_evidence = {
+            key: value
+            for key, value in (context.get("rule_evidence") or {}).items()
+            if key != "option_buying_audit"
+        }
         mtf = context.get("multi_timeframe", {})
         options = context.get("options")
         historical = context.get("historical_stats")
@@ -886,9 +915,10 @@ This is the numeric probability split for this forecast horizon. {'For NEXT_SESS
 
 **Horizon-matched intraday probability:** {reason} Leave all probability percentages null. Full-session gap statistics above are not a substitute for an intraday forecast."""
 
+        breadth_index = "Bank Nifty" if symbol == "BANKNIFTY" else "Nifty 50"
         if breadth:
             confidence_note = (
-                " (fewer than 40/50 constituents resolved — treat as directional only)"
+                " (too few constituents resolved — treat as directional only)"
                 if breadth["low_confidence"]
                 else ""
             )
@@ -896,7 +926,7 @@ This is the numeric probability split for this forecast horizon. {'For NEXT_SESS
                 f"**Advances:** {breadth['advances']} · "
                 f"**Declines:** {breadth['declines']} · "
                 f"**Unchanged:** {breadth['unchanged']} "
-                f"(of {breadth['sample_size']}/{breadth['of_total']} Nifty 50 "
+                f"(of {breadth['sample_size']}/{breadth['of_total']} {breadth_index} "
                 f"constituents live-quoted{confidence_note})"
             )
         else:
@@ -1031,7 +1061,7 @@ Note: this is keyword-matched sentiment, not a dedicated RBI entity score — tr
 
 **Symbol:** {symbol}
 **Timeframe:** {timeframe}
-**Time:** {latest.get('time', 'NA')}
+**Latest stored candle:** {latest.get('time', 'NA')} (start time of the latest stored {timeframe} candle)
 
 {session_text}
 \n**Analysis mode:** {mode_text}
@@ -1057,7 +1087,7 @@ Note: this is keyword-matched sentiment, not a dedicated RBI entity score — tr
 
 ---
 
-## 4. Market Breadth (Nifty 50)
+## 4. Market Breadth ({breadth_index})
 
 {breadth_text}
 

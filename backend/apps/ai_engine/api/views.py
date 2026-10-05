@@ -15,6 +15,9 @@ from ..services.provider_credentials import (
     ProviderEncryptionUnavailable,
 )
 from ..services.rule_evidence_service import RuleEvidenceService
+from ..services.setup_strictness import LABELS as STRICTNESS_LABELS
+from ..services.setup_strictness import LEVELS as STRICTNESS_LEVELS
+from ..services.setup_strictness import get_level as get_setup_strictness
 from .serializers import (
     AIProviderCredentialSerializer,
     AISignalSerializer,
@@ -24,6 +27,43 @@ from .serializers import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class AnalysisPreferenceAPIView(APIView):
+    """GET/PUT /api/ai/preferences/ - the user's setup strictness."""
+
+    permission_classes = [IsAuthenticated]
+
+    @staticmethod
+    def _payload(user):
+        level = get_setup_strictness(user)
+        return {
+            "setup_strictness": level,
+            "options": [
+                {"value": value, "label": STRICTNESS_LABELS[value]}
+                for value in STRICTNESS_LEVELS
+            ],
+        }
+
+    def get(self, request):
+        return ApiResponse.success(data=self._payload(request.user))
+
+    def put(self, request):
+        level = str(request.data.get("setup_strictness", "")).upper()
+        if level not in STRICTNESS_LEVELS:
+            return ApiResponse.error(
+                message="Choose Strict, Balanced or Exploratory.",
+                errors={"setup_strictness": ["Invalid choice."]},
+            )
+        from ..models import AnalysisPreference
+
+        AnalysisPreference.objects.update_or_create(
+            user=request.user, defaults={"setup_strictness": level}
+        )
+        return ApiResponse.success(
+            data=self._payload(request.user),
+            message=f"Setup strictness set to {STRICTNESS_LABELS[level]}.",
+        )
 
 
 class ProviderConnectionAPIView(APIView):
@@ -163,6 +203,7 @@ class AnalysisPromptPreviewAPIView(APIView):
                 template,
                 provider=provider_config["provider"],
                 model_override=provider_config["model"],
+                setup_strictness=get_setup_strictness(request.user),
             )
             return ApiResponse.success(
                 data={
