@@ -148,7 +148,7 @@ last 60 days of candles (1d, 30m, 15m, 5m, 3m, 1m) for NIFTY and BANKNIFTY. With
 gap-direction base rates have far fewer sessions than the earlier 5 years, so they may show "not enough data";
 `python manage.py backfill_candles --symbols NIFTY,BANKNIFTY --timeframe 1d --years 5` restores them. AI runs, audit
 events and all trading records were deliberately reset. `.env` now has `DATABASE_URL`; deleting that line and
-restarting returns to SQLite (the SQLite file and its backups in C:\DevOpsProjectthena-backups were not changed).
+restarting returns to SQLite (the SQLite file and its backups in C:/DevOpsProject/athena-backups were not changed).
 First PostgreSQL backup: `athena_db-*.dump` in the same folder (pg_dump custom format; restore with pg_restore).
 
 Original cutover steps, for reference:
