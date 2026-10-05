@@ -96,3 +96,104 @@ def run_scheduled_next_session_analysis():
 
     logger.info(f"Scheduled next-session analysis: {results}")
     return results
+
+
+# ----------------------------------------------------------------------
+# In-market scheduled analysis (forward testing)
+# ----------------------------------------------------------------------
+
+# Hard ceiling on analyses saved per day for the scheduled user, manual runs
+# included. Stops a bug or a retry loop from burning AI quota.
+DAILY_ANALYSIS_CAP = 8
+# A second scheduled run for the same symbol inside this window is a duplicate
+# (double beat, restart, retry) and is skipped.
+DUPLICATE_WINDOW_MINUTES = 60
+
+
+@shared_task
+def run_scheduled_live_analysis():
+    """
+    Mid-session task (09:30, 11:30, 13:30 IST on weekdays): save a LIVE
+    analysis for each index with paper evaluation switched on, so the forecast
+    and the simulated paper trade are tracked against what price then did.
+    Paper only: no live order is ever placed from here.
+    """
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.market_data.engine.market_state import MarketState
+
+    from .models import AnalysisSession
+    from .services.analysis_service import AnalysisService
+
+    now = timezone.now()
+    if timezone.localdate().weekday() >= 5:
+        return "skipped (weekend)"
+    if not MarketState.session_info()["is_live"]:
+        return "skipped (market closed)"
+    user = _pick_user()
+    if user is None:
+        logger.warning("Scheduled live analysis skipped: no valid Zerodha connection.")
+        return "skipped (no valid Zerodha connection)"
+
+    results = {}
+    for symbol in SCHEDULED_SYMBOLS:
+        used_today = AnalysisSession.objects.filter(
+            user=user, created_at__date=timezone.localdate()
+        ).count()
+        if used_today >= DAILY_ANALYSIS_CAP:
+            results[symbol] = f"skipped (daily cap of {DAILY_ANALYSIS_CAP} reached)"
+            continue
+        symbols = [symbol, f"{symbol} 50"]
+        recent = AnalysisSession.objects.filter(
+            instrument__symbol__in=symbols,
+            user=user,
+            created_at__gte=now - timedelta(minutes=DUPLICATE_WINDOW_MINUTES),
+            market_context__analysis_mode="LIVE",
+        ).exists()
+        if recent:
+            results[symbol] = "skipped (already run within the last hour)"
+            continue
+        try:
+            out = AnalysisService(user=user).analyze(
+                symbol=symbol,
+                timeframe="15m",
+                session_type="MARKET_ANALYSIS",
+                persist=True,
+                forecast_horizon_minutes=SCHEDULED_HORIZON_MINUTES,
+                paper_evaluate=True,
+                analysis_mode="LIVE",
+            )
+            results[symbol] = f"saved session {out.get('session_id')}"
+        except Exception as e:
+            logger.error(
+                f"Scheduled live analysis failed [{symbol}]: {type(e).__name__}"
+            )
+            results[symbol] = f"error: {type(e).__name__}"
+
+    logger.info(f"Scheduled live analysis: {results}")
+    return results
+
+
+@shared_task
+def write_daily_journal_draft():
+    """17:00 IST on weekdays: write a draft journal entry summarising the day's runs."""
+    from .services.journal_digest_service import JournalDigestService
+
+    user = _pick_user() or _fallback_user()
+    if user is None:
+        return "skipped (no user)"
+    return JournalDigestService.write_for_today(user)
+
+
+def _fallback_user():
+    """After the evening the Zerodha token may be unusable; use the last run's owner."""
+    from .models import AnalysisSession
+
+    last = (
+        AnalysisSession.objects.exclude(user__isnull=True)
+        .order_by("-created_at")
+        .first()
+    )
+    return last.user if last else None

@@ -382,6 +382,22 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.market_data.tasks.snapshot_option_chain",
         "schedule": 300.0,  # every 5 minutes during market hours
     },
+    "morning-live-analysis": {
+        "task": "apps.ai_engine.tasks.run_scheduled_live_analysis",
+        "schedule": crontab(hour=9, minute=30, day_of_week="mon-fri"),
+    },
+    "midday-live-analysis": {
+        "task": "apps.ai_engine.tasks.run_scheduled_live_analysis",
+        "schedule": crontab(hour=11, minute=30, day_of_week="mon-fri"),
+    },
+    "afternoon-live-analysis": {
+        "task": "apps.ai_engine.tasks.run_scheduled_live_analysis",
+        "schedule": crontab(hour=13, minute=30, day_of_week="mon-fri"),
+    },
+    "evening-journal-draft": {
+        "task": "apps.ai_engine.tasks.write_daily_journal_draft",
+        "schedule": crontab(hour=17, minute=0, day_of_week="mon-fri"),
+    },
     "evening-next-session-analysis": {
         "task": "apps.ai_engine.tasks.run_scheduled_next_session_analysis",
         # 16:30 IST Mon-Fri, after the close and after the day's candles are in.
