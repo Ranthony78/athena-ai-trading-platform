@@ -148,6 +148,13 @@ def compute(
     return result
 
 
+def _parse_time(value) -> Optional[datetime]:
+    try:
+        return datetime.fromisoformat(str(value)) if value else None
+    except ValueError:
+        return None
+
+
 class CoreCalculationsService:
 
     @staticmethod
@@ -189,7 +196,7 @@ class CoreCalculationsService:
             spot=options.get("spot_price"),
             atm_strike=options.get("atm_strike"),
             expiry=date.fromisoformat(str(options["expiry"])),
-            now=timezone.now(),
+            now=_parse_time(options.get("valuation_time")) or timezone.now(),
             rows=options["core_rows"],
             vix=vix,
             daily_closes=cls._daily_closes(symbol),
@@ -223,7 +230,8 @@ class CoreCalculationsService:
             spot=summary.get("spot_price"),
             atm_strike=strike,
             expiry=date.fromisoformat(str(expiry_text)),
-            now=timezone.now(),
+            # Same clock as the chain's own IV, so both sections agree.
+            now=getattr(service, "valuation_time", None) or timezone.now(),
             rows=rows,
             vix=vix,
             daily_closes=cls._daily_closes(symbol),

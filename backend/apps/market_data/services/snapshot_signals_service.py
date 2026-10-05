@@ -149,6 +149,35 @@ def _years_to_expiry(expiry, at: datetime) -> float:
     return max(seconds / (365 * 24 * 3600), 1 / (365 * 24))
 
 
+def valuation_time(quote_timestamp, now: Optional[datetime] = None) -> datetime:
+    """
+    The moment the quoted option prices belong to, for time-to-expiry.
+
+    Live, that is the quote's own time. After the close Zerodha keeps
+    stamping quotes later in the evening, but the prices are still the
+    15:30 closing prices, so the time is capped at that session's 15:30 IST.
+    Valuing a 15:30 price as if it were quoted at 02:00 next morning
+    shrinks the time left and inflates implied volatility and theta.
+    Unparseable or future timestamps fall back to `now`.
+    """
+    now = now or timezone.now()
+    at = quote_timestamp
+    if isinstance(at, str):
+        try:
+            at = datetime.fromisoformat(at.replace("Z", "+00:00"))
+        except ValueError:
+            at = None
+    if not isinstance(at, datetime):
+        return now
+    if at.tzinfo is None:
+        at = at.replace(tzinfo=IST)  # Kite timestamps are naive IST
+    if at > now + timedelta(minutes=1):
+        return now
+    local = at.astimezone(IST)
+    close = datetime.combine(local.date(), EXPIRY_CLOSE, tzinfo=IST)
+    return min(local, close)
+
+
 class SnapshotSignalsService:
 
     @classmethod
