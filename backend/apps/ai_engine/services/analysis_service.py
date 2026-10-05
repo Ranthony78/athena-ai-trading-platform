@@ -18,6 +18,7 @@ from .ai_service import AIService
 from .output_validator import OutputValidator
 from .prompt_service import PromptService
 from .rule_evidence_service import RuleEvidenceService
+from .setup_strictness import get_level as get_setup_strictness
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +109,9 @@ class AnalysisService:
                 forecast_horizon_minutes=forecast_horizon_minutes,
                 analysis_mode=analysis_mode,
             )
+            # Recorded with the run so forward-test results can be split by level.
+            setup_strictness = get_setup_strictness(self.user)
+            market_context["setup_strictness"] = setup_strictness
 
             # Get system prompt
             template = PromptTemplateRepository.get_by_type(session_type)
@@ -115,6 +119,7 @@ class AnalysisService:
                 template,
                 provider=self.ai_service.provider_name,
                 model_override=self.ai_service.provider_config["model"],
+                setup_strictness=setup_strictness,
             )
             system_prompt = config["system_prompt"]
             model = config["model"]
@@ -265,6 +270,7 @@ class AnalysisService:
                 "symbol": symbol,
                 "timeframe": timeframe,
                 "analysis_mode": analysis_mode,
+                "setup_strictness": market_context.get("setup_strictness"),
                 "signal": parsed.get("signal", "NO_SETUP"),
                 "confidence": parsed.get("confidence", 0),
                 "confidence_level": parsed.get("confidence_level", "LOW"),

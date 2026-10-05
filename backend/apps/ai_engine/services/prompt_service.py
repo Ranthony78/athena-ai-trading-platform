@@ -15,6 +15,7 @@ from apps.market_data.services.historical_distribution_service import (
 
 from .deterministic_metrics_service import DeterministicMetricsService
 from .rule_evidence_service import RuleEvidenceService
+from .setup_strictness import policy_text as setup_strictness_policy
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +109,13 @@ CURRENT OUTPUT CONTRACT (overrides legacy prompt-template instructions):
 """
 
     @classmethod
-    def request_config(cls, template=None, provider=None, model_override=None):
+    def request_config(
+        cls,
+        template=None,
+        provider=None,
+        model_override=None,
+        setup_strictness=None,
+    ):
         provider = provider or getattr(settings, "AI_PROVIDER", "mock")
         defaults = {
             "gemini": "gemini-3.5-flash",
@@ -135,7 +142,12 @@ CURRENT OUTPUT CONTRACT (overrides legacy prompt-template instructions):
                 template.system_prompt if template else cls.DEFAULT_SYSTEM_PROMPT
             )
             + "\n"
-            + cls.CONTRACT,
+            + cls.CONTRACT
+            + (
+                "\n" + setup_strictness_policy(setup_strictness)
+                if setup_strictness and setup_strictness_policy(setup_strictness)
+                else ""
+            ),
             "model": model or defaults.get(provider, "mock"),
             "max_tokens": template.max_tokens if template else 6000,
             "temperature": template.temperature if template else 0.3,
