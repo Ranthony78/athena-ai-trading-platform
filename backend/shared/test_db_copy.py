@@ -121,3 +121,47 @@ class SafetyChecksTests(TestCase):
     def test_arming_rows_do_not_point_at_rebuilt_tables(self):
         # Users and arming are copied as ordinary rows: nothing links to content types.
         self.assertFalse(db_copy._points_at_skipped(LiveTradingArming))
+
+
+class OnlyOptionTests(SimpleTestCase):
+
+    def test_only_limits_the_models(self):
+        chosen = db_copy.models_to_copy(
+            ["accounts.user", "token_blacklist.outstandingtoken"]
+        )
+        self.assertEqual(
+            {m._meta.label_lower for m in chosen},
+            {"accounts.user", "token_blacklist.outstandingtoken"},
+        )
+
+    def test_names_are_not_case_sensitive(self):
+        self.assertEqual(len(db_copy.models_to_copy(["Accounts.User"])), 1)
+
+    def test_unknown_or_rebuilt_models_are_refused(self):
+        for bad in ("nope.model", "contenttypes.contenttype", "auth.permission"):
+            with self.assertRaises(db_copy.CopyError, msg=bad):
+                db_copy.models_to_copy([bad])
+
+    def test_nothing_given_means_everything(self):
+        self.assertEqual(db_copy.models_to_copy(), db_copy.models_to_copy(None))
+        self.assertGreater(len(db_copy.models_to_copy()), 30)
+
+    def test_a_subset_still_puts_parents_first(self):
+        ordered = db_copy.dependency_order(
+            db_copy.models_to_copy(
+                [
+                    "token_blacklist.blacklistedtoken",
+                    "token_blacklist.outstandingtoken",
+                    "accounts.user",
+                ]
+            )
+        )
+        labels = [m._meta.label_lower for m in ordered]
+        self.assertLess(
+            labels.index("accounts.user"),
+            labels.index("token_blacklist.outstandingtoken"),
+        )
+        self.assertLess(
+            labels.index("token_blacklist.outstandingtoken"),
+            labels.index("token_blacklist.blacklistedtoken"),
+        )

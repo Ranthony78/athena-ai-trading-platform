@@ -124,7 +124,7 @@ characters in the password; `?sslmode=require` is supported) or `DB_ENGINE=postg
 Connections are reused for 60 seconds and health-checked. Errors never include the password. Setting these in
 `.env` switches the running app on its next restart, so do that only as part of the cutover.
 
-### Moving from SQLite to PostgreSQL (rehearsed 2026-10-05, not yet cut over)
+### Moving from SQLite to PostgreSQL (rehearsed and cut over on 2026-10-05)
 
 The test suite (400 tests) passes on both databases. A full rehearsal copied the dev database into an empty
 PostgreSQL database: 44 tables, 0 row-count differences, identical checksums, user ids and timestamps (to the
@@ -139,6 +139,19 @@ instrument ordering now puts empty values first and breaks ties by trading symbo
 order on both databases; the indicators API no longer crashes on NaN. Known harmless difference: PostgreSQL on
 Windows sorts text ignoring spaces and dashes, so about 0.6% of instrument rows (obscure fund names) sort slightly
 differently.
+
+**Cut over (2026-10-05, evening).** Chosen route: a fresh PostgreSQL database rather than a full copy. The copy tool
+gained `--only app.model,...` and was used to carry across just the login data (user accounts, JWT token tables,
+the Zerodha connection and the AI provider key); the `Ranthony1` test user was removed. Everything else was
+re-fetched from Zerodha: instruments (NSE 10,332, NFO 35,436, the SENSEX index, MCX/CDS driver futures) and the
+last 60 days of candles (1d, 30m, 15m, 5m, 3m, 1m) for NIFTY and BANKNIFTY. With only 60 days of daily candles the
+gap-direction base rates have far fewer sessions than the earlier 5 years, so they may show "not enough data";
+`python manage.py backfill_candles --symbols NIFTY,BANKNIFTY --timeframe 1d --years 5` restores them. AI runs, audit
+events and all trading records were deliberately reset. `.env` now has `DATABASE_URL`; deleting that line and
+restarting returns to SQLite (the SQLite file and its backups in C:\DevOpsProjectthena-backups were not changed).
+First PostgreSQL backup: `athena_db-*.dump` in the same folder (pg_dump custom format; restore with pg_restore).
+
+Original cutover steps, for reference:
 
 Cutover (do it outside market hours):
 1. Stop the Django server, Celery worker and Celery beat. Back up `backend/db.sqlite3`.

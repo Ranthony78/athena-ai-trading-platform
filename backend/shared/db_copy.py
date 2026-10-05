@@ -66,13 +66,23 @@ def _label(model) -> str:
     return model._meta.label_lower
 
 
-def models_to_copy():
-    """All concrete models, including automatic many-to-many tables."""
-    return [
+def models_to_copy(only=None):
+    """
+    All concrete models, including automatic many-to-many tables. With
+    `only` (labels such as "accounts.user"), just those models.
+    """
+    chosen = {label.lower() for label in only} if only else None
+    models_list = [
         m
         for m in apps.get_models(include_auto_created=True)
         if _label(m) not in SKIPPED_MODELS and not m._meta.proxy
     ]
+    if chosen is None:
+        return models_list
+    unknown = chosen - {_label(m) for m in models_list}
+    if unknown:
+        raise CopyError("Unknown or non-copyable models: " + ", ".join(sorted(unknown)))
+    return [m for m in models_list if _label(m) in chosen]
 
 
 def _points_at_skipped(model) -> bool:
@@ -132,7 +142,7 @@ def keep_timestamps():
             field.auto_now_add = auto_now_add
 
 
-def check_ready(target_alias="default"):
+def check_ready(target_alias="default", only=None):
     """Refuse to run unless the target is a migrated, empty PostgreSQL database."""
     target = connections[target_alias]
     if target.vendor != "postgresql":
@@ -150,7 +160,7 @@ def check_ready(target_alias="default"):
             f"The target has {len(pending)} unapplied migrations. Run 'manage.py migrate' on it first."
         )
     filled = []
-    for model in models_to_copy():
+    for model in models_to_copy(only):
         if model.objects.using(target_alias).exists():
             filled.append(model._meta.db_table)
     if filled:
@@ -160,10 +170,12 @@ def check_ready(target_alias="default"):
         )
 
 
-def check_source_can_be_copied():
+def check_source_can_be_copied(only=None):
     """Rows that point at rebuilt tables would end up pointing at the wrong ids."""
     problems = []
-    for model in apps.get_models(include_auto_created=True):
+    for model in (
+        models_to_copy(only) if only else apps.get_models(include_auto_created=True)
+    ):
         if _label(model) in SKIPPED_MODELS or model._meta.proxy:
             continue
         if _points_at_skipped(model) and model.objects.using(SOURCE_ALIAS).exists():
@@ -177,9 +189,9 @@ def check_source_can_be_copied():
         )
 
 
-def copy_all(target_alias="default", batch_size=2000, log=print) -> dict:
-    """Copy every table; returns {table: rows_copied}."""
-    ordered = dependency_order(models_to_copy())
+def copy_all(target_alias="default", batch_size=2000, log=print, only=None) -> dict:
+    """Copy every table (or just those in `only`); returns {table: rows_copied}."""
+    ordered = dependency_order(models_to_copy(only))
     copied = {}
     with keep_timestamps(), transaction.atomic(using=target_alias):
         for model in ordered:
@@ -213,10 +225,10 @@ def copy_all(target_alias="default", batch_size=2000, log=print) -> dict:
     return copied
 
 
-def compare_counts(target_alias="default") -> list:
+def compare_counts(target_alias="default", only=None) -> list:
     """(table, source_rows, target_rows) for every table that differs."""
     differences = []
-    for model in models_to_copy():
+    for model in models_to_copy(only):
         if _points_at_skipped(model):
             continue
         source = model.objects.using(SOURCE_ALIAS).count()
@@ -226,15 +238,15 @@ def compare_counts(target_alias="default") -> list:
     return differences
 
 
-def run(sqlite_path, target_alias="default", log=print) -> dict:
+def run(sqlite_path, target_alias="default", log=print, only=None) -> dict:
     """Validate, copy, verify. Raises CopyError or returns the per-table counts."""
     if settings.DATABASES[target_alias]["ENGINE"] != "django.db.backends.postgresql":
         raise CopyError("DATABASE_URL must point at PostgreSQL before copying.")
     register_source(sqlite_path)
-    check_ready(target_alias)
-    check_source_can_be_copied()
-    copied = copy_all(target_alias, log=log)
-    differences = compare_counts(target_alias)
+    check_ready(target_alias, only)
+    check_source_can_be_copied(only)
+    copied = copy_all(target_alias, log=log, only=only)
+    differences = compare_counts(target_alias, only)
     if differences:
         raise CopyError(f"Row counts differ after copying: {differences}")
     return copied
