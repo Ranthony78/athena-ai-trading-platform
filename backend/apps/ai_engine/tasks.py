@@ -9,6 +9,15 @@ SCHEDULED_SYMBOLS = ["NIFTY", "BANKNIFTY"]
 SCHEDULED_HORIZON_MINUTES = 30
 
 
+def _instrument(symbol):
+    """The index instrument Athena itself uses for this code (NIFTY -> NIFTY 50, BANKNIFTY -> NIFTY BANK)."""
+    from apps.market_data.repositories.instrument_repository import (
+        InstrumentRepository,
+    )
+
+    return InstrumentRepository.get_by_symbol(symbol)
+
+
 def _pick_user():
     """The user whose saved Zerodha session and AI key the scheduled run may use."""
     from apps.zerodha.repositories.zerodha_repository import ZerodhaConfigRepository
@@ -63,7 +72,7 @@ def run_scheduled_next_session_analysis():
         except Exception as e:
             logger.error(f"Daily candle fetch failed [{symbol}]: {type(e).__name__}")
         has_today = Candle.objects.filter(
-            instrument__symbol__in=[symbol, f"{symbol} 50"],
+            instrument=_instrument(symbol),
             timeframe="1d",
             candle_time__date=today,
         ).exists()
@@ -71,7 +80,7 @@ def run_scheduled_next_session_analysis():
             results[symbol] = "skipped (no daily candle for today; holiday or data gap)"
             continue
         already = AnalysisSession.objects.filter(
-            instrument__symbol__in=[symbol, f"{symbol} 50"],
+            instrument=_instrument(symbol),
             created_at__date=today,
             market_context__analysis_mode="NEXT_SESSION",
             status="COMPLETE",
@@ -105,9 +114,10 @@ def run_scheduled_next_session_analysis():
 # Hard ceiling on analyses saved per day for the scheduled user, manual runs
 # included. Stops a bug or a retry loop from burning AI quota.
 DAILY_ANALYSIS_CAP = 8
-# A second scheduled run for the same symbol inside this window is a duplicate
-# (double beat, restart, retry) and is skipped.
-DUPLICATE_WINDOW_MINUTES = 60
+# A LIVE run for the same symbol inside this window means the slot already ran
+# (double beat, restart, retry) and is skipped. Short on purpose: a manual run
+# half an hour earlier must not cancel the scheduled slot.
+DUPLICATE_WINDOW_MINUTES = 20
 
 
 @shared_task
@@ -145,15 +155,16 @@ def run_scheduled_live_analysis():
         if used_today >= DAILY_ANALYSIS_CAP:
             results[symbol] = f"skipped (daily cap of {DAILY_ANALYSIS_CAP} reached)"
             continue
-        symbols = [symbol, f"{symbol} 50"]
         recent = AnalysisSession.objects.filter(
-            instrument__symbol__in=symbols,
+            instrument=_instrument(symbol),
             user=user,
             created_at__gte=now - timedelta(minutes=DUPLICATE_WINDOW_MINUTES),
             market_context__analysis_mode="LIVE",
         ).exists()
         if recent:
-            results[symbol] = "skipped (already run within the last hour)"
+            results[symbol] = (
+                f"skipped (already run in the last {DUPLICATE_WINDOW_MINUTES} minutes)"
+            )
             continue
         try:
             out = AnalysisService(user=user).analyze(

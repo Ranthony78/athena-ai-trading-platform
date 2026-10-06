@@ -45,7 +45,10 @@ class PaperEvaluationService:
     @transaction.atomic
     def start(cls, session_id):
         session = (
-            AnalysisSession.objects.select_for_update()
+            # of=("self",): lock only the session row. PostgreSQL refuses FOR
+            # UPDATE on the nullable side of the outer join to user; SQLite
+            # ignores locking, which is why tests on SQLite never caught it.
+            AnalysisSession.objects.select_for_update(of=("self",))
             .select_related("user")
             .get(pk=session_id)
         )
@@ -248,7 +251,10 @@ class PaperEvaluationService:
     @transaction.atomic
     def close_due(cls, session_id):
         session = (
-            AnalysisSession.objects.select_for_update()
+            # of=("self",): lock only the session row. PostgreSQL refuses FOR
+            # UPDATE on the nullable side of the outer join to user; SQLite
+            # ignores locking, which is why tests on SQLite never caught it.
+            AnalysisSession.objects.select_for_update(of=("self",))
             .select_related("user")
             .get(pk=session_id)
         )
