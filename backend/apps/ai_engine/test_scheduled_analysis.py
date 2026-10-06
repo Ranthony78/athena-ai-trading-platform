@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from io import StringIO
 from unittest import mock
 
@@ -32,7 +32,7 @@ class ScheduledAnalysisTests(TestCase):
         self.bank = Instrument.objects.create(
             instrument_token=2,
             exchange="NSE",
-            symbol="BANKNIFTY 50",
+            symbol="NIFTY BANK",
             trading_symbol="NIFTY BANK",
             instrument_type="IDX",
         )
@@ -223,8 +223,49 @@ class LiveScheduleTests(TestCase):
             ) as svc,
         ):
             result = tasks.run_scheduled_live_analysis()
-        self.assertIn("within the last hour", result["NIFTY"])
+        self.assertIn("in the last 20 minutes", result["NIFTY"])
         self.assertEqual(svc.return_value.analyze.call_count, 1)  # BANKNIFTY only
+
+
+class LiveScheduleManualRunTests(TestCase):
+    """A manual run 30 minutes before a slot must not cancel the slot."""
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_user("u", "u@example.com", "x")
+        self.nifty = Instrument.objects.create(
+            instrument_token=31,
+            exchange="NSE",
+            symbol="NIFTY 50",
+            trading_symbol="NIFTY 50",
+            instrument_type="IDX",
+        )
+
+    def test_earlier_manual_run_does_not_block_the_slot(self):
+        if timezone.localdate().weekday() >= 5:
+            self.skipTest("needs a weekday")
+        manual = AnalysisSession.objects.create(
+            instrument=self.nifty,
+            user=self.user,
+            session_type="MARKET_ANALYSIS",
+            status="COMPLETE",
+            market_context={"analysis_mode": "LIVE"},
+        )
+        AnalysisSession.objects.filter(pk=manual.pk).update(
+            created_at=timezone.now() - timedelta(minutes=30)
+        )
+        with (
+            mock.patch(
+                "apps.market_data.engine.market_state.MarketState.session_info",
+                return_value={"is_live": True},
+            ),
+            mock.patch.object(tasks, "_pick_user", return_value=self.user),
+            mock.patch(
+                "apps.ai_engine.services.analysis_service.AnalysisService"
+            ) as svc,
+        ):
+            svc.return_value.analyze.return_value = {"session_id": 9}
+            result = tasks.run_scheduled_live_analysis()
+        self.assertEqual(result["NIFTY"], "saved session 9")
 
 
 class JournalDigestTests(TestCase):
