@@ -19,8 +19,14 @@ class GeminiProvider(BaseAIProvider):
 
     API_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
     DEFAULT_MODEL = "gemini-3.5-flash"
-    REQUEST_TIMEOUT_SECONDS = 60.0
+    # Normal analyses take 20-50 s; at 60 s every call timed out on a slow
+    # afternoon (7 Oct 13:30 and 16:30), so allow more room and one retry.
+    REQUEST_TIMEOUT_SECONDS = 120.0
     MAX_UNAVAILABLE_RETRIES = 3
+    MAX_TIMEOUT_RETRIES = 1
+    # Gemini's internal reasoning shares the output budget; when the reply is
+    # cut off (finishReason MAX_TOKENS) retry once with a larger budget.
+    TRUNCATION_TOKEN_CEILING = 16000
 
     def __init__(self, api_key=None) -> None:
         self.api_key = (
@@ -56,6 +62,61 @@ class GeminiProvider(BaseAIProvider):
         }
         start = time.monotonic()
 
+        timeouts = 0
+        truncation_retried = False
+        while True:
+            data = self._post(effective_model, payload, timeouts)
+            if data is None:  # timed out; _post raises once retries are spent
+                timeouts += 1
+                continue
+            candidates = data.get("candidates") or []
+            finish_reason = candidates[0].get("finishReason") if candidates else None
+            budget = payload["generationConfig"]["maxOutputTokens"]
+            if finish_reason == "MAX_TOKENS":
+                if not truncation_retried and budget < self.TRUNCATION_TOKEN_CEILING:
+                    truncation_retried = True
+                    logger.warning(
+                        "Gemini reply was cut off at %s output tokens; retrying with more.",
+                        budget,
+                    )
+                    payload["generationConfig"]["maxOutputTokens"] = min(
+                        self.TRUNCATION_TOKEN_CEILING, budget * 2
+                    )
+                    continue
+                # Never save a cut-off reply as if it were a complete analysis.
+                raise GeminiAPIError(
+                    "Gemini's reply was cut off before it finished (MAX_TOKENS), even after a retry."
+                )
+            break
+
+        candidates = data.get("candidates") or []
+        parts = (
+            (candidates[0].get("content") or {}).get("parts") or []
+            if candidates
+            else []
+        )
+        content = "".join(
+            part.get("text", "") for part in parts if isinstance(part, dict)
+        )
+        if not content.strip():
+            logger.warning(
+                "Gemini response had no text candidate (finish reason: %s).",
+                finish_reason,
+            )
+            raise GeminiAPIError(
+                "Gemini did not return analysis text. Check the prompt and model response limits."
+            )
+
+        usage = data.get("usageMetadata") or {}
+        return {
+            "content": content,
+            "model": data.get("modelVersion") or effective_model,
+            "tokens_used": usage.get("totalTokenCount", 0),
+            "duration_ms": int((time.monotonic() - start) * 1000),
+        }
+
+    def _post(self, effective_model, payload, timeouts_so_far):
+        """One request with 503 back-off. Returns None on a retryable timeout."""
         data = None
         for attempt in range(self.MAX_UNAVAILABLE_RETRIES + 1):
             try:
@@ -101,6 +162,8 @@ class GeminiProvider(BaseAIProvider):
                 raise GeminiAPIError(message) from exc
             except httpx.TimeoutException as exc:
                 logger.warning("Gemini API request timed out.")
+                if timeouts_so_far < self.MAX_TIMEOUT_RETRIES:
+                    return None
                 raise GeminiAPIError(
                     "Gemini did not respond before the request timed out."
                 ) from exc
@@ -118,29 +181,4 @@ class GeminiProvider(BaseAIProvider):
                 logger.exception("Unexpected Gemini provider failure.")
                 raise GeminiAPIError("Gemini returned an unexpected response.") from exc
 
-        candidates = data.get("candidates") or []
-        parts = (
-            (candidates[0].get("content") or {}).get("parts") or []
-            if candidates
-            else []
-        )
-        content = "".join(
-            part.get("text", "") for part in parts if isinstance(part, dict)
-        )
-        if not content.strip():
-            finish_reason = candidates[0].get("finishReason") if candidates else None
-            logger.warning(
-                "Gemini response had no text candidate (finish reason: %s).",
-                finish_reason,
-            )
-            raise GeminiAPIError(
-                "Gemini did not return analysis text. Check the prompt and model response limits."
-            )
-
-        usage = data.get("usageMetadata") or {}
-        return {
-            "content": content,
-            "model": data.get("modelVersion") or effective_model,
-            "tokens_used": usage.get("totalTokenCount", 0),
-            "duration_ms": int((time.monotonic() - start) * 1000),
-        }
+        return data

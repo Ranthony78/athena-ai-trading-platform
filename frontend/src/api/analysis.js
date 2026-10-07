@@ -6,10 +6,10 @@ export const analysisAPI = {
     preview: (data) => api.post("/ai/preview/", data, { timeout: 75_000 }),
 
     analyze: (data) =>
-        // Gemini may take up to 60 seconds on a full evidence-rich analysis.
-        // Leave a small buffer beyond the provider timeout so the browser
-        // doesn't abandon a request Athena is still processing.
-        api.post("/ai/analyze/", data, { timeout: 75_000 }),
+        // The backend allows Gemini 120 s and one retry after a timeout, so a
+        // slow analysis can take about 4 minutes. Wait a little longer than
+        // that so the browser doesn't abandon a request Athena is still processing.
+        api.post("/ai/analyze/", data, { timeout: 270_000 }),
 
     getSessions: () => api.get("/ai/sessions/"),
 

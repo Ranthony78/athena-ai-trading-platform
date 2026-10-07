@@ -31,6 +31,20 @@ class InstrumentRepository(BaseRepository[Instrument]):
     }
 
     @classmethod
+    def underlying_code(cls, symbol: str) -> str:
+        """
+        The short code option and futures contracts are filed under
+        (NIFTY 50 -> NIFTY, NIFTY BANK -> BANKNIFTY). Index instruments carry
+        Zerodha's long name, so passing instrument.symbol to option code
+        found no contracts. Unknown names are returned upper-cased.
+        """
+        code = str(symbol or "").strip().upper()
+        reverse = {
+            name.upper(): short for short, name in cls.INDEX_SYMBOL_ALIASES.items()
+        }
+        return reverse.get(code, code)
+
+    @classmethod
     def get_by_symbol(cls, symbol: str) -> Optional[Instrument]:
         """
         Return the underlying instrument by symbol (case-insensitive).
