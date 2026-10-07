@@ -78,8 +78,10 @@ class OptionChainService:
         """
         from django.conf import settings
 
+        from ..repositories.instrument_repository import InstrumentRepository
         from ..services.market_service import MarketService
 
+        symbol = InstrumentRepository.underlying_code(symbol)
         market = MarketService(user=self.user)
 
         if settings.MARKET_PROVIDER == "mock":
@@ -145,8 +147,10 @@ class OptionChainService:
         Return chain-level analytics on top of get_chain(): PCR (OI and
         volume based), max pain strike, ATM strike, and spot price.
         """
+        from ..repositories.instrument_repository import InstrumentRepository
         from ..services.market_service import MarketService
 
+        symbol = InstrumentRepository.underlying_code(symbol)
         market = MarketService(user=self.user)
         spot_quote = market.quote(symbol)
         spot_price = spot_quote.get("ltp") if spot_quote else None

@@ -62,6 +62,7 @@ class StrikeSelectionService:
             from ..repositories.instrument_repository import InstrumentRepository
             from .option_chain_service import OptionChainService
 
+            symbol = InstrumentRepository.underlying_code(symbol)
             service = OptionChainService(user=user)
             summary = service.get_chain_summary(symbol)
 

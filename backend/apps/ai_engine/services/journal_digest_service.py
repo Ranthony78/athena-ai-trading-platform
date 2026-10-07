@@ -51,10 +51,19 @@ class JournalDigestService:
             .select_related("instrument")
             .order_by("created_at")
         )
-        if not sessions:
-            return "skipped (no AI runs today)"
 
         resolved = [s for s in sessions if s.forecast_outcome_status == "RESOLVED"]
+        # Failed runs are not analyses, but hiding them makes the day look quieter
+        # than it was (7 Oct: 4 of 8 runs timed out and the draft said "4 runs").
+        failed = list(
+            AnalysisSession.objects.filter(
+                user=user, created_at__date=today, status="FAILED"
+            )
+            .select_related("instrument")
+            .order_by("created_at")
+        )
+        if not sessions and not failed:
+            return "skipped (no AI runs today)"
         notes = [
             "Automatic draft from today's saved AI runs. Review before relying on it.",
             "",
@@ -62,6 +71,14 @@ class JournalDigestService:
             "",
             f"{len(sessions)} runs, {len(resolved)} forecasts resolved so far.",
         ]
+        if failed:
+            notes += ["", f"{len(failed)} runs failed and are not counted above:"]
+            notes += [
+                f"{timezone.localtime(s.created_at):%H:%M} "
+                f"{s.instrument.symbol if s.instrument else '?'}: "
+                f"{(s.error_message or 'no reason recorded')[:120]}"
+                for s in failed
+            ]
         JournalEntry.objects.create(
             user=user,
             date=today,
