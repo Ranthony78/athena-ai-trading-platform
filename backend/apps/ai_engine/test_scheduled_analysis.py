@@ -308,6 +308,25 @@ class JournalDigestTests(TestCase):
         entry.refresh_from_db()
         self.assertEqual(entry.market_notes, "my edits")
 
+    def test_failed_runs_are_listed_not_hidden(self):
+        from apps.ai_engine.services.journal_digest_service import JournalDigestService
+        from apps.journal.models import JournalEntry
+
+        if timezone.localdate().weekday() >= 5:
+            self.skipTest("needs a weekday")
+        self._session()
+        AnalysisSession.objects.create(
+            instrument=self.nifty,
+            user=self.user,
+            session_type="MARKET_ANALYSIS",
+            status="FAILED",
+            error_message="Gemini did not respond before the request timed out.",
+        )
+        JournalDigestService.write_for_today(self.user)
+        notes = JournalEntry.objects.get(user=self.user).market_notes
+        self.assertIn("1 runs failed", notes)
+        self.assertIn("timed out", notes)
+
     def test_no_runs_means_no_draft(self):
         from apps.ai_engine.services.journal_digest_service import JournalDigestService
 
