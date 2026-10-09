@@ -49,4 +49,16 @@ const useAuthStore = create(
     )
 );
 
+// Keep every open tab in step. Another tab's token refresh (which cancels the
+// old refresh token) or logout is written to localStorage; without this, a
+// second tab kept its stale token in memory and its next refresh logged the
+// user out of every tab (9 Oct, two tabs open).
+if (typeof window !== "undefined") {
+    window.addEventListener("storage", (event) => {
+        if (event.key === "athena-auth") {
+            useAuthStore.persist.rehydrate();
+        }
+    });
+}
+
 export default useAuthStore;
