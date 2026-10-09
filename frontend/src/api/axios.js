@@ -26,18 +26,32 @@ api.interceptors.request.use(
 // token that has just been blacklisted and wrongly log the user out.
 let refreshPromise = null;
 
-function refreshAccessToken() {
+async function doRefresh(failedAccess) {
+    // Another tab may already have refreshed: its new tokens are in
+    // localStorage. Re-read them and reuse them instead of spending the old,
+    // now-cancelled refresh token.
+    await useAuthStore.persist.rehydrate();
+    const { accessToken, refreshToken } = useAuthStore.getState();
+    if (accessToken && accessToken !== failedAccess) {
+        return accessToken;
+    }
+    const response = await axios.post("/api/accounts/token/refresh/", {
+        refresh: refreshToken,
+    });
+    useAuthStore.getState().setTokens(response.data);
+    return response.data.access;
+}
+
+function refreshAccessToken(failedAccess) {
     if (!refreshPromise) {
-        const { refreshToken } = useAuthStore.getState();
-        refreshPromise = axios
-            .post("/api/accounts/token/refresh/", { refresh: refreshToken })
-            .then((response) => {
-                useAuthStore.getState().setTokens(response.data);
-                return response.data.access;
-            })
-            .finally(() => {
-                refreshPromise = null;
-            });
+        // The Web Locks API lets only one tab refresh at a time; the others
+        // wait and then pick up the result via doRefresh's re-read.
+        const run = () => doRefresh(failedAccess);
+        refreshPromise = (
+            navigator.locks ? navigator.locks.request("athena-token-refresh", run) : run()
+        ).finally(() => {
+            refreshPromise = null;
+        });
     }
     return refreshPromise;
 }
@@ -45,6 +59,14 @@ function refreshAccessToken() {
 function forceLogout() {
     useAuthStore.getState().logout();
     window.location.href = "/login";
+}
+
+// The refresh token itself was rejected (expired, cancelled or malformed).
+// Anything else - network error, timeout, busy or failing server, rate limit -
+// is temporary, and the user stays signed in.
+function refreshTokenRejected(error) {
+    const status = error?.response?.status;
+    return status === 401 || status === 400;
 }
 
 // Response interceptor — handle auth errors
@@ -61,12 +83,18 @@ api.interceptors.response.use(
                 return Promise.reject(error);
             }
 
+            const failedAccess = String(original.headers?.Authorization || "").replace(
+                /^Bearer /,
+                ""
+            );
             try {
-                const access = await refreshAccessToken();
+                const access = await refreshAccessToken(failedAccess);
                 original.headers.Authorization = `Bearer ${access}`;
                 return api(original);
-            } catch {
-                forceLogout();
+            } catch (refreshError) {
+                if (refreshTokenRejected(refreshError)) {
+                    forceLogout();
+                }
                 return Promise.reject(error);
             }
         }
